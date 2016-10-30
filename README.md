@@ -1,6 +1,8 @@
 # EP994A
 My TI-99/4A clone implemented with a TMS99105 CPU and FPGA.
 
+See the file LICENSE for license terms.
+
 Hackaday
 --------
 Project is documented to an extent at Hackaday and AtariAge TI-99/4A forums.
