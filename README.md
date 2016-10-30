@@ -1,7 +1,9 @@
 # EP994A
 My TI-99/4A clone implemented with a TMS99105 CPU and FPGA.
 
-See the file LICENSE for license terms.
+See the file LICENSE for license terms. At least for now (without contributors from others)
+the source code is made available under the LGPL license terms.
+You need to retain copyright notices in the source code.
 
 Hackaday
 --------
