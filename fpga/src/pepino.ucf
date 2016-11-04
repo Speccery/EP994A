@@ -187,8 +187,9 @@ NET "RD_n"			LOC = "B8" | IOSTANDARD = LVCMOS33;
 NET "WE_n"			LOC = "A8" | IOSTANDARD = LVCMOS33;
 
 # Debugging pins (PS2 keyboard port)
-NET "DEBUG1"		LOC = "C9" | IOSTANDARD = LVCMOS33; # PMOD2-IO4 (pin 5)
-NET "DEBUG2"		LOC = "A9" | IOSTANDARD = LVCMOS33; # PMOD2-IO2 (pin 1)
+# Actually taken into real use.
+NET "INTERRUPT"	LOC = "C9" | IOSTANDARD = LVCMOS33; # PMOD2-IO4 (pin 5)
+NET "CPU_RESET"	LOC = "A9" | IOSTANDARD = LVCMOS33; # PMOD2-IO2 (pin 1)
 
 # audio
 NET "AUDIO_L"      LOC = "K15"| IOSTANDARD = LVCMOS33;

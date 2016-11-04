@@ -74,8 +74,8 @@ entity ep994a is
 			  VGA_GREEN	: out std_logic_vector(2 downto 0);
 			  
 			  -- DEBUG (PS2 KBD port)
-			  DEBUG1		: out std_logic;
-			  DEBUG2		: out std_logic;
+			  INTERRUPT	: out std_logic;	-- interrupt to the CPU
+			  CPU_RESET		: out std_logic;
 			  
 			  -- AUDIO
 			  AUDIO_L	: out std_logic;
@@ -267,21 +267,25 @@ begin
 	SRAM_OE	<=		debug_sram_oe; -- when cpu_access = '0' else RD_n; 	
 	
 	-------------------------------------
-	-- CPU reset out
-	debug2 <= cpu_reset_ctrl(0);
+	-- CPU reset out. If either cpu_reset_ctrl(0) or funky_reset(MSB) is zero, put CPU to reset.
+	CPU_RESET <= cpu_reset_ctrl(0) and funky_reset(funky_reset'length-1);
 	
 	-------------------------------------
 	-- vdp interrupt
-	debug1 <=  not vdp_interrupt when cru9901(2)='1' else '1';	-- TMS9901 interrupt mask bit
+	INTERRUPT <=  not vdp_interrupt when cru9901(2)='1' else '1';	-- TMS9901 interrupt mask bit
 	-- cartridge memory select
   	cartridge_cs 	<= '1' when MEM_n = '0' and cpu_addr(15 downto 13) = "011" else '0'; -- cartridge_cs >6000..>7FFF
 
-	process(clk)
+	process(clk, switch)
 	variable ki : integer range 0 to 7;
 	begin
 		if rising_edge(clk) then 	-- our 100 MHz clock
 			-- reset generation
-			funky_reset <= funky_reset(funky_reset'length-2 downto 0) & '1';
+			if switch = '1' then
+				funky_reset <= (others => '0');	-- button on the FPGA board pressed
+			else
+				funky_reset <= funky_reset(funky_reset'length-2 downto 0) & '1';
+			end if;
 			-- reset processing
 			if funky_reset(funky_reset'length-1) = '0' then
 				-- reset activity here
@@ -321,14 +325,13 @@ begin
 						mem_read_ack <= '0';
 						mem_write_ack <= '0';
 						cpu_access <= '1';			-- CPU has lower priority than memory load hardware
-						-- DEBUG1 <= '0';
-						if mem_write_rq = '1' and mem_addr(20)='0' then
+						if mem_write_rq = '1' and mem_addr(20)='0' and alatch_sampler(1 downto 0) = "01" then
 							-- normal memory write
 							sram_addr_bus <= mem_addr(19 downto 1);	-- setup address
 							cpu_access <= '0';
 							mem_state <= wr0;
 							mem_drive_bus <= '1';	-- only writes drive the bus
-						elsif mem_read_rq = '1' and mem_addr(20)='0' then
+						elsif mem_read_rq = '1' and mem_addr(20)='0' and alatch_sampler(1 downto 0) = "01" then
 							sram_addr_bus <= mem_addr(19 downto 1);	-- setup address
 							cpu_access <= '0';
 							mem_state <= rd0;
@@ -392,7 +395,6 @@ begin
 						mem_state <= cpu_rd2;
 						mem_to_cpu <= SRAM_DAT(15 downto 0);
 					when cpu_rd2 =>
-						--DEBUG1 <= '1';
 						debug_sram_ce0 <= '1';
 						debug_sram_oe <= '1';
 						mem_state <= grace;
@@ -464,10 +466,8 @@ begin
 				
 				-- CPU signal samplers
 				alatch_sampler <= alatch_sampler(alatch_sampler'length-2 downto 0) & ALATCH;
-				-- DEBUG1 <= '0';
 				if alatch_sampler(1 downto 0) = "01" then
 					cpu_addr <= indata;		-- latch CPU address bus on ALATCH going high
-					-- DEBUG1 <= '1';
 				end if;
 				wr_sampler <= wr_sampler(wr_sampler'length-2 downto 0) & WE_n;
 				rd_sampler <= rd_sampler(rd_sampler'length-2 downto 0) & RD_n;
@@ -511,13 +511,14 @@ begin
 				
 				-- Precompute cru_read_bit in case this cycle is a CRU read 
 				cru_read_bit <= '1';
-				if cru9901(20 downto 18)="101" and cpu_addr(15 downto 1) & '0' = x"000E" then
-					-- key "1" CRU is connected to switch
-					cru_read_bit <= '1';
-					if switch = '1' or keyboard(5, 4)='0' then
-						cru_read_bit <= '0';
-					end if;
-				elsif cpu_addr(15 downto 1) & '0' >= 6 and cpu_addr(15 downto 1) & '0' < 22 then
+--				if cru9901(20 downto 18)="101" and cpu_addr(15 downto 1) & '0' = x"000E" then
+--					-- key "1" CRU is connected to switch
+--					cru_read_bit <= '1';
+--					if switch = '1' or keyboard(5, 4)='0' then
+--						cru_read_bit <= '0';
+--					end if;
+--				els
+				if cpu_addr(15 downto 1) & '0' >= 6 and cpu_addr(15 downto 1) & '0' < 22 then
 					-- 6 = 0110
 					--	8 = 1000
 					-- A = 1010 
