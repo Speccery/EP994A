@@ -1,7 +1,12 @@
 //------------------------------------------------------------------
 // memloader.c
-// Erik Piehl (C) 2016-09-01
+// Erik Piehl (C) 2016-09-01 .. 2016-11-13
 // epiehl@gmail.com
+//------------------------------------------------------------------
+// 2016-11-12, 2016-11-13:
+//    Refactoring, added Visual Studio 2015 project files.
+//    Added disk support, in keyboard emulation mode the code polls
+//    TMS99105 and processes file requests.
 //------------------------------------------------------------------
 // Serial port access from cygwin, to communicate with Pepino FPGA.
 // Compile with "gcc -g -o memloader memloader.c"
@@ -11,12 +16,18 @@
 // now leftover from that project.
 //------------------------------------------------------------------
 
+#define _CRT_SECURE_NO_WARNINGS
+
 #include <stdio.h>
 #include <windows.h>
 #include <io.h>
 
+#include "fpga-mem.h"
+#include "diskio.h"
+
 // For now COM port is stupidly hardcoded, but then again changes are one "make" command away!
-char *serial_port = "COM4"; 
+char serial_port[10] = "COM4";
+char opt_verbose = 0;
 
 HANDLE hCom = INVALID_HANDLE_VALUE;
 int bit_rate = 230400;
@@ -51,7 +62,8 @@ void OpenSerialPort(void)
         exit(2);
     }
 
-    DebugPrintf(3, "COM-Port %s opened...\n", serial_port);
+    if (opt_verbose)
+      DebugPrintf(3, "COM-Port %s opened...\n", serial_port);
 
 	ZeroMemory(&dcb, sizeof(DCB));
 	dcb.DCBlength = sizeof(DCB);
@@ -284,7 +296,6 @@ int ReceiveComPortBlockComplete(void *block, size_t size, unsigned timeout)
 {
     DWORD realsize = 0, read;
     char *result;
-    char tmp_string[32];
 	int loops = 0;
 	unsigned now = GetTickCount();
 
@@ -307,7 +318,7 @@ int ReceiveComPortBlockComplete(void *block, size_t size, unsigned timeout)
     // sprintf(tmp_string, "Answer(Length=%ld): ", realsize);
     // DumpString(3, result, realsize, tmp_string);
 	DebugPrintf(4, "Answer(length=%ld, loops=%d, %dms): ", realsize, loops, GetTickCount() - now);
-	for(int i=0; i<realsize; i++) {
+	for(unsigned i=0; i<realsize; i++) {
 		DebugPrintf(4, "%02X ", block);
 	}
 	DebugPrintf(4, "\n");
@@ -415,13 +426,13 @@ int try_sync() {
 	return 0;
 }
 
-int setup_hw_address(unsigned addr) {
+void setup_hw_address(unsigned addr) {
 	unsigned char buf[16] = { "A_B_C_D_" };
 	buf[1] = addr;
 	buf[3] = addr >> 8;
 	buf[5] = addr >> 16;
 	buf[7] = addr >> 24;
-  SendComPortBlock(buf, 8);
+	SendComPortBlock(buf, 8);
 	fc.addr = addr;
 }
 
@@ -512,7 +523,7 @@ void check_writes_reads() {
 		if(response[i])
 			DebugPrintf(2, "%c", response[i]);
 		if(response[i] != s[i]) {
-			printf("\nError: memory compare failed %X!=%X at %d\n", s[i], response[i]);
+			printf("\nError: memory compare failed %X!=%X at %d\n", s[i], response[i], i);
 			exit(3);
 		}
 	}
@@ -602,6 +613,434 @@ int WriteMemoryBlock(unsigned char *source, unsigned address, int len) {
   return chunk;
 }
 
+int cmd_keys()
+{
+  printf("Sending keyboard state codes to TI994A\n");
+  OpenSerialPort();
+  ClearSerialPortBuffers();
+  char keybuf[8];
+  while (1) {
+    // VK_LEFT, VK_SHIFT
+    memset(keybuf, 0xff, sizeof(keybuf));
+    if (GetAsyncKeyState(VK_LSHIFT) & 0x8000) {
+      keybuf[0] &= ~0x20;
+    }
+    if (GetAsyncKeyState(VK_RSHIFT) & 0x8000) {
+      keybuf[0] &= ~0x20;
+    }
+
+    if (GetAsyncKeyState(VK_LCONTROL) & 0x8000) {
+      keybuf[0] &= ~0x40;
+    }
+    if (GetAsyncKeyState(VK_RCONTROL) & 0x8000) {
+      keybuf[0] &= ~0x10;   // FCTN
+    }
+    if (GetAsyncKeyState(VK_RETURN) & 0x8000) {
+      keybuf[0] &= ~0x04;
+    }
+    if (GetAsyncKeyState(VK_SPACE) & 0x8000) {
+      keybuf[0] &= ~0x02;
+    }
+    if (GetAsyncKeyState(187) & 0x8000) {
+      keybuf[0] &= ~0x01;   // = +
+    }
+    if (GetAsyncKeyState(188) & 0x8000) {
+      keybuf[2] &= ~0x01;   // ,
+    }
+    if (GetAsyncKeyState(190) & 0x8000) {
+      keybuf[1] &= ~0x01;   // .
+    }
+    if (GetAsyncKeyState(192) & 0x8000) {
+      keybuf[5] &= ~0x02;   // ; ö
+    }
+    if (GetAsyncKeyState(221) & 0x8000) {
+      keybuf[5] &= ~0x01;   // / å
+    }
+
+    if (GetAsyncKeyState('0') & 0x8000) { keybuf[5] &= ~0x08; }
+    if (GetAsyncKeyState('1') & 0x8000) { keybuf[5] &= ~0x10; }
+    if (GetAsyncKeyState('2') & 0x8000) { keybuf[1] &= ~0x10; }
+    if (GetAsyncKeyState('3') & 0x8000) { keybuf[2] &= ~0x10; }
+    if (GetAsyncKeyState('4') & 0x8000) { keybuf[3] &= ~0x10; }
+    if (GetAsyncKeyState('5') & 0x8000) { keybuf[4] &= ~0x10; }
+    if (GetAsyncKeyState('6') & 0x8000) { keybuf[4] &= ~0x08; }
+    if (GetAsyncKeyState('7') & 0x8000) { keybuf[3] &= ~0x08; }
+    if (GetAsyncKeyState('8') & 0x8000) { keybuf[2] &= ~0x08; }
+    if (GetAsyncKeyState('9') & 0x8000) { keybuf[1] &= ~0x08; }
+
+    if (GetAsyncKeyState('A') & 0x8000) { keybuf[5] &= ~0x20; }
+    if (GetAsyncKeyState('B') & 0x8000) { keybuf[4] &= ~0x80; }
+    if (GetAsyncKeyState('C') & 0x8000) { keybuf[2] &= ~0x80; }
+    if (GetAsyncKeyState('D') & 0x8000) { keybuf[2] &= ~0x20; }
+    if (GetAsyncKeyState('E') & 0x8000) { keybuf[2] &= ~0x40; }
+
+    if (GetAsyncKeyState('F') & 0x8000) { keybuf[3] &= ~0x20; }
+    if (GetAsyncKeyState('G') & 0x8000) { keybuf[4] &= ~0x20; }
+    if (GetAsyncKeyState('H') & 0x8000) { keybuf[4] &= ~0x02; }
+    if (GetAsyncKeyState('I') & 0x8000) { keybuf[2] &= ~0x04; }
+    if (GetAsyncKeyState('J') & 0x8000) { keybuf[3] &= ~0x02; }
+    if (GetAsyncKeyState('K') & 0x8000) { keybuf[2] &= ~0x02; }
+    if (GetAsyncKeyState('L') & 0x8000) { keybuf[1] &= ~0x02; }
+    if (GetAsyncKeyState('M') & 0x8000) { keybuf[3] &= ~0x01; }
+    if (GetAsyncKeyState('N') & 0x8000) { keybuf[4] &= ~0x01; }
+
+    if (GetAsyncKeyState('O') & 0x8000) { keybuf[1] &= ~0x04; }
+    if (GetAsyncKeyState('P') & 0x8000) { keybuf[5] &= ~0x04; }
+    if (GetAsyncKeyState('Q') & 0x8000) { keybuf[5] &= ~0x40; }
+    if (GetAsyncKeyState('R') & 0x8000) { keybuf[3] &= ~0x40; }
+    if (GetAsyncKeyState('S') & 0x8000) { keybuf[1] &= ~0x20; }
+    if (GetAsyncKeyState('T') & 0x8000) { keybuf[4] &= ~0x40; }
+    if (GetAsyncKeyState('U') & 0x8000) { keybuf[3] &= ~0x04; }
+    if (GetAsyncKeyState('V') & 0x8000) { keybuf[3] &= ~0x80; }
+    if (GetAsyncKeyState('W') & 0x8000) { keybuf[1] &= ~0x40; }
+    if (GetAsyncKeyState('X') & 0x8000) { keybuf[1] &= ~0x80; }
+    if (GetAsyncKeyState('Y') & 0x8000) { keybuf[4] &= ~0x04; }
+    if (GetAsyncKeyState('Z') & 0x8000) { keybuf[5] &= ~0x80; }
+
+    if (GetAsyncKeyState(VK_LEFT) & 0x8000) {
+      keybuf[0] &= ~0x10;   // FCTN
+      keybuf[1] &= ~0x20; // S
+      keybuf[6] &= ~2;      // Joystick 1 left
+    }
+    if (GetAsyncKeyState(VK_RIGHT) & 0x8000) {
+      keybuf[0] &= ~0x10;   // FCTN
+      keybuf[2] &= ~0x20;   // D
+      keybuf[6] &= ~4;       // Joystick 1 right
+    }
+    if (GetAsyncKeyState(VK_UP) & 0x8000) {
+      keybuf[6] &= ~0x10;       // Joystick 1 up
+      printf("UP");
+    }
+    if (GetAsyncKeyState(VK_DOWN) & 0x8000) {
+      keybuf[6] &= ~8;       // Joystick 1 down
+      printf("DOWN");
+    }
+    if (GetAsyncKeyState(VK_NUMPAD0) & 0x8000) {
+      keybuf[6] &= ~1;       // Joystick 1 fire
+      printf("FIRE");
+    }
+    if (GetAsyncKeyState(VK_DELETE) & 0x8000) {
+      keybuf[0] &= ~0x10;   // FCTN
+      keybuf[5] &= ~0x10;   // 1
+    }
+
+    if (GetAsyncKeyState(VK_END) & 0x8000) {
+      printf("Ending...\n");
+      // Clear all input from buffer
+      while (!feof(stdin))
+        getc(stdin);  // read spurious input
+      break;
+    }
+
+#if 0          
+    for (int i = 0; i<255; i++) {
+      if (GetAsyncKeyState(i) & 0x8000) {
+        printf("%d ", i);
+        fflush(stdout);
+      }
+    }
+#endif 
+
+    WriteMemoryBlock(keybuf, 0x100000, 8);
+
+    DoDiskProcess();
+  }
+  CloseSerialPort();
+  return 0;
+}
+
+int cmd_regs() {
+  ////////////////////////////////////////////////////////////////////
+  // Show register status
+  ////////////////////////////////////////////////////////////////////
+  OpenSerialPort();
+  ClearSerialPortBuffers();
+  int ok;
+  printf("Address: 0x%X\n", read_hw_address(&ok));
+  printf("Repeat count: 0x%X\n", GetRepeatCounter());
+  SendComPortString("V");
+  printf("Version: %c\n", RxByte(200));
+  SendComPortString("N");
+  printf("Mode: %c\n", RxByte(200));
+  SendComPortString("X");
+  printf("Ack clocks: %c\n", RxByte(200));
+  CloseSerialPort();
+  return 0;
+}
+
+int cmd_read(int k, int argc, char *argv[]) {
+  ////////////////////////////////////////////////////////////////////
+  // Read from memory, write to file
+  ////////////////////////////////////////////////////////////////////
+  unsigned addr = 0;
+  unsigned len = 0;
+  if (sscanf(argv[k], "%X", &addr) != 1) {
+    printf("Unable to decode hex address: %s\n", argv[2]);
+    return 10;
+  }
+  if (sscanf(argv[k+1], "%X", &len) != 1) {
+    printf("Unable to decode hex count: %s\n", argv[3]);
+    return 10;
+  }
+  FILE *f = fopen(argv[k+2], "wb");
+  if (f == NULL) {
+    printf("Unable to open destination file: %s\n", argv[4]);
+    return 10;
+  }
+  printf("Reading from 0x%X to %s, count 0x%X\n", addr, argv[4], len);
+  OpenSerialPort();
+  ClearSerialPortBuffers();
+  if (!try_sync()) {
+    printf("Unable to sync with hardware.\n");
+    CloseSerialPort();
+    fclose(f);
+    return 11;
+  }
+  // Now just go and read the stuff.
+  unsigned char buf[2048];
+  int block_size = sizeof(buf);
+  int i = 0;
+  while (i < len) {
+    if ((i & 0xFFF) == 0)
+      printf("%d \n", i);
+    int chunk = block_size;
+    if (len - i < chunk)
+      chunk = len - i;
+    ReadMemoryBlock(buf, addr + i, chunk);
+    int wrote = fwrite(buf, 1, chunk, f);
+    if (wrote != chunk) {
+      printf("Error: file write %d != %d\n", wrote, chunk);
+    }
+    i += chunk;
+  }
+  fclose(f);
+  CloseSerialPort();
+  return 0;
+}
+
+int cmd_write(int k, int argc, char *argv[]) {
+  ////////////////////////////////////////////////////////////////////
+  // Read from file, write to memory
+  ////////////////////////////////////////////////////////////////////
+  // format: memloader <hex-address> <filename>
+  unsigned addr = 0;
+  int ok;
+  if (sscanf(argv[k], "%X", &addr) != 1) {
+    printf("Unable to decode hex address: %s\n", argv[k]);
+    return 10;
+  }
+  /*
+  if (addr & 0xF) {
+  printf("Address needs to be aligned at a 16-byte boundary: %s\n", argv[1]);
+  return 10;
+  }
+  */
+  FILE *f = fopen(argv[k+1], "rb"); 
+  if (f == NULL) {
+    printf("Unable to open source file: %s\n", argv[2]);
+    return 10;
+  }
+  OpenSerialPort();
+  ClearSerialPortBuffers();
+  if (!try_sync()) {
+    printf("Unable to sync with hardware.\n");
+    CloseSerialPort();
+    fclose(f);
+    return 11;
+  }
+  setup_hw_address(addr);
+  unsigned r;
+  if ((r = read_hw_address(&ok)) != addr) {
+    printf("Error: address readback returned: %0X\n", r);
+    CloseSerialPort();
+    fclose(f);
+    return 11;
+  }
+#define BUFSIZE (1024*1024)
+  unsigned char *buf = malloc(BUFSIZE);
+  unsigned char *p = buf;
+  if (!buf) {
+    printf("Malloc failed.\n");
+    return 12;
+  }
+
+  // Modes: M0 - no autoincrement, no repeat
+  //        M1 - address autoincrement after write or read, no repeat
+  //        M3 - address autoincrement after write or read, repeat operation based on repeat counter
+  int autoincrement = 3;
+  if (autoincrement) {
+    if (opt_verbose)
+      printf("Enable autoincrement addressing mode.\n");
+    if (autoincrement == 3) {
+      if (opt_verbose)
+        printf("Enable hardware repeat counter.\n");
+      SendComPortString("M3");
+    }
+    else
+      SendComPortString("M1");
+
+  }
+  else {
+    SendComPortString("M0");
+  }
+  printf("Loading file %s to address 0x%05X\n", argv[k + 1], addr);
+  DWORD now = GetTickCount();
+  unsigned wr_addr = addr;
+
+  if (autoincrement == 3) {
+    while (p < buf + BUFSIZE) {
+      size_t did_read = fread(p, 1, 8192, f);
+      if (!did_read)
+        break;
+      do {
+        int wrote = WriteMemoryBlock(p, wr_addr, did_read);
+        p += wrote;
+        wr_addr += wrote;
+        did_read -= wrote;
+      } while (did_read > 0);
+      if (opt_verbose) {
+        printf("%d \r", p - buf);
+        fflush(stdout);
+      }
+    }
+    if (opt_verbose)
+      printf("\n");
+  }
+  else {
+    setup_hw_address(wr_addr);
+
+    while (p < buf + BUFSIZE) {
+      unsigned char buf2[256];
+      unsigned char *p2 = buf2;
+      size_t did_read = fread(p, 1, 32, f);
+      if (!did_read)
+        break;
+      for (int i = 0; i<did_read; i++) {
+        if ((wr_addr & 0x1FF) == 0) {
+          setup_hw_address(wr_addr);
+          // printf("--addr: 0x%X p-buf=0x%X\n", wr_addr, p-buf);
+          check_sync();
+        }
+        *p2++ = '!';     // store
+        *p2++ = *p++; // data byte
+        if (!autoincrement)
+          *p2++ = '+';     // inc address
+        wr_addr++;
+      }
+      SendComPortBlock(buf2, p2 - buf2);
+    }
+  }
+  fclose(f);
+  f = NULL;
+  now = GetTickCount() - now;
+  if (opt_verbose)
+    printf("Wrote %d bytes in %d ms, %dbps\n", p - buf, now, 8 * (p - buf) * 1000 / (now ? now : 1));
+  // verify address counter
+  check_sync();
+  check_sync();
+  r = read_hw_address(&ok);
+  // Check address, but only lowest 16-bits due to autoincrement being limited to low 16 bits.
+  if ((r & 0xFFFF) != ((addr + p - buf) & 0xFFFF)) {
+    printf("Error: address counter %X not %X\n", r, addr + p - buf);
+  }
+  if (opt_verbose)
+    printf("Verying written data:\n");
+  // Next perform verify operation.
+  int fail = 0;
+  int block_size = 32;
+  autoincrement = 3;    // Test block reading!
+
+  now = GetTickCount();
+  int len = p - buf;
+  int i = 0;
+  setup_hw_address(addr);
+
+  if (autoincrement == 3) {
+    // Fetch the return data
+    unsigned char minibuf[2048];
+    block_size = sizeof(minibuf);
+
+    while (i < len) {
+      if (opt_verbose && (i & 0xFFF) == 0) {
+        printf("%d \r", i);
+        fflush(stdout);
+      }
+      int chunk = block_size;
+      if (len - i < chunk)
+        chunk = len - i;
+      ReadMemoryBlock(minibuf, addr + i, chunk);
+      // Verify the received data.
+      for (int j = 0; j<chunk; j++) {
+        if (buf[i + j] != minibuf[j]) {
+          printf("Verify mismatch: offset %d, %02X != %02X\n", i + j, buf[j + i], minibuf[j]);
+          if (++fail == 10) {
+            printf("Error: too many failures, stopping.\n");
+            return 20;
+          }
+        }
+      }
+      i += chunk;
+    }
+
+  }
+  else {
+    char command[512];
+    for (i = 0; i<block_size; i++) {
+      if (autoincrement)
+        command[i] = '@';
+      else {
+        command[2 * i] = '@';
+        command[2 * i + 1] = '+';
+      }
+    }
+    command[i] = 0;
+
+    while (i < len) {
+      if ((i & 0xFFF) == 0)
+        printf("%d \n", i);
+      if ((i & 0xF) == 0)
+        setup_hw_address(addr + i);
+      if (i + block_size < len) {
+        SendComPortString(command);
+        // Fetch the return data
+        unsigned char minibuf[512];
+        ReceiveComPortBlockComplete(minibuf, block_size, 200);
+        for (int j = 0; j<block_size; j++) {
+          if (buf[i + j] != minibuf[j]) {
+            printf("Verify mismatch: offset %d, %02X != %02X\n", i + j, buf[j + i], minibuf[j]);
+            if (++fail == 10) {
+              printf("Error: too many failures, stopping.\n");
+              return 20;
+            }
+          }
+        }
+        i += block_size;
+      }
+      else {
+        // byte mode, issue 1 read
+        if (autoincrement)
+          SendComPortString("@");
+        else
+          SendComPortString("@+");
+        unsigned c = RxByte(100);
+        if (c != buf[i]) {
+          printf("Verify mismatch: offset %d, %02X != %02X\n", i, buf[i], c);
+          if (++fail == 10) {
+            printf("Error: too many failures, stopping.\n");
+            return 20;
+          }
+        }
+        i++;
+      }
+    }
+  }
+  now = GetTickCount() - now;
+  if (opt_verbose)
+    printf("Verified %d bytes in %d ms, %dbps (block_size %d)\n", p - buf, now, 8 * (p - buf) * 1000 / (now ? now : 1), block_size);
+  CloseSerialPort();
+
+}
+
 /***************************** main *************************************/
 /**  main. Everything starts from here.
 \param [in] argc the number of arguments.
@@ -611,415 +1050,69 @@ int WriteMemoryBlock(unsigned char *source, unsigned address, int len) {
 int main(int argc, char *argv[])
 {
 	fc.addr = 0;
-  if(argc == 1) {
-    printf("Usage: memloader <hex-address> <filename>    to load a file to RAM.\n");
-    printf("       memloader -r <hex-address> <count> <filename> to read from addess and write to file.\n");
-    printf("       memloader -s     Show current register status.\n");
+  if (argc == 1) {
+    printf("Usage: memloader [opts] <hex-address> <filename>    to load a file to RAM.\n");
+    printf("       memloader [opts] -r <hex-address> <count> <filename> to read from addess and write to file.\n");
+    printf("       memloader [opts] -s     Show current register status.\n");
+    printf("       memloader [opts] -t     Run hardware test.\n");
+    printf("       memloader [opts] -k     Keyboard polling mode.\n");
+    printf("Options (opts) are:\n");
+    printf("\t-v verbose mode\n");
+    printf("\t-1 Set com port 1 (number can be between 1 and 9)\n");
+    return 0;
+  }
+
+  enum { c_write, c_read, c_regs, c_test, c_keys } cmd;
+  cmd = c_write;
+
+  int i;
+  for (i = 1; i < argc; i++) {
+    if (argv[i][0] == '-') {
+      switch (argv[i][1]) {
+      case 'v':
+        opt_verbose = 1;
+        break;
+      case 'r':
+        cmd = c_read;
+        break;
+      case 's':
+        cmd = c_regs;
+        break;
+      case 't':
+        cmd = c_test;
+        break;
+      case 'k':
+        cmd = c_keys;
+        break;
+      case '1': case '2': case '3': case '4': case '5': 
+      case '6': case '7': case '8': case '9': 
+        serial_port[3] = argv[i][1];
+        break;
+      default:
+        printf("Unknown option: %s\n", argv[i]);
+        return 5;
+      }
+    }
+    else {
+      break;  // no more options / commands
+    }
+  }
+
+  switch (cmd) {
+  case c_test:
     printf("Running hardare test\n");
     return RunTests();
-  } else if (argc >= 2 && argv[1][0] == '-' && argv[1][1] == 'k') {
-    printf("Sending keyboard state codes to TI994A\n");
-    OpenSerialPort(); 
-    ClearSerialPortBuffers();
-    char keybuf[8];
-    while(1) {
-      // VK_LEFT, VK_SHIFT
-      memset(keybuf, 0xff,sizeof(keybuf));
-      if (GetAsyncKeyState(VK_LSHIFT) & 0x8000) {
-        keybuf[0] &= ~0x20;
-      } 
-      if (GetAsyncKeyState(VK_RSHIFT) & 0x8000) {
-        keybuf[0] &= ~0x20;
-      } 
-      
-      if (GetAsyncKeyState(VK_LCONTROL) & 0x8000) {
-        keybuf[0] &= ~0x40;
-      } 
-      if (GetAsyncKeyState(VK_RCONTROL) & 0x8000) {
-        keybuf[0] &= ~0x10;   // FCTN
-      } 
-      if (GetAsyncKeyState(VK_RETURN) & 0x8000) {
-        keybuf[0] &= ~0x04;   
-      } 
-      if (GetAsyncKeyState(VK_SPACE) & 0x8000) {
-        keybuf[0] &= ~0x02;   
-      } 
-      if (GetAsyncKeyState(187) & 0x8000) {
-        keybuf[0] &= ~0x01;   // = +
-      } 
-      if (GetAsyncKeyState(188) & 0x8000) {
-        keybuf[2] &= ~0x01;   // ,
-      } 
-      if (GetAsyncKeyState(190) & 0x8000) {
-        keybuf[1] &= ~0x01;   // .
-      } 
-      if (GetAsyncKeyState(192) & 0x8000) {
-        keybuf[5] &= ~0x02;   // ; ö
-      } 
-      if (GetAsyncKeyState(221) & 0x8000) {
-        keybuf[5] &= ~0x01;   // / å
-      } 
-      
-      if (GetAsyncKeyState('0') & 0x8000) { keybuf[5] &= ~0x08; } 
-      if (GetAsyncKeyState('1') & 0x8000) { keybuf[5] &= ~0x10; } 
-      if (GetAsyncKeyState('2') & 0x8000) { keybuf[1] &= ~0x10; } 
-      if (GetAsyncKeyState('3') & 0x8000) { keybuf[2] &= ~0x10; } 
-      if (GetAsyncKeyState('4') & 0x8000) { keybuf[3] &= ~0x10; } 
-      if (GetAsyncKeyState('5') & 0x8000) { keybuf[4] &= ~0x10; } 
-      if (GetAsyncKeyState('6') & 0x8000) { keybuf[4] &= ~0x08; } 
-      if (GetAsyncKeyState('7') & 0x8000) { keybuf[3] &= ~0x08; } 
-      if (GetAsyncKeyState('8') & 0x8000) { keybuf[2] &= ~0x08; } 
-      if (GetAsyncKeyState('9') & 0x8000) { keybuf[1] &= ~0x08; } 
-      
-      if (GetAsyncKeyState('A') & 0x8000) { keybuf[5] &= ~0x20; } 
-      if (GetAsyncKeyState('B') & 0x8000) { keybuf[4] &= ~0x80; } 
-      if (GetAsyncKeyState('C') & 0x8000) { keybuf[2] &= ~0x80; } 
-      if (GetAsyncKeyState('D') & 0x8000) { keybuf[2] &= ~0x20; } 
-      if (GetAsyncKeyState('E') & 0x8000) { keybuf[2] &= ~0x40; } 
-      
-      if (GetAsyncKeyState('F') & 0x8000) { keybuf[3] &= ~0x20; } 
-      if (GetAsyncKeyState('G') & 0x8000) { keybuf[4] &= ~0x20; } 
-      if (GetAsyncKeyState('H') & 0x8000) { keybuf[4] &= ~0x02; } 
-      if (GetAsyncKeyState('I') & 0x8000) { keybuf[2] &= ~0x04; } 
-      if (GetAsyncKeyState('J') & 0x8000) { keybuf[3] &= ~0x02; } 
-      if (GetAsyncKeyState('K') & 0x8000) { keybuf[2] &= ~0x02; } 
-      if (GetAsyncKeyState('L') & 0x8000) { keybuf[1] &= ~0x02; } 
-      if (GetAsyncKeyState('M') & 0x8000) { keybuf[3] &= ~0x01; } 
-      if (GetAsyncKeyState('N') & 0x8000) { keybuf[4] &= ~0x01; } 
-      
-      if (GetAsyncKeyState('O') & 0x8000) { keybuf[1] &= ~0x04; } 
-      if (GetAsyncKeyState('P') & 0x8000) { keybuf[5] &= ~0x04; } 
-      if (GetAsyncKeyState('Q') & 0x8000) { keybuf[5] &= ~0x40; } 
-      if (GetAsyncKeyState('R') & 0x8000) { keybuf[3] &= ~0x40; } 
-      if (GetAsyncKeyState('S') & 0x8000) { keybuf[1] &= ~0x20; }       
-      if (GetAsyncKeyState('T') & 0x8000) { keybuf[4] &= ~0x40; } 
-      if (GetAsyncKeyState('U') & 0x8000) { keybuf[3] &= ~0x04; } 
-      if (GetAsyncKeyState('V') & 0x8000) { keybuf[3] &= ~0x80; } 
-      if (GetAsyncKeyState('W') & 0x8000) { keybuf[1] &= ~0x40; } 
-      if (GetAsyncKeyState('X') & 0x8000) { keybuf[1] &= ~0x80; }       
-      if (GetAsyncKeyState('Y') & 0x8000) { keybuf[4] &= ~0x04; } 
-      if (GetAsyncKeyState('Z') & 0x8000) { keybuf[5] &= ~0x80; } 
-
-      if (GetAsyncKeyState(VK_LEFT) & 0x8000) {
-        keybuf[0] &= ~0x10;   // FCTN
-        keybuf[1] &= ~0x20; // S
-        keybuf[6] &= ~2;      // Joystick 1 left
-      }
-      if (GetAsyncKeyState(VK_RIGHT) & 0x8000) {
-        keybuf[0] &= ~0x10;   // FCTN
-        keybuf[2] &= ~0x20;   // D
-        keybuf[6] &= ~4;       // Joystick 1 right
-      }
-      if (GetAsyncKeyState(VK_UP) & 0x8000) {
-        keybuf[6] &= ~0x10;       // Joystick 1 up
-        printf("UP");        
-      }
-      if (GetAsyncKeyState(VK_DOWN) & 0x8000) {
-        keybuf[6] &= ~8;       // Joystick 1 down
-        printf("DOWN");
-      }
-      if (GetAsyncKeyState(VK_NUMPAD0) & 0x8000) {
-        keybuf[6] &= ~1;       // Joystick 1 fire
-        printf("FIRE");
-      }
-      if (GetAsyncKeyState(VK_DELETE) & 0x8000) {
-        keybuf[0] &= ~0x10;   // FCTN
-        keybuf[5] &= ~0x10;   // 1
-      }
-      
-      if (GetAsyncKeyState(VK_END) & 0x8000) {
-        printf("Ending...\n");
-        break;
-      }
-      
-      for(int i=0; i<255; i++) {
-        if(GetAsyncKeyState(i) & 0x8000) {
-          printf("%d ", i);
-          fflush(stdout);
-          
-        }
-      }
-      
-      
-      WriteMemoryBlock(keybuf, 0x100000, 8);
-    }
-    CloseSerialPort();      
-    return 0;
-    
-  } else if (argc >= 2 && argv[1][0] == '-' && argv[1][1] == 's' ) {
-    ////////////////////////////////////////////////////////////////////
-    // Show register status
-    ////////////////////////////////////////////////////////////////////
-    OpenSerialPort(); 
-    ClearSerialPortBuffers();
-    int ok;
-    printf("Address: 0x%X\n", read_hw_address(&ok));
-    printf("Repeat count: 0x%X\n", GetRepeatCounter());
-    SendComPortString("V");
-    printf("Version: %c\n", RxByte(200));
-    SendComPortString("N");
-    printf("Mode: %c\n", RxByte(200));
-    SendComPortString("X");
-    printf("Ack clocks: %c\n", RxByte(200));
-    CloseSerialPort();
-    return 0;
-  } else if (argc == 5 && argv[1][0] == '-' && argv[1][1] == 'r' ) {
-    ////////////////////////////////////////////////////////////////////
-    // Read from memory, write to file
-    ////////////////////////////////////////////////////////////////////
-    unsigned addr=0;
-    unsigned len=0;
-    if(sscanf(argv[2], "%X", &addr) != 1) {
-      printf("Unable to decode hex address: %s\n", argv[2]);
-      return 10;
-    }
-    if(sscanf(argv[3], "%X", &len) != 1) {
-      printf("Unable to decode hex count: %s\n", argv[3]);
-      return 10;
-    }
-    FILE *f = fopen(argv[4], "wb");
-    if (f == NULL) {
-      printf("Unable to open destination file: %s\n", argv[4]);
-      return 10;
-    }
-    printf("Reading from 0x%X to %s, count 0x%X\n", addr, argv[4], len);
-    OpenSerialPort(); 
-    ClearSerialPortBuffers();
-    if(!try_sync()) {
-      printf("Unable to sync with hardware.\n");
-      CloseSerialPort();      
-      fclose(f);
-      return 11;
-    }
-    // Now just go and read the stuff.
-    unsigned char buf[2048];
-    int block_size = sizeof(buf);
-    int i = 0;
-    while(i < len) {
-      if ((i & 0xFFF) == 0) 
-        printf("%d \n", i);
-      int chunk = block_size;
-      if (len - i < chunk)
-        chunk = len-i;
-      ReadMemoryBlock(buf, addr+i, chunk);
-      int wrote = fwrite(buf, 1, chunk, f);
-      if (wrote != chunk) {
-        printf("Error: file write %d != %d\n", wrote, chunk);
-      }
-      i += chunk;
-    }        
-    fclose(f);
-    CloseSerialPort();      
-    return 0;
-  } else {
-    ////////////////////////////////////////////////////////////////////
-    // Read from file, write to memory
-    ////////////////////////////////////////////////////////////////////
-    // format: memloader <hex-address> <filename>
-    unsigned addr=0;
-    int ok;
-    if(sscanf(argv[1], "%X", &addr) != 1) {
-      printf("Unable to decode hex address: %s\n", argv[1]);
-      return 10;
-    }
-    /*
-    if (addr & 0xF) {
-      printf("Address needs to be aligned at a 16-byte boundary: %s\n", argv[1]);
-      return 10;
-    }
-    */
-    FILE *f = fopen(argv[2], "rb");
-    if (f == NULL) {
-      printf("Unable to open source file: %s\n", argv[2]);
-      return 10;
-    }
-    OpenSerialPort(); 
-    ClearSerialPortBuffers();
-    if(!try_sync()) {
-      printf("Unable to sync with hardware.\n");
-      CloseSerialPort();      
-      fclose(f);
-      return 11;
-    }
-    setup_hw_address(addr);
-    unsigned r;
-    if((r = read_hw_address(&ok)) != addr) {
-      printf("Error: address readback returned: %0X\n", r);
-      CloseSerialPort();      
-      fclose(f);
-      return 11;
-    }
-    #define BUFSIZE (1024*1024)
-    unsigned char *buf = malloc(BUFSIZE);
-    unsigned char *p = buf;
-    if(!buf) {
-        printf("Malloc failed.\n");
-        return 12;
-    }
-
-    // Modes: M0 - no autoincrement, no repeat
-    //        M1 - address autoincrement after write or read, no repeat
-    //        M3 - address autoincrement after write or read, repeat operation based on repeat counter
-    int autoincrement = 3;
-    if(autoincrement) {
-      printf("Enable autoincrement addressing mode.\n");
-      if(autoincrement == 3) {
-        printf("Enable hardware repeat counter.\n");
-        SendComPortString("M3");
-      } else
-        SendComPortString("M1");
-      
-    } else {
-      SendComPortString("M0");
-    }
-    
-    printf("Starting load to 0x%X...\n", addr);
-    DWORD now = GetTickCount();
-    unsigned wr_addr = addr;
-    
-    if(autoincrement == 3) {
-      while(p < buf + BUFSIZE) {
-        size_t did_read = fread(p, 1, 8192, f);
-        if (!did_read)
-          break;
-        do {
-          int wrote = WriteMemoryBlock(p, wr_addr, did_read);
-          p += wrote;
-          wr_addr += wrote;
-          did_read -= wrote;
-        } while(did_read > 0);
-        printf("%d \r", p-buf);
-        fflush(stdout);
-      }
-      printf("\n");
-    } else {
-      setup_hw_address(wr_addr);
-      
-      while(p < buf + BUFSIZE) {
-        unsigned char buf2[256];
-        unsigned char *p2 = buf2;
-        size_t did_read = fread(p, 1, 32, f);
-        if (!did_read)
-          break;
-        for(int i=0; i<did_read; i++) {
-          if ((wr_addr & 0x1FF) == 0) {
-            setup_hw_address(wr_addr);
-            // printf("--addr: 0x%X p-buf=0x%X\n", wr_addr, p-buf);
-            check_sync();
-          }
-          *p2++ = '!';     // store
-          *p2++ = *p++; // data byte
-          if(!autoincrement)
-            *p2++ = '+';     // inc address
-          wr_addr++;
-        }
-        SendComPortBlock(buf2, p2-buf2);
-      } 
-    }
-    fclose(f);
-    f = NULL;
-    now = GetTickCount() - now;
-    printf("Wrote %d bytes in %d ms, %dbps\n", p-buf, now, 8*(p-buf)*1000/(now ? now : 1));
-    // verify address counter
-    check_sync();
-    check_sync();    
-    r = read_hw_address(&ok);
-    // Check address, but only lowest 16-bits due to autoincrement being limited to low 16 bits.
-    if ((r & 0xFFFF) != ((addr + p-buf) & 0xFFFF)) {
-      printf("Error: address counter %X not %X\n", r, addr + p-buf);
-    }
-    printf("Verying written data:\n");
-    // Next perform verify operation.
-    int fail=0;
-    int block_size = 32;
-    autoincrement = 3;    // Test block reading!
-    
-    now = GetTickCount();
-    int len = p-buf;
-    int i = 0;
-    setup_hw_address(addr);
-    
-    if(autoincrement == 3) {
-      // Fetch the return data
-      unsigned char minibuf[2048];
-      block_size = sizeof(minibuf);
-
-      while(i < len) {
-        if ((i & 0xFFF) == 0) {
-          printf("%d \r", i);
-          fflush(stdout);
-        }
-        int chunk = block_size;
-        if (len - i < chunk)
-          chunk = len-i;
-        ReadMemoryBlock(minibuf, addr+i, chunk);
-        // Verify the received data.
-        for(int j=0; j<chunk; j++) {
-          if(buf[i+j] != minibuf[j]) {
-            printf("Verify mismatch: offset %d, %02X != %02X\n", i+j, buf[j+i], minibuf[j]);
-            if(++fail == 10) {
-              printf("Error: too many failures, stopping.\n");
-              return 20;
-            }
-          }
-        }
-        i += chunk;
-      }        
-      
-    } else {
-      char command[512];
-      for(i=0; i<block_size; i++) {
-        if(autoincrement)
-          command[i] = '@';
-        else {
-          command[2*i] = '@';
-          command[2*i+1] = '+';
-        }
-      }
-      command[i] = 0;
-      
-      while(i < len) {
-        if ((i & 0xFFF) == 0) 
-          printf("%d \n", i);
-        if ((i & 0xF ) == 0)
-          setup_hw_address(addr+i);
-        if(i + block_size < len) {
-          SendComPortString(command);
-          // Fetch the return data
-          unsigned char minibuf[512];
-          ReceiveComPortBlockComplete(minibuf, block_size, 200);
-          for(int j=0; j<block_size; j++) {
-            if(buf[i+j] != minibuf[j]) {
-              printf("Verify mismatch: offset %d, %02X != %02X\n", i+j, buf[j+i], minibuf[j]);
-              if(++fail == 10) {
-                printf("Error: too many failures, stopping.\n");
-                return 20;
-              }
-            }
-          }
-          i += block_size;
-        } else {
-          // byte mode, issue 1 read
-          if(autoincrement)
-            SendComPortString("@");
-          else
-            SendComPortString("@+");
-          unsigned c = RxByte(100);
-          if (c != buf[i]) {
-            printf("Verify mismatch: offset %d, %02X != %02X\n", i, buf[i], c);
-            if(++fail == 10) {
-              printf("Error: too many failures, stopping.\n");
-              return 20;
-            }
-          }
-          i++;
-        }
-      }
-    }
-    now = GetTickCount() - now;
-    printf("Verified %d bytes in %d ms, %dbps (block_size %d)\n", p-buf, now, 8*(p-buf)*1000/(now ? now : 1), block_size);
-    CloseSerialPort();
+  case c_regs:
+    return cmd_regs();
+  case c_keys:
+    return cmd_keys();
+  case c_read:
+    return cmd_read(i, argc, argv);
+  case c_write:
+    cmd_write(i, argc, argv);
+    break;  // return from below
   }
+ 
   return 0;
 }
 

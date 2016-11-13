@@ -357,8 +357,10 @@ MAINLOOP
       LI    R2,DUMPEND-VDPDUMP
 VCOPYLP      
       MOVB  *R1+,@VDPWD
-      MOVB  *R1+,@VDPWD
-      DECT  R2
+      DEC   R2
+;      MOVB  *R1+,@VDPWD
+;      MOVB  *R1+,@VDPWD
+;      DECT  R2
       JNE   VCOPYLP
       
 ; Now delay loop

@@ -1,6 +1,6 @@
 all: memloader.c
-	gcc -g -o memloader memloader.c
+	gcc -g -o memloader memloader.c diskio.c
 
 clean:
-	rm memloader.o memloader.exe
+	rm memloader.o diskio.o memloader.exe
 

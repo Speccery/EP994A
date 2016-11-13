@@ -44,7 +44,18 @@ use UNISIM.VComponents.all;
 --9800..9BFF     GROM Read (9800 read, 9802 read addr+1)
 --9C00..9FFF     GROM Write (9C00 write data, 9C02 write address)
 --A000..FFFF     (24K, part of 32K RAM expansion)
-
+----------------------------------------------------------------------------------
+-- CRU map of the TI-99/4A
+--0000..0FFE	  Internal use
+--1000..10FE	  Unassigned
+--1100..11FE	  Disk controller card
+--1200..12FE	  Modems
+--1300..13FE     RS232 (primary)
+--1400..14FE     Unassigned
+--1500..15FE     RS232 (secondary)
+--1600..16FE     Unassigned
+--...
+----------------------------------------------------------------------------------
 entity ep994a is
     Port ( clock : in  STD_LOGIC;
            rxd : in  STD_LOGIC;
@@ -197,6 +208,38 @@ architecture Behavioral of ep994a is
 	signal dac_data		: std_logic_vector(7 downto 0);	-- data from TMS9919 to DAC input
 	signal dac_out_bit	: std_logic;		-- output to pin
 	signal tms9919_we		: std_logic;		-- write enable pulse for the audio "chip"
+	
+	-- disk subsystem
+	signal cru1100			: std_logic;		-- disk controller CRU select
+	
+	-- SAMS memory extension
+	signal sams_regs			: std_logic_vector(7 downto 0);
+	signal pager_data_in		: std_logic_vector(15 downto 0);
+	signal pager_data_out   : std_logic_vector(15 downto 0);
+	signal translated_addr  : std_logic_vector(15 downto 0);
+	signal paging_enable    : std_logic := '0';
+	signal paging_registers : std_logic;
+	signal paging_wr_enable : std_logic;
+	signal page_reg_read		: std_logic;
+	signal paging_enable_cs : std_logic;	-- access to some registers to enable paging etc.
+	signal paging_regs_visible : std_logic;	-- when 1 page registers can be accessed
+	-- signal pager_extended   : std_logic;
+
+-------------------------------------------------------------------------------	
+	component pager612
+		port (  clk 			: in  STD_LOGIC;
+				  abus_high		: in  STD_LOGIC_VECTOR (15 downto 12);
+				  abus_low  	: in  STD_LOGIC_VECTOR (3 downto 0);
+				  dbus_in 		: in  STD_LOGIC_VECTOR (15 downto 0);
+				  dbus_out 		: out  STD_LOGIC_VECTOR (15 downto 0);
+				  mapen 			: in  STD_LOGIC;	-- 1 = enable mapping
+				  write_enable : in  STD_LOGIC;		-- 0 = write to register when sel_regs = 1
+				  page_reg_read : in  STD_LOGIC;		-- 0 = read from register when sel_regs = 1
+				  translated_addr : out  STD_LOGIC_VECTOR (15 downto 0);
+				  access_regs  : in  STD_LOGIC -- 1 = read/write registers	
+		);
+	end component;
+-------------------------------------------------------------------------------
 
 begin
   
@@ -275,7 +318,7 @@ begin
 	INTERRUPT <=  not vdp_interrupt when cru9901(2)='1' else '1';	-- TMS9901 interrupt mask bit
 	-- cartridge memory select
   	cartridge_cs 	<= '1' when MEM_n = '0' and cpu_addr(15 downto 13) = "011" else '0'; -- cartridge_cs >6000..>7FFF
-
+	
 	process(clk, switch)
 	variable ki : integer range 0 to 7;
 	begin
@@ -298,6 +341,8 @@ begin
 				mem_read_ack <= '0';
 				mem_write_ack <= '0';
 				cru9901 <= x"00000000";
+				cru1100 <= '0';
+				sams_regs <= (others => '0');
 			else
 				-- processing of normal clocks here. We run at 100MHz.
 				
@@ -309,9 +354,20 @@ begin
 					elsif cartridge_cs='1' then
 						-- Handle paging of module port at 0x6000
 						sram_addr_bus <= "0111" & basic_rom_bank & cpu_addr(12 downto 1);	-- mapped to 0x70000
+					elsif cru1100='1' and cpu_addr(15 downto 13) = "010" then	-- DSR's for disk system
+						sram_addr_bus <= "0110" & "000" & cpu_addr(12 downto 1);	-- mapped to 0x60000
+					elsif cpu_addr(15 downto 13) = "000" then
+						-- boringly keep ROM at the bottom of address space, not paged
+						sram_addr_bus <= "0000000" & cpu_addr(12 downto 1);
+					elsif cpu_addr(15 downto 10) = "100000" then
+						-- now that paging is introduced we need to move scratchpad (1k here)
+						-- out of harm's way. Scartchpad at 68000 to keep it safe from paging.
+						sram_addr_bus <= "0110100000" & cpu_addr(9 downto 1);
 					else
 						-- regular RAM access
-						sram_addr_bus <= "0000" & cpu_addr(15 downto 1);
+						-- sram_addr_bus <= "0000" & cpu_addr(15 downto 1);
+						-- Bottom 256K is CPU SAMS RAM for now, so we have 18 bit memory addresses
+						sram_addr_bus <= "00" & translated_addr(5 downto 0) & cpu_addr(11 downto 1);
 					end if;
 				end if;
 
@@ -347,6 +403,7 @@ begin
 								and cpu_addr(15 downto 12) /= x"9"			-- 9XXX addresses don't go to RAM
 								and cpu_addr(15 downto 11) /= x"8" & '1'	-- 8800-8FFF don't go to RAM
 								and cartridge_cs='0' 							-- writes to cartridge region do not go to RAM
+								and translated_addr(15 downto 6) = "0000000000" -- if paging is on only bottom 256K currently available
 								-- and cpu_addr(15 downto 13) /= "000"			-- No writes to low 8K (ROM)
 							then
 							-- init CPU write cycle
@@ -475,6 +532,7 @@ begin
 				vdp_rd <= '0';
 				grom_we <= '0';
 				tms9919_we <= '0';
+				paging_wr_enable <= '0';
 				if wr_sampler = "1000" and MEM_n='0' then
 					if cpu_addr(15 downto 8) = x"80" then
 						outreg <= indata;			-- write to >80XX is sampled in the output register
@@ -486,6 +544,8 @@ begin
 						basic_rom_bank <= cpu_addr(3 downto 1);	-- capture ROM bank select
 					elsif cpu_addr(15 downto 8) = x"84" then	
 						tms9919_we <= '1';		-- Audio chip write
+					elsif paging_registers = '1' then 
+						paging_wr_enable <= '1';
 					end if;
 				end if;	
 				if MEM_n='0' and rd_sampler(1 downto 0)="00" and cpu_addr(15 downto 8)=x"88" then
@@ -508,6 +568,15 @@ begin
 					end if;
 
 				end if;
+				
+				-- CRU write cycle to disk control system
+				if MEM_n='1' and cpu_addr(15 downto 1)= x"110" & "000" and wr_sampler = "1000" then
+					cru1100 <= indata(0);
+				end if;
+				-- SAMS register writes
+				if MEM_n='1' and cpu_addr(15 downto 4) = x"1E0" and wr_sampler = "1000" then
+					sams_regs(to_integer(unsigned(cpu_addr(3 downto 1)))) <= indata(0);
+				end if;				
 				
 				-- Precompute cru_read_bit in case this cycle is a CRU read 
 				cru_read_bit <= '1';
@@ -537,6 +606,10 @@ begin
 				elsif cpu_addr(15 downto 5) = "00000000001" then
 					-- TMS9901 bits 16..31, addresses 20..3E
 					cru_read_bit <= cru9901(to_integer(unsigned('1' & cpu_addr(4 downto 1))));
+				elsif cpu_addr(15 downto 1) & '0' = x"1100" then
+					cru_read_bit <= cru1100;
+				elsif cpu_addr(15 downto 4) = x"1E0" then
+					cru_read_bit <= sams_regs(to_integer(unsigned(cpu_addr(3 downto 1))));
 				end if;
 			end if;
 		end if;	-- rising_edge
@@ -574,12 +647,14 @@ begin
 	cpu_data_out <= 
 		vdp_data_out         			when cpu_addr(15 downto 10) = "100010" else	-- 10001000..10001011 (8800..8BFF)
 		grom_data_out & x"00" 			when cpu_addr(15 downto 8) = x"98" and cpu_addr(1)='1' else	-- GROM address read
+		pager_data_out(7 downto 0) & x"00" when paging_registers = '1' else
 		SRAM_DAT(15 downto 8) & x"00" when cpu_addr(15 downto 8) = x"98" and cpu_addr(1)='0' and grom_ram_addr(0)='0' and grom_selected='1' else
 		SRAM_DAT(7 downto 0)  & x"00" when cpu_addr(15 downto 8) = x"98" and cpu_addr(1)='0' and grom_ram_addr(0)='1' and grom_selected='1' else
 	   x"FF00"                       when cpu_addr(15 downto 8) = x"98" and cpu_addr(1)='0' and grom_selected='0' else
 		-- CRU space signal reads
 		cru_read_bit & "000" & x"000"	when MEM_n='1' else
 		x"FFF0"								when MEM_n='1' else -- other CRU
+		x"0000"								when translated_addr(15 downto 6) /= "0000000000" else -- paged memory limited to 256K for now
 		SRAM_DAT(15 downto 0);		-- data to CPU
 	
  	vdp: entity work.tms9918
@@ -636,6 +711,29 @@ begin
 		
 	AUDIO_L <= dac_out_bit;
 	AUDIO_R <= dac_out_bit;
+	
+	-- memory paging unit implementation
+	paging_regs_visible 	<= sams_regs(0);			-- 1E00 in CRU space
+	paging_enable 			<= sams_regs(1);			-- 1E01 in CRU space
+	
+	-- the pager registers can be accessed at >4000 to >5FFF when paging_regs_visible is set
+	paging_registers <= '1' when paging_regs_visible = '1' and MEM_n = '0' and cpu_addr(15 downto 13) = "010" else '0';
+	page_reg_read <= '1' when paging_registers = '1' and RD_n='0' else '0';	
+
+	pager_data_in <= x"00" & indata(15 downto 8);	-- my own extended mode not supported here
+
+	pager : pager612 port map (
+		clk		 => clk,
+		abus_high => cpu_addr(15 downto 12),
+		abus_low  => cpu_addr(4 downto 1),
+		dbus_in   => pager_data_in,
+		dbus_out  => pager_data_out,
+		mapen 	 => paging_enable,				-- ok
+		write_enable	 => paging_wr_enable,	-- ok
+		page_reg_read   => page_reg_read,
+		translated_addr => translated_addr,		-- ok
+		access_regs     => paging_registers		-- ok
+		);	
 		
 end Behavioral;
 

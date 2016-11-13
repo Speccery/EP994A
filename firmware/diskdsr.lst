@@ -1,0 +1,312 @@
+XAS99 CROSS-ASSEMBLER   VERSION 1.5.3
+**** **** ****     > diskdsr.asm
+0001               * diskdsr.asm
+0002               * Disk DSR module for the TMS99105 system EP994A
+0003               * Started by Erik Piehl on Oct 7th 2016
+0004               * Based on original TI sample from a long time ago.
+0005               *
+0006               * Compile with: xas99.py -b -R -L diskdsr.lst diskdsr.asm
+0007               *
+0008               
+0009      8C00     VDPWD  EQU  >8C00             * VDP write data
+0010      8C02     VDPWA  EQU  >8C02             * VDP set read/write address
+0011      8800     VDPRD  EQU  >8800             * VDP read data
+0012      8890     VDPPTR EQU  >8890             * VDP extension: VRAM address pointer
+0013               
+0014      8000     MYRAM   EQU >8000        * EP994A scratchpad is 1k in size, starts at >8000
+0015      8002     ENTRYN  EQU >8002        * Save entry point number
+0016      8004     PABSTA  EQU >8004        * Start of PAB in VDP memory
+0017      8006     MARKER  EQU >8006
+0018      8008     RCOUNT  EQU >8008        * DSR call count
+0019               
+0020               *---------------------------------------------------------
+0021               * Variables for host to TMS99105 IOP communication
+0022               *---------------------------------------------------------
+0023      800A     DSRWAIT EQU >800A        * Set when DSR waits for host
+0024      800C     ARG1    EQU >800C        * parameters for host to TMS99105
+0025      800E     ARG2    EQU >800E
+0026      8010     ARG3    EQU >8010
+0027      8012     HOSTOP  EQU >8012        * Command from host to TMS99105
+0028               *---------------------------------------------------------
+0029      801E     MYPABN  EQU >801E        * Length of my PAB
+0030      8020     MYPAB   EQU >8020        * PAB is copied from VDP RAM to here.
+0031               
+0032                 RORG >4000
+0033 4000 AA01       BYTE >AA
+0034                 BYTE 1    ; version number
+0035 4002 0000       DATA 0    ; leave at 0
+0036 4004 4030r      DATA PWRLINK
+0037 4006 0000       DATA 0
+0038 4008 4076r      DATA DSRLINK
+0039 400A 0000       DATA 0
+0040 400C 406Er      DATA INTLINK
+0041 400E 0000       DATA 0
+0042               
+0043               MYMSG
+0044 4010 ....       TEXT  'TMS99105 FPGA SYSTEM ERIK PIEHL'
+0045                 BYTE  0
+0046                 EVEN
+0047               
+0048               * Powerup routine
+0049               PWRLINK
+0050 4030 0000       DATA 0  ; Linkage - none
+0051 4032 4036r      DATA PWRUP
+0052 4034 0000       BYTE 0  ; Name length
+0053                 EVEN    ;
+0054               
+0055               ; Display something on the screen
+0056               PWRUP
+0057 4036 C10B  18   MOV R11,R4  ; Save return address
+0058 4038 0200  20   LI  R0,(13*32+0)
+     403A 01A0 
+0059 403C 0201  20   LI  R1,MYMSG
+     403E 4010r
+0060 4040 06A0  32   BL  @SETUPVDPA
+     4042 4188r
+0061               !
+0062 4044 D0B1  28   MOVB *R1+,R2
+0063 4046 1303  14   JEQ !done
+0064 4048 D802  38   MOVB R2,@VDPWD
+     404A 8C00 
+0065 404C 10FB  14   JMP -!
+0066               
+0067               !done
+0068               
+0069               ; Clear 256 bytes from >8000 onwards
+0070               ;  CLR @RCOUNT
+0071               ;  CLR @DSRWAIT
+0072               ;  CLR @HOSTOP
+0073 404E 0200  20   LI  R0,MYRAM
+     4050 8000 
+0074 4052 0201  20   LI  R1,256
+     4054 0100 
+0075 4056 04F0  30 ! CLR *R0+
+0076 4058 0641  14   DECT R1
+0077 405A 16FD  14   JNE  -!
+0078               
+0079 405C 0200  20   LI  R0,>5678
+     405E 5678 
+0080 4060 C800  38   MOV R0,@MARKER
+     4062 8006 
+0081 4064 0200  20   LI  R0,>BEEF
+     4066 BEEF 
+0082 4068 C800  38   MOV R0,@MARKER+2
+     406A 8008 
+0083               
+0084               
+0085 406C 0454  20   B   *R4
+0086               
+0087               * Interrupt routine
+0088               INTLINK
+0089 406E 0000       DATA 0
+0090 4070 4074r      DATA INTDSR
+0091 4072 0000       BYTE 0
+0092                 EVEN
+0093               INTDSR        ; Erik we do nothing here
+0094 4074 045B  20   RT
+0095               
+0096               * Main device service routine.
+0097               DSRLINK
+0098 4076 407Er      DATA  DSRLINK2
+0099 4078 4092r      DATA  ENTRY1
+0100 407A 0344       BYTE  3
+0101 407B ....       TEXT  'DSK'
+0102                 EVEN
+0103               DSRLINK2
+0104 407E 4088r      DATA  DSRLINK3
+0105 4080 4096r      DATA  ENTRY2
+0106 4082 0444       BYTE  4
+0107 4083 ....       TEXT  'DSK1'
+0108                 EVEN
+0109               DSRLINK3
+0110 4088 0000       DATA  0     ; No next device
+0111 408A 409Cr      DATA  ENTRY3
+0112 408C 0444       BYTE  4
+0113 408D ....       TEXT  'DSK2'
+0114                 EVEN
+0115               
+0116               ENTRY1
+0117 4092 04C0  14   CLR   R0
+0118 4094 1005  14   JMP   GO4IT
+0119               
+0120               ENTRY2
+0121 4096 0200  20   LI    R0,1
+     4098 0001 
+0122 409A 1002  14   JMP   GO4IT
+0123               
+0124               ENTRY3
+0125 409C 0200  20   LI    R0,2
+     409E 0002 
+0126               
+0127               * The common start of the actual DSR
+0128               GO4IT
+0129 40A0 C80B  38   MOV   R11,@MYRAM  ; Save return address
+     40A2 8000 
+0130 40A4 C800  38   MOV   R0,@ENTRYN
+     40A6 8002 
+0131 40A8 05A0  34   INC   @RCOUNT
+     40AA 8008 
+0132               ;  LI    R1,>1234
+0133 40AC 02C1  12   STST  R1          ; Read CPU status register
+0134 40AE C801  38   MOV   R1,@MARKER
+     40B0 8006 
+0135 40B2 06A0  32   BL    @PAB2RAM    * Copy PAB to CPU RAM
+     40B4 4130r
+0136               
+0137               * Let's signal the host PC that we have got something nice in here
+0138               wait_cmd
+0139 40B6 04E0  34   CLR   @HOSTOP       * reset previous host operation
+     40B8 8012 
+0140 40BA 0201  20   LI    R1,1
+     40BC 0001 
+0141 40BE C801  38   MOV   R1,@DSRWAIT   * Host wait flag set
+     40C0 800A 
+0142               * Now wait for the host to tell us something
+0143               !wait_loop
+0144 40C2 C060  34   MOV   @HOSTOP,R1
+     40C4 8012 
+0145 40C6 13FD  14   JEQ   -!wait_loop
+0146 40C8 04E0  34   CLR   @DSRWAIT     * Clear flag
+     40CA 800A 
+0147               * We received a command from the host, do something
+0148               * Operations are:
+0149               *   Read VDP memory:  1 (ARG1=VDP addr, ARG2=CPU RAM addr, ARG3=bytecount)
+0150               *   Write VDP memory: 2 (ARG1=CPU addr, ARG2=VDP RAM addr, ARG3=bytecount)
+0151               *   Exit DSR:         3 (ARG1=error code or success, top 3 bits ored with PAB status)
+0152 40CC 0601  14   DEC   R1
+0153 40CE 1305  14   JEQ   !read_vdp
+0154 40D0 0601  14   DEC   R1
+0155 40D2 1310  14   JEQ   !write_vdp
+0156 40D4 0601  14   DEC   R1
+0157 40D6 131B  14   JEQ   !set_return
+0158 40D8 10EE  14   JMP   wait_cmd      ; If we come here the host code was unexpected. Ignore it.
+0159               
+0160               !read_vdp
+0161 40DA C020  34   MOV   @ARG1,R0      ; VDP source addr
+     40DC 800C 
+0162 40DE C060  34   MOV   @ARG2,R1      ; CPU RAM addr
+     40E0 800E 
+0163 40E2 C0A0  34   MOV   @ARG3,R2
+     40E4 8010 
+0164 40E6 06A0  32   BL    @VDPREADA
+     40E8 4176r
+0165 40EA DC60  48 ! MOVB  @VDPRD,*R1+
+     40EC 8800 
+0166 40EE 0602  14   DEC   R2
+0167 40F0 16FC  14   JNE   -!
+0168 40F2 10E1  14   JMP   wait_cmd
+0169               
+0170               !write_vdp
+0171 40F4 C060  34   MOV   @ARG1,R1      ; CPU RAM source addr
+     40F6 800C 
+0172 40F8 C020  34   MOV   @ARG2,R0      ; VDP RAM addr
+     40FA 800E 
+0173 40FC C0A0  34   MOV   @ARG3,R2
+     40FE 8010 
+0174 4100 06A0  32   BL    @SETUPVDPA    ; Setup VDP write address
+     4102 4188r
+0175 4104 D831  48 ! MOVB  *R1+,@VDPWD
+     4106 8C00 
+0176 4108 0602  14   DEC   R2
+0177 410A 16FC  14   JNE   -!
+0178 410C 10D4  14   JMP   wait_cmd
+0179               
+0180               !set_return
+0181               * Let's report a device error back, error code 6
+0182 410E D060  34   MOVB  @MYPAB+1,R1   ; read status byte
+     4110 8021 
+0183 4112 0241  22   ANDI  R1,>1FFF
+     4114 1FFF 
+0184 4116 E060  34   SOC   @ARG1,R1      ; Or in the bits set by host
+     4118 800C 
+0185               ;;  ORI   R1,>C000    ; 6 << 5 << 8 - OR the status 6 in there
+0186 411A C020  34   MOV   @PABSTA,R0
+     411C 8004 
+0187 411E 0580  14   INC   R0          ; point to status byte
+0188 4120 06A0  32   BL    @SETUPVDPA
+     4122 4188r
+0189 4124 D801  38   MOVB  R1,@VDPWD   * Write back the status, indicating error
+     4126 8C00 
+0190               
+0191               * Return to console software
+0192               EXIT
+0193 4128 C2E0  34   MOV   @MYRAM,R11
+     412A 8000 
+0194 412C 05CB  14   INCT  R11
+0195 412E 045B  20   RT
+0196               
+0197               * Copy the PAB from VDP RAM to system RAM to make it
+0198               * visible to the PC.
+0199               PAB2RAM
+0200 4130 C060  34   MOV @>8354,R1   * DSR Name length
+     4132 8354 
+0201 4134 C0A0  34   MOV @>8356,R2   * Ptr to first char after name in VDP memory.
+     4136 8356 
+0202 4138 C0C2  18   MOV R2,R3
+0203 413A 60C1  18   S   R1,R3
+0204 413C 0223  22   AI  R3,-10      ; -10: R3 is now the pointer to start of PAB
+     413E FFF6 
+0205               
+0206 4140 C003  18   MOV R3,R0       * VDP address to R0
+0207 4142 C803  38   MOV R3,@PABSTA  * Store PAB start for later
+     4144 8004 
+0208 4146 0221  22   AI  R1,10       * 10 bytes plus name length
+     4148 000A 
+0209               * The length now is to the period character, so for example to
+0210               * DSK1.HELLO it would be just after DSK1.
+0211 414A C801  38   MOV R1,@MYPABN  * save length of my PAB
+     414C 801E 
+0212 414E 0203  20   LI  R3,MYPAB
+     4150 8020 
+0213 4152 C08B  18   MOV R11,R2      * Save return address
+0214 4154 06A0  32   BL  @VDPREADA   * Setup VDP read address to start of PAB
+     4156 4176r
+0215               * Copy to RAM loop
+0216 4158 DCE0  48 ! MOVB  @VDPRD,*R3+
+     415A 8800 
+0217 415C 0601  14   DEC R1
+0218 415E 16FC  14   JNE -!
+0219               * Now that we have the PAB in CPU memory, let's also read
+0220               * the filename to CPU memory. VDP memory pointer already points
+0221               * to the right place.
+0222 4160 D060  34   MOVB @MYPAB+9,R1    ; name length (DSR name + filename)
+     4162 8029 
+0223 4164 0981  56   SRL  R1,8           ; shift to lower byte
+0224 4166 6060  34   S    @>8354,R1      ; substract DSR name length
+     4168 8354 
+0225 416A 1304  14   JEQ  !done          ; if zero exit
+0226 416C DCE0  48 ! MOVB  @VDPRD,*R3+   ; Otherwise copy filename
+     416E 8800 
+0227 4170 0601  14   DEC R1
+0228 4172 16FC  14   JNE -!
+0229               !done
+0230 4174 0452  20   B   *R2
+0231               
+0232               
+0233               *---------------------------------------------
+0234               * Set VDP read address from R0
+0235               *---------------------------------------------
+0236               VDPREADA
+0237 4176 0240  22       ANDI  R0,>3FFF          * make sure it is a read command
+     4178 3FFF 
+0238 417A 06C0  14       SWPB  R0
+0239 417C D800  38       MOVB  R0,@VDPWA      		* Send low byte of VDP RAM write address
+     417E 8C02 
+0240 4180 06C0  14       SWPB  R0
+0241 4182 D800  38       MOVB  R0,@VDPWA         * Send high byte of VDP RAM write address
+     4184 8C02 
+0242 4186 045B  20       RT
+0243               
+0244               *---------------------------------------------
+0245               * Set VDP address from R0
+0246               *---------------------------------------------
+0247               SETUPVDPA
+0248 4188 06C0  14       SWPB  R0
+0249 418A D800  38       MOVB  R0,@VDPWA      		* Send low byte of VDP RAM write address
+     418C 8C02 
+0250 418E 06C0  14       SWPB  R0
+0251 4190 0260  22       ORI   R0,>4000          * Set read/write bits 14 and 15 to write (01)
+     4192 4000 
+0252 4194 D800  38       MOVB  R0,@VDPWA         * Send high byte of VDP RAM write address
+     4196 8C02 
+0253 4198 045B  20 			RT

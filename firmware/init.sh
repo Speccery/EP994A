@@ -3,11 +3,19 @@
 ../memloader/memloader 30000 994aGROM.Bin
 ../memloader/memloader 100000 keyinit.bin
 
+# DSR for disk support
+../memloader/memloader 60000 diskdsr_4000.bin
 
 # Extended Basic
 # ../memloader/memloader 70000 ../memloader/TIExtC.Bin
 # ../memloader/memloader 72000 ../memloader/TIExtD.Bin
 # ../memloader/memloader 36000 ../memloader/TIExtG.Bin
+
+# Memory extension test
+../memloader/memloader 70000 ../memloader/AMSTEST4-8.BIN
+
+# Editor/Assembler
+../memloader/memloader 36000 ../memloader/TIEAG.BIN
 
 # RXB
 # ../memloader/memloader 70000 ../memloader/RXBC.Bin
@@ -15,8 +23,8 @@
 # ../memloader/memloader 36000 ../memloader/RXBG.Bin
 
 # TI Invaders
-../memloader/memloader 70000 TI-InvaC.bin
-../memloader/memloader 36000 TI-InvaG.bin
+# ../memloader/memloader 70000 ../memloader/TI-InvaC.bin
+# ../memloader/memloader 36000 ../memloader/TI-InvaG.bin
 
 # ERIK test ROM
 # cp ../../../ticart/ASCART.bin .
