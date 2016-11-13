@@ -40,6 +40,7 @@ http://atariage.com/forums/topic/255855-ti-994a-with-a-pipistrello-fpga-board/pa
 About the directories
 ---------------------
 **firmware** test software I used to debug the hardware. Written in assembler. Also some loading scripts.
+- 2016-11-13 now here is also the diskdsr.asm assembly module, which implements a starting point for disk access. Currently it relies on support by the PC program "memloader".
 
 **fpga** the VHDL code implementing the TI-99/4A (except the CPU).
 
@@ -47,6 +48,8 @@ About the directories
 - load software from PC to the memory of the EP994A
 - reset the EP994A
 - pass keypresses from host PC to the EP994A
+- 2016-11-13: poll certain memory locations to enable disk access, i.e. saving and loading 
+- 2016-11-13: Now there are project files for Visual Studio 2015 community edition. This is just a great IDE and speeds up programming.
 
 **schematics** the schematics of the protoboard (incl. CPU, clock, a buffer chip) connected to the FPGA board. Note: the schematics are in a need of an update, the current version lacks to wires:
 - CPU reset from FPGA to buffer to CPU
