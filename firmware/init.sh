@@ -11,6 +11,9 @@
 # ../memloader/memloader 72000 ../memloader/TIExtD.Bin
 # ../memloader/memloader 36000 ../memloader/TIExtG.Bin
 
+# Erik Test Cartridge
+../memloader/memloader 70000 ERIK1.bin
+
 # Memory extension test
 ../memloader/memloader 70000 ../memloader/AMSTEST4-8.BIN
 

@@ -150,6 +150,7 @@ architecture Behavioral of ep994a is
 	signal debug_sram_we  : std_logic;
 	signal debug_sram_oe  : std_logic;
 	signal sram_addr_bus  : std_logic_vector(18 downto 0); 
+	signal sram_16bit_read_bus : std_logic_vector(15 downto 0);	-- choose between (31..16) and (15..0) during reads.
 	
 	signal clk_ref_ibuf 		: std_logic;
 	signal clk 					: std_logic;				-- output primary clock
@@ -294,18 +295,22 @@ begin
 	-------------------------------------
 	-------------------------------------
 
-	-- Drive the lowest 16 bits of SRAM.
-	SRAM_BE 		<= "1100" when cpu_access = '1' else	-- TMS99105 is always 16-bit
-						"1110" when mem_addr(0) = '1' else	-- lowest byte
-						"1101";										-- second lowest byte
-	SRAM_ADR 	<= sram_addr_bus;
-	SRAM_CE1		<= '1';
+	-- Use all 32 bits of RAM, we use CE0 and CE1 to control what chip is active.
+	-- The byte enables are driven the same way for both chips.
+	SRAM_BE 		<= "0000" when cpu_access = '1' else	-- TMS99105 is always 16-bit, use CE 
+						"1010" when mem_addr(0) = '1' else	-- lowest byte
+						"0101";										-- second lowest byte
+	SRAM_ADR 	<= '0' & sram_addr_bus(18 downto 1);	-- sram_addr_bus(0) selects between the two chips
 	SRAM_DAT		<= -- broadcast on all byte lanes when memory controller is writing
 						mem_data_out & mem_data_out & mem_data_out & mem_data_out when cpu_access='0' and mem_drive_bus='1' else
-						x"0000" & indata when cpu_access='1' and MEM_n='0' and WE_n = '0' else
+						-- broadcast on 16-bit wide lanes when CPU is writing
+						indata & indata when cpu_access='1' and MEM_n='0' and WE_n = '0' else
 						(others => 'Z');
 						
-	SRAM_CE0	<=		debug_sram_ce0 when cpu_access = '0' else MEM_n;
+	sram_16bit_read_bus <= SRAM_DAT(15 downto 0) when sram_addr_bus(0)='0' else SRAM_DAT(31 downto 16);
+						
+	SRAM_CE0	<=		(debug_sram_ce0 or sram_addr_bus(0))       when cpu_access = '0' else (MEM_n or sram_addr_bus(0));
+	SRAM_CE1	<= 	(debug_sram_ce0 or (not sram_addr_bus(0))) when cpu_access = '0' else (MEM_n or (not sram_addr_bus(0)));
 	SRAM_WE	<=		debug_sram_we;  -- when cpu_access = '0' else WE_n; 
 	SRAM_OE	<=		debug_sram_oe; -- when cpu_access = '0' else RD_n; 	
 	
@@ -380,7 +385,7 @@ begin
 						debug_sram_oe <= '1';
 						mem_read_ack <= '0';
 						mem_write_ack <= '0';
-						cpu_access <= '1';			-- CPU has lower priority than memory load hardware
+						cpu_access <= '1';			
 						if mem_write_rq = '1' and mem_addr(20)='0' and alatch_sampler(1 downto 0) = "01" then
 							-- normal memory write
 							sram_addr_bus <= mem_addr(19 downto 1);	-- setup address
@@ -433,9 +438,9 @@ begin
 					when rd1 => mem_state <= rd2;	-- waste some time
 					when rd2 => 
 						if mem_addr(0) = '1' then
-							mem_data_in <= SRAM_DAT(7 downto 0);
+							mem_data_in <= sram_16bit_read_bus(7 downto 0);
 						else
-							mem_data_in <= SRAM_DAT(15 downto 8);
+							mem_data_in <= sram_16bit_read_bus(15 downto 8);
 						end if;
 						debug_sram_ce0 <= '1';
 						debug_sram_oe <= '1';
@@ -450,7 +455,7 @@ begin
 					when cpu_rd0 => mem_state <= cpu_rd1;
 					when cpu_rd1 => 
 						mem_state <= cpu_rd2;
-						mem_to_cpu <= SRAM_DAT(15 downto 0);
+						mem_to_cpu <= sram_16bit_read_bus(15 downto 0);
 					when cpu_rd2 =>
 						debug_sram_ce0 <= '1';
 						debug_sram_oe <= '1';
@@ -647,15 +652,15 @@ begin
 	cpu_data_out <= 
 		vdp_data_out         			when cpu_addr(15 downto 10) = "100010" else	-- 10001000..10001011 (8800..8BFF)
 		grom_data_out & x"00" 			when cpu_addr(15 downto 8) = x"98" and cpu_addr(1)='1' else	-- GROM address read
-		pager_data_out(7 downto 0) & x"00" when paging_registers = '1' else
-		SRAM_DAT(15 downto 8) & x"00" when cpu_addr(15 downto 8) = x"98" and cpu_addr(1)='0' and grom_ram_addr(0)='0' and grom_selected='1' else
-		SRAM_DAT(7 downto 0)  & x"00" when cpu_addr(15 downto 8) = x"98" and cpu_addr(1)='0' and grom_ram_addr(0)='1' and grom_selected='1' else
+		pager_data_out(7 downto 0) & pager_data_out(7 downto 0) when paging_registers = '1' else	-- replicate pager values on both hi and lo bytes
+		sram_16bit_read_bus(15 downto 8) & x"00" when cpu_addr(15 downto 8) = x"98" and cpu_addr(1)='0' and grom_ram_addr(0)='0' and grom_selected='1' else
+		sram_16bit_read_bus(7 downto 0)  & x"00" when cpu_addr(15 downto 8) = x"98" and cpu_addr(1)='0' and grom_ram_addr(0)='1' and grom_selected='1' else
 	   x"FF00"                       when cpu_addr(15 downto 8) = x"98" and cpu_addr(1)='0' and grom_selected='0' else
 		-- CRU space signal reads
 		cru_read_bit & "000" & x"000"	when MEM_n='1' else
 		x"FFF0"								when MEM_n='1' else -- other CRU
 		x"0000"								when translated_addr(15 downto 6) /= "0000000000" else -- paged memory limited to 256K for now
-		SRAM_DAT(15 downto 0);		-- data to CPU
+		sram_16bit_read_bus(15 downto 0);		-- data to CPU
 	
  	vdp: entity work.tms9918
 		port map(

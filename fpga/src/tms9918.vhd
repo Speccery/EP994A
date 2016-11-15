@@ -134,6 +134,14 @@ architecture Behavioral of tms9918 is
 	signal color1				: std_logic_vector(3 downto 0);
 	signal pixel_count		: integer;
 
+	-- display start and in VGA scanlines
+	constant disp_start 		: integer := 16;
+	constant disp_start_slv : std_logic_vector(9 downto 0) := std_logic_vector(to_unsigned(disp_start,10));
+	constant disp_rendr_slv : std_logic_vector(9 downto 0) := std_logic_vector(to_unsigned(disp_start-1,10));	
+	
+	constant disp_end			: integer := 402;	-- equals to 16+2*192+2
+	constant disp_end_slv	: std_logic_vector(9 downto 0) := std_logic_vector(to_unsigned(disp_end,10));
+	--
 	constant slv_386	: std_logic_vector(9 downto 0) := std_logic_vector(to_unsigned(386,10));
 	constant slv_480	: std_logic_vector(9 downto 0) := std_logic_vector(to_unsigned(480,10));
 	constant slv_511	: std_logic_vector(9 downto 0) := std_logic_vector(to_unsigned(511,10));
@@ -308,7 +316,7 @@ begin
 			-- read from linebuffer
 			if clk25MHz = '1' then
 				if video_on = '1' and reg1(6)='1' then
-					if VGACol <= slv_511 and VGARow <= slv_386 then
+					if VGACol <= slv_511 and VGARow >= disp_start_slv and VGARow <= disp_end_slv then
 						vga_red 		<= vga_line_buf_out(7 downto 5);
 						vga_green 	<= vga_line_buf_out(4 downto 2);
 						vga_blue 	<= vga_line_buf_out(1 downto 0);
@@ -330,10 +338,10 @@ begin
 				case refresh_state is
 					when wait_frame =>
 						pixel_write <= '0';
-						if VGARow = slv_523 and VGACol = slv_480 then --760 then	-- arbitrary point on last scanline
+						if VGARow = disp_rendr_slv and VGACol = slv_480 then --760 then	-- arbitrary point on last scanline
 							refresh_state <= process_line;
 							vga_bank <= '0';
-							vga_row_number <= 0;
+							vga_row_number <= disp_start;
 							xpos <= 0;
 							process_pixel <= setup_read_char;
 							char_addr 			<= reg2(3 downto 0) & "0000000000";	-- char memory base address
@@ -354,7 +362,7 @@ begin
 								process_pixel <= read_char1;
 							when read_char1 =>
 								if reg0(1)='0' then
-									-- Graphics mode 1
+									-- Graphics mode 1 (actually anything else than graphics mode 2)
 									vram_out_addr <= reg4(2 downto 0) & char_code & ypos(2 downto 0); -- VGARow(3 downto 1);
 								else
 									-- Graphics mode 2. 768 unique characters are possible.
@@ -375,15 +383,24 @@ begin
 							when read_color =>
 								-- read color data. After this step it would actually be possible to concurrently
 								-- start reading the next char etc while pixels are written to the line buffer.
-								color1 <= vram_out_data(7 downto 4);
-								if vram_out_data(3 downto 0) = "0000" then
-									-- transparent, user border color
+								-- in text mode color 1 comes from register 7
+								if reg1(4)='1' then 
+									color1 <= reg7(7 downto 4);				-- text mode, ignore VRAM data
+								else
+									color1 <= vram_out_data(7 downto 4);	-- GM1, GM2
+								end if;
+								if vram_out_data(3 downto 0) = "0000" or reg1(4)='1' then
+									-- transparent, user border color; or text mode
 									color0 <= reg7(3 downto 0);
 								else
 									color0 <= vram_out_data(3 downto 0);
 								end if;
 								process_pixel <= write_pixels;
-								pixel_count <= 0;
+								if reg1(4)='1' then 
+									pixel_count <= 2;	-- text mode, character cells are 6 pixels wide
+								else
+									pixel_count <= 0;
+								end if;
 								pixel_toggler <= '0';
 							when write_pixels =>
 								-- write 8 pixels. Write each individual pixel twice to make them wide.
@@ -407,7 +424,7 @@ begin
 								pixel_write <= '0';	-- turn off writes to linebuffer
 								process_pixel <= setup_read_char;	-- loop back this state machine
 								xpos <= xpos + 1;
-								if xpos = 31 then
+								if (xpos = 31 and reg1(4)='0') or (xpos=39 and reg1(4)='1') then
 									xpos <= 0;					
 									refresh_state <= process_sprites;
 									vga_row_number <= vga_row_number + 2;
@@ -524,7 +541,7 @@ begin
 						end if;
 						
 					when wait_line =>
-						if vga_row_number >= 386 then -- VGARow = slv_480 then
+						if vga_row_number >= disp_end then -- VGARow = slv_480 then
 							refresh_state <= wait_frame;
 							stat_reg(7) <= '1';			-- make VDP interrupt pending
 						end if;
