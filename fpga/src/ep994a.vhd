@@ -377,19 +377,36 @@ begin
 				-- B8000..B8FFF - Scratchpad 	(was at 68000)
 				-- BA000..BCFFF - Boot ROM remapped (was at 0)   
 				---------------------------------------------------------
+				-- The SAMS control bits are set to zero on reset.
+				-- sams_regs(0) CRU 1E00: when set, paging registers appear at DSR space >4000..
+				-- sams_regs(1) CRU 1E02: when set, paging is enabled
+				-- sams_regs(2) CRU 1E04: unused
+				-- sams_regs(3) CRU 1E06: unused
+				-- The memory paging CRU register control bits can be used
+				-- to remove devices from the CPU's address space, revealing the
+				-- underlying pageable RAM:
+				-- sams_regs(4) CRU 1E08: when set, ROM is out and pageable RAM instead is available
+				-- sams_regs(5) CRU 1E0A: when set, cartridge is out and pageable RAM instead is available
+				--								  Also writes to cartridge are do not change the cartridge page during this time.
+				-- sams_regs(6) CRU 1E0C: when set I/O devices are out and pageable RAM instead is available
+				-- sams_regs(7) CRU 1E0E: unused
+				-- Also, when disk DSR ROM are not mapped (CRU >1100=0) or SAMS page registers visible (>1E00=0)
+				--	the pageable RAM "under" the DSR space is available.
+				-- Thus the entire 64K is pageable.
+				---------------------------------------------------------
 				
 				-- Drive SRAM addresses outputs synchronously 
 				if cpu_access = '1' then
 					if cpu_addr(15 downto 8) = x"98" and cpu_addr(1)='0' then
 						sram_addr_bus <= x"8" & grom_ram_addr(15 downto 1);	-- 0x80000 GROM
-					elsif cartridge_cs='1' then
-						-- Handle paging of module port at 0x6000
+					elsif cartridge_cs='1' and sams_regs(5)='0' then
+						-- Handle paging of module port at 0x6000 unless sams_regs(5) is set (1E0A)
 						sram_addr_bus <= x"9" & basic_rom_bank & cpu_addr(12 downto 1);	-- mapped to 0x90000
 					elsif cru1100='1' and cpu_addr(15 downto 13) = "010" then	
 						-- DSR's for disk system
 						sram_addr_bus <= x"B" & "000" & cpu_addr(12 downto 1);	-- mapped to 0xB0000
-					elsif cpu_addr(15 downto 13) = "000" then
-						-- boringly ROM at the bottom of address space not paged
+					elsif cpu_addr(15 downto 13) = "000" and sams_regs(4) = '0' then
+						-- ROM at the bottom of address space not paged unless sams_regs(4) is set (1E08)
 						sram_addr_bus <= x"B" & "101" & cpu_addr(12 downto 1);	-- mapped to 0xBA000
 					elsif cpu_addr(15 downto 10) = "100000" then
 						-- now that paging is introduced we need to move scratchpad (1k here)
@@ -564,27 +581,29 @@ begin
 				grom_we <= '0';
 				tms9919_we <= '0';
 				paging_wr_enable <= '0';
-				if wr_sampler = "1000" and MEM_n='0' then
-					if cpu_addr(15 downto 8) = x"80" then
-						outreg <= indata;			-- write to >80XX is sampled in the output register
-					elsif cpu_addr(15 downto 8) = x"8C" then
-						vdp_wr <= '1';
-					elsif cpu_addr(15 downto 8) = x"9C" then
-						grom_we <= '1';			-- GROM writes
-					elsif cartridge_cs='1' then
-						basic_rom_bank <= cpu_addr(3 downto 1);	-- capture ROM bank select
-					elsif cpu_addr(15 downto 8) = x"84" then	
-						tms9919_we <= '1';		-- Audio chip write
-					elsif paging_registers = '1' then 
-						paging_wr_enable <= '1';
+				if sams_regs(6)='0' then	-- if sams_regs(6) is set I/O is out and paged RAM is there instead
+					if wr_sampler = "1000" and MEM_n='0' then
+						if cpu_addr(15 downto 8) = x"80" then
+							outreg <= indata;			-- write to >80XX is sampled in the output register
+						elsif cpu_addr(15 downto 8) = x"8C" then
+							vdp_wr <= '1';
+						elsif cpu_addr(15 downto 8) = x"9C" then
+							grom_we <= '1';			-- GROM writes
+						elsif cartridge_cs='1' and sams_regs(5)='0' then
+							basic_rom_bank <= cpu_addr(3 downto 1);	-- capture ROM bank select
+						elsif cpu_addr(15 downto 8) = x"84" then	
+							tms9919_we <= '1';		-- Audio chip write
+						elsif paging_registers = '1' then 
+							paging_wr_enable <= '1';
+						end if;
+					end if;	
+					if MEM_n='0' and rd_sampler(1 downto 0)="00" and cpu_addr(15 downto 8)=x"88" then
+						vdp_rd <= '1';
 					end if;
-				end if;	
-				if MEM_n='0' and rd_sampler(1 downto 0)="00" and cpu_addr(15 downto 8)=x"88" then
-					vdp_rd <= '1';
-				end if;
-				grom_rd <= '0';
-				if MEM_n='0' and rd_sampler(1 downto 0)="00" and cpu_addr(15 downto 8) = x"98" then
-					grom_rd <= '1';
+					grom_rd <= '0';
+					if MEM_n='0' and rd_sampler(1 downto 0)="00" and cpu_addr(15 downto 8) = x"98" then
+						grom_rd <= '1';
+					end if;
 				end if;
 				
 				-- CRU cycle to TMS9901
@@ -676,12 +695,12 @@ begin
 	CH2_EN <= '0'; -- when ALATCH='1' or RD_n='0' or WE_n = '0' else '1';
 	
 	cpu_data_out <= 
-		vdp_data_out         			when cpu_addr(15 downto 10) = "100010" else	-- 10001000..10001011 (8800..8BFF)
-		grom_data_out & x"00" 			when cpu_addr(15 downto 8) = x"98" and cpu_addr(1)='1' else	-- GROM address read
+		vdp_data_out         			when sams_regs(6)='0' and cpu_addr(15 downto 10) = "100010" else	-- 10001000..10001011 (8800..8BFF)
+		grom_data_out & x"00" 			when sams_regs(6)='0' and cpu_addr(15 downto 8) = x"98" and cpu_addr(1)='1' else	-- GROM address read
 		pager_data_out(7 downto 0) & pager_data_out(7 downto 0) when paging_registers = '1' else	-- replicate pager values on both hi and lo bytes
-		sram_16bit_read_bus(15 downto 8) & x"00" when cpu_addr(15 downto 8) = x"98" and cpu_addr(1)='0' and grom_ram_addr(0)='0' and grom_selected='1' else
-		sram_16bit_read_bus(7 downto 0)  & x"00" when cpu_addr(15 downto 8) = x"98" and cpu_addr(1)='0' and grom_ram_addr(0)='1' and grom_selected='1' else
-	   x"FF00"                       when cpu_addr(15 downto 8) = x"98" and cpu_addr(1)='0' and grom_selected='0' else
+		sram_16bit_read_bus(15 downto 8) & x"00" when sams_regs(6)='0' and cpu_addr(15 downto 8) = x"98" and cpu_addr(1)='0' and grom_ram_addr(0)='0' and grom_selected='1' else
+		sram_16bit_read_bus(7 downto 0)  & x"00" when sams_regs(6)='0' and cpu_addr(15 downto 8) = x"98" and cpu_addr(1)='0' and grom_ram_addr(0)='1' and grom_selected='1' else
+	   x"FF00"                       when sams_regs(6)='0' and cpu_addr(15 downto 8) = x"98" and cpu_addr(1)='0' and grom_selected='0' else
 		-- CRU space signal reads
 		cru_read_bit & "000" & x"000"	when MEM_n='1' else
 		x"FFF0"								when MEM_n='1' else -- other CRU
@@ -746,7 +765,7 @@ begin
 	
 	-- memory paging unit implementation
 	paging_regs_visible 	<= sams_regs(0);			-- 1E00 in CRU space
-	paging_enable 			<= sams_regs(1);			-- 1E01 in CRU space
+	paging_enable 			<= sams_regs(1);			-- 1E02 in CRU space
 	
 	-- the pager registers can be accessed at >4000 to >5FFF when paging_regs_visible is set
 	paging_registers <= '1' when paging_regs_visible = '1' and MEM_n = '0' and cpu_addr(15 downto 13) = "010" else '0';
