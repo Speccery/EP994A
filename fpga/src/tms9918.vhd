@@ -96,7 +96,6 @@ architecture Behavioral of tms9918 is
 	signal vga_bank			: std_logic;
 	signal vga_line_buf_addr : std_logic_vector(8 downto 0);
 	signal vga_line_buf_wr	: std_logic;	-- write strobe
---	signal vga_row_number	: integer;
 	signal xpos 				: integer;
 	signal ypos					: std_logic_vector(7 downto 0);
 	signal pixel_write		: std_logic;
@@ -136,17 +135,11 @@ architecture Behavioral of tms9918 is
 
 	-- display start and in VGA scanlines
 	constant disp_start 		: integer := 16;
-	constant disp_start_slv : std_logic_vector(9 downto 0) := std_logic_vector(to_unsigned(disp_start,10));
 	constant disp_rendr     : integer := disp_start - 2;
+	constant disp_start2		: integer := disp_start + 2;
 	constant disp_rendr_slv : std_logic_vector(9 downto 0) := std_logic_vector(to_unsigned(disp_rendr,10));	
-	
-	constant disp_end			: integer := 402;	-- equals to 16+2*192+2
-	constant disp_end_slv	: std_logic_vector(9 downto 0) := std_logic_vector(to_unsigned(disp_end,10));
 	--
-	constant slv_386	: std_logic_vector(9 downto 0) := std_logic_vector(to_unsigned(386,10));
-	constant slv_480	: std_logic_vector(9 downto 0) := std_logic_vector(to_unsigned(480,10));
 	constant slv_511	: std_logic_vector(9 downto 0) := std_logic_vector(to_unsigned(511,10));
-	constant slv_523	: std_logic_vector(9 downto 0) := std_logic_vector(to_unsigned(523,10));
 	constant slv_760	: std_logic_vector(9 downto 0) := std_logic_vector(to_unsigned(760,10));
 	
 	signal 	blanking : std_logic;
@@ -307,15 +300,10 @@ begin
 				vram_addr <= std_logic_vector(to_unsigned(1+to_integer(unsigned(vram_addr)), vram_addr'length));
 			end if;
 			
-			
-			
 			-- VGA processing
 			vga_hsync 	<= Hsync;
 			vga_vsync 	<= Vsync;
 	
---			vga_addr		<= '0' & VGARow(8 downto 1) & VGACol(8 downto 4);
-			
-			
 			-- read from linebuffer
 			if clk25MHz = '1' then
 				if video_on = '1' and reg1(6)='1' then
@@ -345,12 +333,11 @@ begin
 						if VGARow = disp_rendr_slv and VGACol = x"00" & "00" then -- start rendering
 							refresh_state <= process_line;
 							vga_bank <= '0';
---							vga_row_number <= disp_start;
 							xpos <= 0;
 							process_pixel <= setup_read_char;
 							char_addr 			<= reg2(3 downto 0) & "0000000000";	-- char memory base address
 							char_addr_reload 	<= reg2(3 downto 0) & "0000000000";	
-							vga_line_buf_addr <= (others => '0');
+							vga_line_buf_addr <= (others => '1');	-- init to -1, so that first add rolls over to 0
 							ypos <= (others => '0');
 						end if;
 					when process_line =>
@@ -431,7 +418,6 @@ begin
 								if (xpos = 31 and reg1(4)='0') or (xpos=39 and reg1(4)='1') then
 									xpos <= 0;					
 									refresh_state <= process_sprites;
---									vga_row_number <= vga_row_number + 2;																
 								end if;
 						end case;
 						
@@ -456,7 +442,7 @@ begin
 					when sprite_read_horiz =>
 						-- sprite_line <= unsigned("1" & ypos) - unsigned("0" & sprite_y);
 						sprite_line <= std_logic_vector(to_unsigned(
-							to_integer(unsigned('1' & ypos)) - to_integer(unsigned(sprite_y)), 
+							to_integer(unsigned('1' & ypos)) - to_integer(unsigned(sprite_y)) - 1, 
 							sprite_line'length));
 						sprite_x <= vram_out_data;
 						vram_out_addr <= reg5(6 downto 0) & sprite_counter & "10";
@@ -545,8 +531,7 @@ begin
 						end if;
 						
 					when wait_line =>
---						if VGARow = std_logic_vector(to_unsigned(vga_row_number,10)) and VGACol=slv_760 then	
-						if VGARow = std_logic_vector(to_unsigned(to_integer(unsigned(ypos & '0')) + 2 + disp_start,10)) and VGACol=slv_760 then	
+						if VGARow = std_logic_vector(to_unsigned(to_integer(unsigned(ypos & '0')) + disp_start2,10)) and VGACol=slv_760 then	
 							-- we arrived at next line boundary, process it
 							vga_bank <= not vga_bank;
 							refresh_state <= process_line;
