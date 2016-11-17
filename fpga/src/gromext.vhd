@@ -71,7 +71,7 @@ begin
 	addr <= grom_base & grom_sel & offset;
 	dout <= read_addr(15 downto 8);
 	
-	process(clk)
+	process(clk, reset)
 	begin 
 		if reset = '1' then
 			grom_sel <= "000";

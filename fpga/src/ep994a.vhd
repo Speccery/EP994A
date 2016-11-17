@@ -122,6 +122,8 @@ architecture Behavioral of ep994a is
  
 	
 	signal funky_reset 		: std_logic_vector(15 downto 0) := (others => '0');
+	signal real_reset			: std_logic;
+	signal real_reset_n		: std_logic;
 	signal mem_data_out 		: std_logic_vector(7 downto 0);
 	signal mem_data_in 		: std_logic_vector(7 downto 0);
 	signal mem_addr			: std_logic_vector(31 downto 0);
@@ -241,7 +243,20 @@ architecture Behavioral of ep994a is
 		);
 	end component;
 -------------------------------------------------------------------------------
-
+	component gromext is
+    Port ( din 	: in  STD_LOGIC_VECTOR (7 downto 0);	-- data in, write bus for addresses
+	        dout 	: out  STD_LOGIC_VECTOR (7 downto 0);	-- data out, read bus
+           clk 	: in  STD_LOGIC;
+           we 		: in  STD_LOGIC;								-- write enable, 1 cycle long
+           rd		: in  STD_LOGIC;								-- read signal, may be up for multiple cycles
+			  selected : out STD_LOGIC;							-- high when this GROM is enabled during READ
+																			-- when high, databus should be driven
+           mode 	: in  STD_LOGIC_VECTOR(4 downto 0);		-- A5..A1 (4 bits for GROM base select, 1 bit for register select)
+			  reset  : in  STD_LOGIC;
+			  addr	: out STD_LOGIC_VECTOR(19 downto 0)		-- 1 megabyte GROM address out
+			  );
+	end component;
+-------------------------------------------------------------------------------
 begin
   
  clkin1_buf : IBUFG
@@ -316,7 +331,9 @@ begin
 	
 	-------------------------------------
 	-- CPU reset out. If either cpu_reset_ctrl(0) or funky_reset(MSB) is zero, put CPU to reset.
-	CPU_RESET <= cpu_reset_ctrl(0) and funky_reset(funky_reset'length-1);
+	real_reset <= funky_reset(funky_reset'length-1);
+	real_reset_n <= not real_reset;
+	CPU_RESET <= cpu_reset_ctrl(0) and real_reset;
 	
 	-------------------------------------
 	-- vdp interrupt
@@ -632,7 +649,7 @@ begin
 		
 	command_processor : serloader port map (
 		clk 		=> clk,
-		rst 		=> not funky_reset(funky_reset'length-1),
+		rst 		=> real_reset_n,
 		tx			=> txd,
 		rx			=> rxd,
 		mem_addr 		=> mem_addr,
@@ -675,7 +692,7 @@ begin
  	vdp: entity work.tms9918
 		port map(
 		clk 		=> clk,		
-		reset 	=> not funky_reset(funky_reset'length-1),	
+		reset 	=> real_reset_n,	
 		mode 		=> cpu_addr(1),
 		addr		=> cpu_addr(8 downto 1),
 		data_in 	=> indata(15 downto 8),
@@ -704,14 +721,14 @@ begin
 			rd 		=> grom_rd,
 			selected => grom_selected,	-- output from GROM available, i.e. GROM address is ours
 			mode 		=> cpu_addr(5 downto 1),
-			reset 	=> not funky_reset(funky_reset'length-1),
+			reset 	=> real_reset_n,
 			addr 		=> grom_ram_addr
 		);
 
 	-- sound chip implementation
 	TMS9919_CHIP: entity work.tms9919 port map (
 			clk 		=> clk,
-			reset		=> not funky_reset(funky_reset'length-1),
+			reset		=> real_reset_n,
 			data_in 	=> indata(15 downto 8),
 			we			=> tms9919_we,
 			dac_out	=> dac_data
