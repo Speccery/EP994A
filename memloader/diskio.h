@@ -18,10 +18,10 @@ struct ti_pab {
 	unsigned char   name[1];
 };
 
-#define SCRATCHPAD        0x68000 // Scratchpad base address
-#define CMD_ADDR			    0x6800C
+#define SCRATCHPAD          0xB8000 // Scratchpad base address
+#define CMD_ADDR			      0xB800C
 #define DISK_BUFFER_ADDR_TI	0x8100  // Address in TMS99105 terms
-#define DISK_BUFFER_ADDR_PC 0x68100 // Address from PC
+#define DISK_BUFFER_ADDR_PC 0xB8100 // Address from PC
 
 struct dsr_cmd {
 	unsigned short arg1, arg2, arg3;

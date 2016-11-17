@@ -350,29 +350,38 @@ begin
 				sams_regs <= (others => '0');
 			else
 				-- processing of normal clocks here. We run at 100MHz.
+				---------------------------------------------------------
+				-- SRAM map (1 mega byte, 0..FFFFF, 20 bit address space)
+				---------------------------------------------------------
+				--	00000..7FFFF - SAMS RAM 512K
+				-- 80000..8FFFF - GROM mapped to this area, 64K (was at 30000)
+				-- 90000..AFFFF - Cartridge module port, paged, 64K (was at 70000)
+				-- B0000..B7FFF - DSR area, 32K reserved	(was at 60000)
+				-- B8000..B8FFF - Scratchpad 	(was at 68000)
+				-- BA000..BCFFF - Boot ROM remapped (was at 0)   
+				---------------------------------------------------------
 				
-				-- drive SRAM addresses synchronously outputs
---				sram_addr_bus <= mem_addr(19 downto 1);	-- this is setup later
+				-- Drive SRAM addresses outputs synchronously 
 				if cpu_access = '1' then
 					if cpu_addr(15 downto 8) = x"98" and cpu_addr(1)='0' then
-						sram_addr_bus <= "0011" & grom_ram_addr(15 downto 1);	-- 0x30000
+						sram_addr_bus <= x"8" & grom_ram_addr(15 downto 1);	-- 0x80000 GROM
 					elsif cartridge_cs='1' then
 						-- Handle paging of module port at 0x6000
-						sram_addr_bus <= "0111" & basic_rom_bank & cpu_addr(12 downto 1);	-- mapped to 0x70000
-					elsif cru1100='1' and cpu_addr(15 downto 13) = "010" then	-- DSR's for disk system
-						sram_addr_bus <= "0110" & "000" & cpu_addr(12 downto 1);	-- mapped to 0x60000
+						sram_addr_bus <= x"9" & basic_rom_bank & cpu_addr(12 downto 1);	-- mapped to 0x90000
+					elsif cru1100='1' and cpu_addr(15 downto 13) = "010" then	
+						-- DSR's for disk system
+						sram_addr_bus <= x"B" & "000" & cpu_addr(12 downto 1);	-- mapped to 0xB0000
 					elsif cpu_addr(15 downto 13) = "000" then
-						-- boringly keep ROM at the bottom of address space, not paged
-						sram_addr_bus <= "0000000" & cpu_addr(12 downto 1);
+						-- boringly ROM at the bottom of address space not paged
+						sram_addr_bus <= x"B" & "101" & cpu_addr(12 downto 1);	-- mapped to 0xBA000
 					elsif cpu_addr(15 downto 10) = "100000" then
 						-- now that paging is introduced we need to move scratchpad (1k here)
-						-- out of harm's way. Scartchpad at 68000 to keep it safe from paging.
-						sram_addr_bus <= "0110100000" & cpu_addr(9 downto 1);
+						-- out of harm's way. Scartchpad at B8000 to keep it safe from paging.
+						sram_addr_bus <= x"B8" & "00" & cpu_addr(9 downto 1);
 					else
 						-- regular RAM access
-						-- sram_addr_bus <= "0000" & cpu_addr(15 downto 1);
-						-- Bottom 256K is CPU SAMS RAM for now, so we have 18 bit memory addresses
-						sram_addr_bus <= "00" & translated_addr(5 downto 0) & cpu_addr(11 downto 1);
+						-- Bottom 512K is CPU SAMS RAM for now, so we have 19 bit memory addresses for RAM
+						sram_addr_bus <= "0" & translated_addr(6 downto 0) & cpu_addr(11 downto 1);
 					end if;
 				end if;
 
@@ -408,7 +417,7 @@ begin
 								and cpu_addr(15 downto 12) /= x"9"			-- 9XXX addresses don't go to RAM
 								and cpu_addr(15 downto 11) /= x"8" & '1'	-- 8800-8FFF don't go to RAM
 								and cartridge_cs='0' 							-- writes to cartridge region do not go to RAM
-								and translated_addr(15 downto 6) = "0000000000" -- if paging is on only bottom 256K currently available
+--								and translated_addr(15 downto 6) = "0000000000" -- if paging is on only bottom 256K currently available
 								-- and cpu_addr(15 downto 13) /= "000"			-- No writes to low 8K (ROM)
 							then
 							-- init CPU write cycle
@@ -659,7 +668,8 @@ begin
 		-- CRU space signal reads
 		cru_read_bit & "000" & x"000"	when MEM_n='1' else
 		x"FFF0"								when MEM_n='1' else -- other CRU
-		x"0000"								when translated_addr(15 downto 6) /= "0000000000" else -- paged memory limited to 256K for now
+		-- line below commented, paged memory repeated in the address range as opposed to returning zeros outside valid range
+		--	x"0000"							when translated_addr(15 downto 6) /= "0000000000" else -- paged memory limited to 256K for now
 		sram_16bit_read_bus(15 downto 0);		-- data to CPU
 	
  	vdp: entity work.tms9918

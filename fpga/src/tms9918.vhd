@@ -137,7 +137,8 @@ architecture Behavioral of tms9918 is
 	-- display start and in VGA scanlines
 	constant disp_start 		: integer := 16;
 	constant disp_start_slv : std_logic_vector(9 downto 0) := std_logic_vector(to_unsigned(disp_start,10));
-	constant disp_rendr_slv : std_logic_vector(9 downto 0) := std_logic_vector(to_unsigned(disp_start-1,10));	
+	constant disp_rendr     : integer := disp_start - 1;
+	constant disp_rendr_slv : std_logic_vector(9 downto 0) := std_logic_vector(to_unsigned(disp_rendr,10));	
 	
 	constant disp_end			: integer := 402;	-- equals to 16+2*192+2
 	constant disp_end_slv	: std_logic_vector(9 downto 0) := std_logic_vector(to_unsigned(disp_end,10));
@@ -427,7 +428,7 @@ begin
 								if (xpos = 31 and reg1(4)='0') or (xpos=39 and reg1(4)='1') then
 									xpos <= 0;					
 									refresh_state <= process_sprites;
-									vga_row_number <= vga_row_number + 2;
+									vga_row_number <= vga_row_number + 2;																
 								end if;
 						end case;
 						
