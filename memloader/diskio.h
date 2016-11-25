@@ -20,6 +20,7 @@ struct ti_pab {
 
 #define SCRATCHPAD          0xB8000 // Scratchpad base address
 #define CMD_ADDR			      0xB800C
+#define DSR_PABSTA          0xB8004  // TMS99105 stores PAB start address here.
 #define DISK_BUFFER_ADDR_TI	0x8100  // Address in TMS99105 terms
 #define DISK_BUFFER_ADDR_PC 0xB8100 // Address from PC
 
@@ -43,6 +44,16 @@ struct tifiles_header {
 
 // The following definitions are from classic99/diskclass.h for naming consistency
 // but basically they are from 99-4A_Console_Peripheral_Expansion_System_Technical_Data.pdf
+
+// The following is from diskclass.h / classic99 and defines the bits in the FileType byte above
+// Filetype enums for TIFILES (same for V9T9?) - these go into FileInfo::FileType and come from the file
+#define TIFILES_VARIABLE	0x80		// else Fixed
+#define TIFILES_PROTECTED	0x08		// else not protected
+#define TIFILES_INTERNAL	0x02		// else Display
+#define TIFILES_PROGRAM		0x01		// else Data
+// others undefined - for the mask, ignore protection bit
+#define TIFILES_MASK	(TIFILES_VARIABLE|TIFILES_INTERNAL|TIFILES_PROGRAM)
+
 // 
 // return bits for the STATUS command (saved in Screen Offset byte)
 #define STATUS_NOSUCHFILE	0x80
@@ -65,6 +76,24 @@ struct tifiles_header {
 #define OP_SCRATCH		8
 #define OP_STATUS		9
 
+// PAB error codes
+#define ERR_NOERROR			0			// This also means the DSR was not found!
+#define ERR_BADBAME			0			// thus the duplicate definition
+#define ERR_WRITEPROTECT	1
+#define ERR_BADATTRIBUTE	2
+#define ERR_ILLEGALOPERATION 3
+#define ERR_BUFFERFULL		4
+#define ERR_READPASTEOF		5
+#define ERR_DEVICEERROR		6
+#define ERR_FILEERROR		7
+
 #pragma pack(pop)
 
 int DoDiskProcess();
+
+int open_tifile(const char *name, unsigned short pab_addr, const struct ti_pab *pab, int writeback);
+int buffer_tifile(int i);
+int dump_records(int i);
+int swap_word_bytes(unsigned short *k);
+int read_record(int index, const struct ti_pab *pab);
+int close_tifile(int i);

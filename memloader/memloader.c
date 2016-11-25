@@ -1062,7 +1062,7 @@ int main(int argc, char *argv[])
     return 0;
   }
 
-  enum { c_write, c_read, c_regs, c_test, c_keys } cmd;
+  enum { c_write, c_read, c_regs, c_test, c_keys, c_fileunittest } cmd;
   cmd = c_write;
 
   int i;
@@ -1084,6 +1084,9 @@ int main(int argc, char *argv[])
       case 'k':
         cmd = c_keys;
         break;
+	  case 'u':
+		  cmd = c_fileunittest;
+		  break;
       case '1': case '2': case '3': case '4': case '5': 
       case '6': case '7': case '8': case '9': 
         serial_port[3] = argv[i][1];
@@ -1111,6 +1114,22 @@ int main(int argc, char *argv[])
   case c_write:
     cmd_write(i, argc, argv);
     break;  // return from below
+  case c_fileunittest:
+	  {
+		int h = open_tifile("DSK1/SCORE", 123, NULL, 0);
+		printf("buffer_tifile(%d) returned %d\n", h, buffer_tifile(h));
+		dump_records(h);
+    // simulate reading
+    printf("Testing reading:\n");
+    int r;
+    do {
+      r = read_record(h, NULL);
+    } while(r == ERR_NOERROR);
+    printf("Stopped, last read returned %d", r);
+    // close file
+    close_tifile(h);
+	  }
+	break;
   }
  
   return 0;

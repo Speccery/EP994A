@@ -387,7 +387,7 @@ begin
 				-- underlying pageable RAM:
 				-- sams_regs(4) CRU 1E08: when set, ROM is out and pageable RAM instead is available
 				-- sams_regs(5) CRU 1E0A: when set, cartridge is out and pageable RAM instead is available
-				--								  Also writes to cartridge are do not change the cartridge page during this time.
+				--								  Also writes to cartridge area do not change the cartridge page during this time.
 				-- sams_regs(6) CRU 1E0C: when set I/O devices are out and pageable RAM instead is available
 				-- sams_regs(7) CRU 1E0E: unused
 				-- Also, when disk DSR ROM are not mapped (CRU >1100=0) or SAMS page registers visible (>1E00=0)
