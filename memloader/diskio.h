@@ -87,11 +87,23 @@ struct tifiles_header {
 #define ERR_DEVICEERROR		6
 #define ERR_FILEERROR		7
 
+// Modes for opening files. These are bits in tipab.flags
+// Bit 0 is sequential / relative:
+#define PAB_REL 1   // when flags.0 = 0 sequential, flags.0=1 relative (supports seeking)
+// Bits 2 & 1 of tipab.flags give the mode
+enum filemode_t { filemode_update = 0, filemode_output = 1, filemode_input = 2, filemode_append = 3 };
+// FILEMODE_UPDATE 0   // supports both reading and writing.
+// FILEMODE_OUTPUT 1   // supports only writing.
+// FILEMODE_INPUT  2   // supports only reading.
+// FILEMODE_APPEND 3   // supports writing to the end of the file.
+
+
+
 #pragma pack(pop)
 
 int DoDiskProcess();
 
-int open_tifile(const char *name, unsigned short pab_addr, const struct ti_pab *pab, int writeback);
+int open_tifile(const char *name, unsigned short pab_addr, struct ti_pab *pab, int writeback);
 int buffer_tifile(int i);
 int dump_records(int i);
 int swap_word_bytes(unsigned short *k);

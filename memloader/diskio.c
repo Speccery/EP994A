@@ -10,9 +10,13 @@
 #include <malloc.h>
 // #include <varargs.h>
 #include <stdarg.h>
+#include <sys/stat.h>
 
 #include "diskio.h"
 #include "fpga-mem.h"
+
+void print_pab(const char *msg, unsigned short pab_vdp_addr, struct ti_pab *p);
+
 
 #if defined (__GNUC__)
 // functions corresponding to Visual C++ secure runtime - although these are not secure.
@@ -41,6 +45,7 @@ struct tifile {
   char          m_name[256];
   unsigned short m_pab;	//<! PAB address in VDP memory
   unsigned char *m_cur_data;
+  enum filemode_t m_mode;
 };
 
 struct tifile *files[10] = { 0 };
@@ -76,41 +81,126 @@ int find_tifile_handle(unsigned short vdp_pab_addr) {
   return -1;
 }
 
-// returns index to tifiles table, or negative value on error
-int open_tifile(const char *name, unsigned short pab_addr, const struct ti_pab *pab, int writeback) {
-  int i;
-  int found = 0;
-  for (i = 0; i < sizeof(files) / sizeof(files[0]); i++) {
-    if (files[i] == NULL)
-      found = 1;
-      break;
-  }
-  if (!found)
-    return -1;  // No free slot available.
-  files[i] = malloc(sizeof(struct tifile));
-  if (!files[i])
-    return -2;
-  memset(files[i], 0, sizeof(struct tifile));
-  strcpy_s(files[i]->m_name, sizeof(files[i]->m_name), name);
-  files[i]->m_file = fopen(files[i]->m_name, "rb");
+int create_new_file(int i, struct ti_pab *pab, unsigned short pab_vdp_addr) {
+  // create a new file.
+  files[i]->m_file = fopen(files[i]->m_name, "wb");
   if (files[i]->m_file == NULL) {
     free_slot(i);
     return -3;
   }
-  int r = fread(&files[i]->m_header, sizeof(struct tifiles_header), 1, files[i]->m_file);
-  if (r != 1) {
-    free_slot(i);
-    return -4;
-  }
-  // Validate header here
-  if (strncmp(files[i]->m_header.id, "\x07TIFILES", 8) != 0) {
-	  free_slot(i);
-	  return -5;
-  }
+  // Ok. We can open the file, but let's close it for now.
+  fclose(files[i]->m_file);
+  files[i]->m_file = NULL;
 
-  files[i]->m_pab = pab_addr;
-  unsigned short len = files[i]->m_header.LengthSectors;
-  files[i]->m_header.LengthSectors = (len << 8) | (len >> 8); // swap bytes
+  files[i]->m_var = (pab->flags & 0x10) ? variable : fixed;
+  // initialize the header.
+  struct tifiles_header *th = &files[i]->m_header;
+  memcpy(th->id, "\x07TIFILES", 8);
+  th->FileType = pab->flags & 0x10 ? 0x80 : 0;  // bit: record type fixed=0 or variable=1
+  // Setup internal / display: in PAB flags bit 3: 0=display, 1=internal
+  //  in TIFILES header bit 1: 0 = display, 1=internal
+  th->FileType |= pab->flags & 0x08 ? 2 : 0;      // bit 1: 0=internal 1=display
+  // bit 0 of filetype is 0 for data or 1 for program. we leave it at zero.
+
+  if (pab->record_length > 254)
+    pab->record_length = 254;
+  if (pab->record_length == 0)
+    pab->record_length = 80;
+  th->RecordLength = pab->record_length;
+  if (files[i]->m_var == variable)
+    th->RecordsPerSector = 256 / (1 + pab->record_length);
+  else
+    th->RecordsPerSector = 256 / pab->record_length;
+  // I guess we are done.
+  files[i]->m_pab = pab_vdp_addr;
+  return i;
+}
+
+// returns index to tifiles table, or negative value on error
+int open_tifile(const char *name, unsigned short pab_addr, struct ti_pab *pab, int writeback) {
+  int i;
+  int found = 0;
+  for (i = 0; i < sizeof(files) / sizeof(files[0]); i++) {
+    if (files[i] == NULL) {
+      found = 1;
+      break;
+    }
+  }
+  if (!found)
+    return ERR_FILEERROR;  // No free slot available.
+  files[i] = malloc(sizeof(struct tifile));
+  if (!files[i])
+    return ERR_FILEERROR;
+  memset(files[i], 0, sizeof(struct tifile));
+  strcpy_s(files[i]->m_name, sizeof(files[i]->m_name), name);
+  files[i]->m_mode = (pab->flags >> 1) & 3;
+
+  int no_file_buffering = 0;
+
+  switch(files[i]->m_mode) {
+  case filemode_output:
+    {
+      int r = create_new_file(i, pab, pab_addr);
+      if (r < 0) {
+        free_slot(i);
+        return ERR_FILEERROR;
+      }
+      no_file_buffering = 1;
+    }
+    break;
+  case filemode_update:
+    {
+      struct _stat statbuf;
+      int could_be_ok = 0;
+      if (_stat(files[i]->m_name, &statbuf) == 0) {
+        // The file exists. Validate it's size.
+        if (statbuf.st_size >= sizeof(struct tifiles_header))
+          could_be_ok = 1;
+      }
+      if (!could_be_ok) {
+        // it is a new file, create it like with filemode_output
+        int r = create_new_file(i, pab, pab_addr);
+        if (r < 0) {
+          free_slot(i);
+          return ERR_FILEERROR;
+        }
+        no_file_buffering = 1;
+        break;
+      }
+    }
+    // we fall through if we were able to open the file in read mode.
+  case filemode_append:
+  case filemode_input:
+    // filemode_input, filemode_append, filemode_update - read the file.
+    files[i]->m_file = fopen(files[i]->m_name, "rb");
+    if (files[i]->m_file == NULL) {
+      free_slot(i);
+      return ERR_FILEERROR; // -3;
+    }
+    int r = fread(&files[i]->m_header, sizeof(struct tifiles_header), 1, files[i]->m_file);
+    if (r != 1) {
+      free_slot(i);
+      return ERR_FILEERROR; // -4;
+    }
+    // Validate header here
+    if (strncmp(files[i]->m_header.id, "\x07TIFILES", 8) != 0) {
+      free_slot(i);
+      return ERR_FILEERROR; // -5;
+    }
+
+    // Make sure the types match: fixed/variable settings must match in file and PAB
+    if ((files[i]->m_header.FileType & TIFILES_VARIABLE) != ((pab->flags & 0x10) << 3)) {
+      free_slot(i);
+      fprintf(stderr, "Returning ERR_BADATTRIBUTE, types do not match\n");
+      return ERR_BADATTRIBUTE;
+    }
+
+    files[i]->m_pab = pab_addr;
+    unsigned short len = files[i]->m_header.LengthSectors;
+    files[i]->m_header.LengthSectors = (len << 8) | (len >> 8); // swap bytes
+    break;
+  }
+  
   // Allocate a large buffer for the file.
   files[i]->m_size = 512 * 1024;
   files[i]->m_data = malloc(files[i]->m_size); // for now allocate 0.5M and assume that's good 
@@ -118,6 +208,11 @@ int open_tifile(const char *name, unsigned short pab_addr, const struct ti_pab *
   files[i]->m_var = files[i]->m_header.FileType & TIFILES_VARIABLE ? variable : fixed;
   files[i]->m_cur_data = files[i]->m_data;
   files[i]->m_record = 0;
+
+  // Read the whole buffer at this point in time.
+  if (!no_file_buffering) {
+    printf("buffer_tifile(%d) returned: %d\n", i, buffer_tifile(i));
+  }
 
   // Write the response to the TI. This time we write back the entire PAB.
   if (writeback) {
@@ -128,11 +223,12 @@ int open_tifile(const char *name, unsigned short pab_addr, const struct ti_pab *
     swap_word_bytes(&ret_pab.addr);
     swap_word_bytes(&ret_pab.record_number);
     ret_pab.flags &= 0x1F;  // clear top 3 bits -> OK
-    WriteMemoryBlock(&ret_pab, DISK_BUFFER_ADDR_PC, sizeof(ret_pab));
+    print_pab("Return PAB: ", pab_addr, &ret_pab);
+    WriteMemoryBlock((unsigned char *)&ret_pab, DISK_BUFFER_ADDR_PC, sizeof(ret_pab));
     issue_cmd(2, DISK_BUFFER_ADDR_TI, pab_addr, sizeof(ret_pab));
   }
 
-  return i;
+  return ERR_NOERROR;
 }
 
 int buffer_tifile(int i) {
@@ -315,10 +411,96 @@ int read_record(int index, const struct ti_pab *pab) {
   return ERR_NOERROR;
 }
 
+void write_entire_file(int index) {
+  struct tifile *f = files[index];
+  f->m_file = fopen(f->m_name, "wb");
+  if (f->m_file == NULL) {
+    fprintf(stderr, "write_entire_file: file open (%s) failed.\n", f->m_name);
+    return;
+  }
+  if (f->m_var == variable)
+    *f->m_cur_data++ = 255;  // put in the terminating byte
+  fseek(f->m_file, 0, SEEK_SET);
+  f->m_header.LengthSectors = 1 + f->m_header.NumberRecords / f->m_header.RecordsPerSector;
+  f->m_header.BytesInLastSector = 256 - (f->m_header.RecordsPerSector + 1)*f->m_header.RecordLength;
+  // DO BYTE SWAPPING
+  struct tifiles_header k = f->m_header;
+  swap_word_bytes(&k.LengthSectors);
+  fwrite(&k, 1, sizeof(k), f->m_file);
+  // Loop through the records.
+  unsigned char *p = f->m_data;
+  int records = 0;
+  int sector_bytes = 256;
+  for (p = f->m_data; p < f->m_cur_data; ) {
+    // write the lenght of the record only for variable records. The lenghth is a BYTE value.
+    unsigned short len = *(unsigned short *)p;
+    // The record cannot cross the 256 byte sector boundary. If that is about to happen,
+    // we need to move to the next sector.
+    if (len == 255 && f->m_var == variable) {
+      // End of data. Write end marker and exit.
+      fputc(len, f->m_file); 
+      break;
+    }
+    // See if there is room for this record in this sector.
+    if ((f->m_var == variable && sector_bytes < len + 1) || (f->m_var == fixed && sector_bytes < len)) {
+      // We need to move to the next sector. Pad this one with zeros.
+      while (sector_bytes-- > 0) {
+        fputc(0, f->m_file);
+      }
+      sector_bytes = 256;
+    }
+    // Continue with normal processing
+    if (f->m_var == variable) {
+      fputc(len, f->m_file);
+      sector_bytes--;
+    }
+    if (len > 255 || len == 0) {
+      fprintf(stderr, "write_entire_file: internal error len=%d, records=%d\n", len, records);
+      len = 254;
+    }
+    // next we write the actual bytes
+    fwrite(p + 2, 1, len, f->m_file);
+    p += 2 + f->m_header.RecordLength;
+    sector_bytes -= len;
+    ++records;
+  }
+  // Pad to the end of sector
+  while (sector_bytes-- > 0) {
+    fputc(0, f->m_file);
+  }
+  // Theoretically we are done
+  if (records != f->m_header.NumberRecords) {
+    fprintf(stderr, "write_entire_file: internal error records=%d != NumberRecords %d\n", records, f->m_header.NumberRecords);
+  }
+  fclose(f->m_file);
+  f->m_file = NULL;
+}
+
 int close_tifile(int index) {
   if (index < 0)
     return ERR_FILEERROR;
+  if (files[index]->m_mode == filemode_output) {
+    write_entire_file(index);
+  }
   free_slot(index);
+  return ERR_NOERROR;
+}
+
+int write_record(int index, const struct ti_pab *pab) {
+  // read the data from the TI to my buffer.
+  unsigned short vdp_addr = pab->addr;
+  unsigned short chunk = pab->count;
+  if (files[index]->m_var == fixed)
+    chunk = files[index]->m_header.RecordLength;
+  *(unsigned short *)files[index]->m_cur_data = chunk;
+  if (chunk == 0) {
+    fprintf(stderr, "ERROR: Serious file error, read count would be zero!\n");
+    return ERR_BUFFERFULL;
+  }
+  issue_cmd(1, vdp_addr, DISK_BUFFER_ADDR_TI, chunk);
+  ReadMemoryBlock(files[index]->m_cur_data+2, DISK_BUFFER_ADDR_PC, chunk);
+  files[index]->m_cur_data += 2 + files[index]->m_header.RecordLength;
+  files[index]->m_header.NumberRecords++;
   return ERR_NOERROR;
 }
 
@@ -331,10 +513,9 @@ const char *get_name(struct ti_pab *p) {
 	return name;
 }
 
-void print_pab(unsigned short pab_vdp_addr, struct ti_pab *p) {
+void print_pab(const char *msg, unsigned short pab_vdp_addr, struct ti_pab *p) {
 	char name[80];
 	char *op = "Unkown";
-	fprintf(stderr, "\n");
 	switch (p->opcode) {
 	case 0: op = "Open"; break;
 	case 1: op = "Close"; break;
@@ -356,9 +537,14 @@ void print_pab(unsigned short pab_vdp_addr, struct ti_pab *p) {
 	strcat(flags, p->flags & 16 ? "VAR" : "FIX");
 	strcat(flags, "]");
 	strcpy(name, get_name(p));
-	fprintf(stderr, "%04X: %s %s err=%d addr=%04X rec=%d cnt=%d n=%d offs=%d %s\n",
+	printf("%10s %04X: %s %s err=%d addr=0x%04X rec=%d cnt=%d n=%d offs=%d %s\n",
+    msg ? msg : "",
     pab_vdp_addr, op, flags, p->flags >> 5, p->addr, p->record_length, p->count,
 		p->record_number, p->screen_offset, name);
+  unsigned char *t = (unsigned char *)p;
+  for (int i = 0; i < 10; i++)
+    printf("%02X ", t[i]);
+  printf("\n");
 }
 
 int swap_word_bytes(unsigned short *k) {
@@ -524,11 +710,11 @@ int DoDiskProcess() {
 		return 0; // Nothing to be done
 				  // We have a command from the CPU. PAB is at offset 32.
 	struct ti_pab *p = (struct ti_pab *)&cmd_buf[32];
-	swap_word_bytes(&p->addr);
-	swap_word_bytes(&p->record_number);
   unsigned short pabsta = *(unsigned short *)&cmd_buf[DSR_PABSTA - SCRATCHPAD];
+  print_pab("Got PAB: ", pabsta, p);
   swap_word_bytes(&pabsta);
-	print_pab(pabsta, p);
+  swap_word_bytes(&p->addr);
+	swap_word_bytes(&p->record_number);
 	if (p->opcode == OP_SAVE) {
 		// Save operation, the TI wants to save a program to our disk.
 		// DEBUG: Save sprite table
@@ -557,34 +743,54 @@ int DoDiskProcess() {
 		DoLoad(get_name(p), p);
   }
   else if (p->opcode == OP_OPEN) {
-    if (((p->flags >> 1) & 3) != 2) {
-      // operation is not input - error
-      fprintf(stderr, "Error: OP_OPEN file %s not opened for input.\n", get_name(p));
-      issue_cmd(3, 0x7000, 0, 0);
-    }
     char filename[256];
     generate_filename(filename, get_name(p));
-    int h = open_tifile(filename, pabsta, p, 1);
-    if (h < 0) {
-      // This is not implemented, let's return an error (file not found)
+    int r = open_tifile(filename, pabsta, p, 1);
+    if (r != 0) {
+      // Let's return an error (file not found)
       fprintf(stderr, "Error: OP_OPEN was unable to open %s\n", get_name(p));
-      issue_cmd(3, 0x7000, 0, 0);
     }
-    else {
-      // Hurray - file opened. Now buffer it.
-      printf("Buffer returned: %d\n", buffer_tifile(h));
-      issue_cmd(3, 0, 0, 0);  // all ok!
-    }
+    issue_cmd(3, r << 13, 0, 0);
   }
   else if (p->opcode == OP_READ) {
     int h = find_tifile_handle(pabsta);
     int r = read_record(h, p); 
     issue_cmd(3, r << 13, 0, 0);  // return with code
   }
-  else if (p->opcode = OP_CLOSE) {
+  else if (p->opcode == OP_CLOSE) {
     int h = find_tifile_handle(pabsta);
     int r = close_tifile(h);
+    // print_pab("Return PAB: ", pab_addr, &ret_pab);
     issue_cmd(3, r << 13, 0, 0);  // return with code
+  }
+  else if (p->opcode == OP_WRITE) {
+    int h = find_tifile_handle(pabsta);
+    int r = write_record(h, p);
+    issue_cmd(3, r << 13, 0, 0);  // return with code
+  }
+  else if (p->opcode == OP_RESTORE) {
+    int h = find_tifile_handle(pabsta);
+    if (h == -1) {
+      issue_cmd(3, ERR_FILEERROR << 13, 0, 0);
+    }
+    else {
+      // Position READ/WRITE pointer either to the beginning of the file,
+      // or in the case of a relative record file, to the record specified int bytes six and seven of the PAB.
+      int pos = p->record_number;
+      if (pos != 0) {
+        // We currently can only handle zero offset...
+        issue_cmd(3, ERR_FILEERROR << 13, 0, 0);
+      } else {
+        files[h]->m_cur_data = files[h]->m_data;
+        files[h]->m_record = 0;
+        issue_cmd(3, ERR_NOERROR << 13, 0, 0);
+      }
+    }
+  }
+  else {
+    // Return an error
+    fprintf(stderr, "ERROR, OPCODE %d NOT SUPPORTED YET!\n", p->opcode);
+    issue_cmd(3, ERR_FILEERROR << 13, 0, 0);
   }
 	return 0;
 }

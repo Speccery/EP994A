@@ -35,12 +35,12 @@ export DSR_ROM=B0000
 # ../memloader/memloader $CART_ROM ../memloader/AMSTEST4-8.BIN
 
 # Editor/Assembler
-# ../memloader/memloader $CART_GROM ../memloader/TIEAG.BIN
+../memloader/memloader $CART_GROM ../memloader/TIEAG.BIN
 
 # RXB
-../memloader/memloader $CART_ROM ../memloader/RXBC.Bin
-../memloader/memloader $CART_ROM2 ../memloader/RXBD.Bin
-../memloader/memloader $CART_GROM ../memloader/RXBG.Bin
+# ../memloader/memloader $CART_ROM ../memloader/RXBC.Bin
+# ../memloader/memloader $CART_ROM2 ../memloader/RXBD.Bin
+# ../memloader/memloader $CART_GROM ../memloader/RXBG.Bin
 
 # TI Invaders
 # ../memloader/memloader $CART_ROM ../memloader/TI-InvaC.bin
