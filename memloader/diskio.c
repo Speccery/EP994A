@@ -150,9 +150,16 @@ int open_tifile(const char *name, unsigned short pab_addr, struct ti_pab *pab, i
     break;
   case filemode_update:
     {
-      struct _stat statbuf;
+#if defined (__GNUC__)
+    struct stat statbuf;
+    #define STAT stat
+#else
+    // Visual Studio 2015
+    struct _stat statbuf;
+    #define STAT _stat
+#endif
       int could_be_ok = 0;
-      if (_stat(files[i]->m_name, &statbuf) == 0) {
+      if (STAT(files[i]->m_name, &statbuf) == 0) {
         // The file exists. Validate it's size.
         if (statbuf.st_size >= sizeof(struct tifiles_header))
           could_be_ok = 1;

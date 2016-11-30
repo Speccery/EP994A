@@ -105,7 +105,8 @@ architecture Behavioral of tms9918 is
 		wait_line, 
 		process_line,
 		process_sprites,
-		
+
+	   count_active_sprites,
 		sprites_addr,
 		sprite_read_vert, sprite_read_horiz,sprite_read_char,
 		sprite_read_color,
@@ -146,6 +147,7 @@ architecture Behavioral of tms9918 is
 	
 	-- sprite generator variables
 	signal sprite_counter	: std_logic_vector(4 downto 0);
+	signal sprite_counter_next : std_logic_vector(4 downto 0);
 	signal sprite_y			: std_logic_vector(8 downto 0);	-- attr table byte 0, with an extra bit
 	signal sprite_x			: std_logic_vector(7 downto 0);	-- attr table byte 1
 	signal sprite_name		: std_logic_vector(7 downto 0);	-- attr table byte 2	(partially signed, from -31 bleed to screen)
@@ -202,13 +204,16 @@ begin
 		-- extended registers below. address has bit 7 set (actually bit 8 on CPU side).
 		reg0 		  & x"00" 								when addr = x"40" else
 		reg1		  & x"00" 								when addr = x"41" else
-		"00" & reg2(3 downto 0) & "0000000000" 	when addr = x"42" else	-- pattern memory address base
-		"00" & reg3 & "000000" 						 	when addr = x"43" else	-- color table
+		"00" & reg2(3 downto 0) & "0000000000" 	when addr = x"42" else -- pattern memory address base
+		"00" & reg3 & "000000" 						 	when addr = x"43" else -- color table
 		"00" & reg4(2 downto 0) & "00000000000" 	when addr = x"44" else -- chare code address base
 		"00" & reg5(6 downto 0) & "0000000"			when addr = x"45" else -- sprite attribute table
 		"00" & reg6(2 downto 0) & "00000000000"   when addr = x"46" else -- sprite pattern table
 		reg7 & x"00"										when addr = x"47" else -- a couple of colors 47
-		"00" & vram_addr;
+		"00" & vram_addr									when addr = x"48" else -- current VRAM pointer
+		"000000" & VGACol									when addr = x"49" else -- VGA column
+		"000000" & VGARow									when addr = x"4A" else -- VGA row 		
+		vga_bank & "00" & x"000" & blanking;
 		
 	
 	debug1 <= vga_bank;
@@ -422,8 +427,32 @@ begin
 						end case;
 						
 					when process_sprites =>
-						sprite_counter <= (others => '1');	-- start from the highest numbered sprite
-						refresh_state <= sprites_addr;
+						-- process sprites: first determine how many of them are active (0-32)
+						-- The highest numbered active sprite has the lowest priority - all others are 
+						-- drawn on top of it. Thus we need to find out how many sprites are active
+						-- and only draw them, from the highest numbered downwards.
+						sprite_counter <= "00000";	-- start from the lowest numbered sprite
+						sprite_counter_next <= "00001";
+						refresh_state <= count_active_sprites;
+						vram_out_addr <= reg5(6 downto 0) & "00000" & "00";	-- start reading sprite 0 Y-coordinate
+					when count_active_sprites =>
+						if vram_out_data = x"D0" then
+							-- end of displayed sprites: display sprites with a lower number than this one.
+							refresh_state <= sprite_next;
+						else
+							-- the coordinate was not the magical D0 (208) so go on and count higher
+							if sprite_counter = "11111" then
+								-- all sprites are active, go and draw them
+								refresh_state <= sprites_addr;
+							else
+								-- go fetch next.
+								-- Note here we do not change refresh state, we stay in this state while counting.
+								sprite_counter <= sprite_counter_next;
+								sprite_counter_next <= std_logic_vector(to_unsigned(to_integer(unsigned(sprite_counter_next)) + 1, sprite_counter_next'length));
+							end if;
+						end if;
+						vram_out_addr <= reg5(6 downto 0) & sprite_counter_next & "00";
+					
 					when sprites_addr =>
 						vram_out_addr <= reg5(6 downto 0) & sprite_counter & "00";
 						refresh_state <= sprite_read_vert;

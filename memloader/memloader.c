@@ -697,7 +697,8 @@ int cmd_keys()
     if (GetAsyncKeyState('Y') & 0x8000) { keybuf[4] &= ~0x04; }
     if (GetAsyncKeyState('Z') & 0x8000) { keybuf[5] &= ~0x80; }
 
-    if (GetAsyncKeyState(VK_LEFT) & 0x8000) {
+    if ((GetAsyncKeyState(VK_LEFT) & 0x8000) || (GetAsyncKeyState(VK_BACK) & 0x8000)) {
+      // VK_BACK = backspace
       keybuf[0] &= ~0x10;   // FCTN
       keybuf[1] &= ~0x20; // S
       keybuf[6] &= ~2;      // Joystick 1 left
@@ -723,12 +724,22 @@ int cmd_keys()
       keybuf[0] &= ~0x10;   // FCTN
       keybuf[5] &= ~0x10;   // 1
     }
+    if (GetAsyncKeyState(VK_INSERT) & 0x8000) {
+      keybuf[0] &= ~0x10;   // FCTN
+      keybuf[1] &= ~0x10;   // 2
+    }
+    if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) {
+      keybuf[0] &= ~0x10;   // FCTN
+      keybuf[1] &= ~0x08;   // 9  - BACK button on the TI
+    }
+
 
     if (GetAsyncKeyState(VK_END) & 0x8000) {
       printf("Ending...\n");
       // Clear all input from buffer
-      while (!feof(stdin))
-        getc(stdin);  // read spurious input
+      FlushConsoleInputBuffer(GetStdHandle(STD_INPUT_HANDLE));
+      // while (!feof(stdin))
+      //  getc(stdin);  // read spurious input
       break;
     }
 
@@ -1038,7 +1049,7 @@ int cmd_write(int k, int argc, char *argv[]) {
   if (opt_verbose)
     printf("Verified %d bytes in %d ms, %dbps (block_size %d)\n", p - buf, now, 8 * (p - buf) * 1000 / (now ? now : 1), block_size);
   CloseSerialPort();
-
+  return 0;
 }
 
 /***************************** main *************************************/
