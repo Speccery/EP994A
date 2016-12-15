@@ -350,7 +350,6 @@ begin
 						case process_pixel is
 							when setup_read_char => 
 								vram_out_addr <= char_addr;
-								char_addr <= std_logic_vector(to_unsigned(to_integer(unsigned(char_addr)) + 1, char_addr'length));
 								process_pixel <= read_char0;
 							when read_char0 =>
 								-- now vram_out_data is the character code. Fetch from there the pattern.
@@ -376,6 +375,8 @@ begin
 									vram_out_addr <= reg3(7) & char_addr(9 downto 8) & char_code & ypos(2 downto 0);
 								end if;
 								process_pixel <= read_color;
+								-- now char addr is no longer used and we can increment to next.
+								char_addr <= std_logic_vector(to_unsigned(to_integer(unsigned(char_addr)) + 1, char_addr'length));
 							when read_color =>
 								-- read color data. After this step it would actually be possible to concurrently
 								-- start reading the next char etc while pixels are written to the line buffer.
@@ -435,6 +436,7 @@ begin
 						sprite_counter_next <= "00001";
 						refresh_state <= count_active_sprites;
 						vram_out_addr <= reg5(6 downto 0) & "00000" & "00";	-- start reading sprite 0 Y-coordinate
+
 					when count_active_sprites =>
 						if vram_out_data = x"D0" then
 							-- end of displayed sprites: display sprites with a lower number than this one.
