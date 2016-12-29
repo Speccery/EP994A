@@ -80,38 +80,41 @@ NET "SRAM_DAT[30]" LOC = "P1" | IOSTANDARD=LVCMOS33;
 NET "SRAM_DAT[31]" LOC = "P2" | IOSTANDARD=LVCMOS33;
 
 # I/O interfaces
-# external Clock	-> ALATCH
-NET "ALATCH" IOSTANDARD = LVCMOS33 | PULLDOWN;
-NET "ALATCH" LOC = C10;
-# NET "extClockIn" TNM_NET = "extClockIn";
-# TIMESPEC TS_extClockIn = PERIOD "extClockIn" 10 ns HIGH 50%;
+# TMS99105 shield pin assignment for Pepino
+NET "ALATCH" 	 IOSTANDARD = LVCMOS33 | PULLDOWN  | LOC=A14;
+NET "BUS_OE_n"  IOSTANDARD = LVCMOS33 | PULLDOWN  | LOC=D8;
+NET "CTRL_RD_n" IOSTANDARD = LVCMOS33 | PULLDOWN | LOC=F9;
+NET "RD_n" 		 IOSTANDARD = LVCMOS33 | PULLDOWN  | LOC=C10;
+NET "CTRL_CP" 	 IOSTANDARD = LVCMOS33 | PULLDOWN  | LOC=D9;
+NET "BUSDIR" 	 IOSTANDARD = LVCMOS33 | PULLDOWN  | LOC=C8;
 
-# extTriggerIn		-> MEM_n
-NET "MEM_n" IOSTANDARD = LVCMOS33 | PULLDOWN;
-NET "MEM_n" LOC = A14;
-# NET "extTriggerIn" OFFSET = IN 7 ns VALID 9 ns BEFORE "bf_clock" RISING;
+# external Clock	-> ALATCH
+#NET "ALATCH" IOSTANDARD = LVCMOS33 | PULLDOWN;
+#NET "ALATCH" LOC = C10;
+# NET "MEM_n" IOSTANDARD = LVCMOS33 | PULLDOWN;
+# NET "MEM_n" LOC = A14;
 
 # DIR low = input
-NET "ch1_dir" LOC = D9 | IOSTANDARD = LVCMOS33 | SLEW = FAST | DRIVE = 8;
-NET "ch2_dir" LOC = C8 | IOSTANDARD = LVCMOS33 | SLEW = FAST | DRIVE = 8;
+#NET "ch1_dir" LOC = D9 | IOSTANDARD = LVCMOS33 | SLEW = FAST | DRIVE = 8;
+#NET "ch2_dir" LOC = C8 | IOSTANDARD = LVCMOS33 | SLEW = FAST | DRIVE = 8;
 
 # EN active low
-NET "ch1_en" LOC = D8 | IOSTANDARD = LVCMOS33 | SLEW = FAST | DRIVE = 8;
-NET "ch2_en" LOC = F9 | IOSTANDARD = LVCMOS33 | SLEW = FAST | DRIVE = 8;
+#NET "ch1_en" LOC = D8 | IOSTANDARD = LVCMOS33 | SLEW = FAST | DRIVE = 8;
+#NET "ch2_en" LOC = F9 | IOSTANDARD = LVCMOS33 | SLEW = FAST | DRIVE = 8;
 
 # indata[0-15]
 NET "indata[0]" IOSTANDARD = LVCMOS33 | PULLDOWN;
 NET "indata[0]" SLEW = FAST;
 NET "indata[0]" DRIVE = 8;
-NET "indata[0]" LOC = N5;
+NET "indata[0]" LOC = N5; # IO1P
 NET "indata[1]" IOSTANDARD = LVCMOS33 | PULLDOWN;
 NET "indata[1]" SLEW = FAST;
 NET "indata[1]" DRIVE = 8;
-NET "indata[1]" LOC = M6;
+NET "indata[1]" LOC = M6; # IO2P
 NET "indata[2]" IOSTANDARD = LVCMOS33 | PULLDOWN;
 NET "indata[2]" SLEW = FAST;
 NET "indata[2]" DRIVE = 8;
-NET "indata[2]" LOC = P7;
+NET "indata[2]" LOC = P7; # IO3P
 NET "indata[3]" IOSTANDARD = LVCMOS33 | PULLDOWN;
 NET "indata[3]" SLEW = FAST;
 NET "indata[3]" DRIVE = 8;
@@ -135,11 +138,11 @@ NET "indata[7]" LOC = R14;
 NET "indata[8]" IOSTANDARD = LVCMOS33 | PULLDOWN;
 NET "indata[8]" SLEW = FAST;
 NET "indata[8]" DRIVE = 8;
-NET "indata[8]" LOC = P5;
+NET "indata[8]" LOC = P5; # IO1N
 NET "indata[9]" IOSTANDARD = LVCMOS33 | PULLDOWN;
 NET "indata[9]" SLEW = FAST;
 NET "indata[9]" DRIVE = 8;
-NET "indata[9]" LOC = N6;
+NET "indata[9]" LOC = N6; # IO2N
 NET "indata[10]" IOSTANDARD = LVCMOS33 | PULLDOWN;
 NET "indata[10]" SLEW = FAST;
 NET "indata[10]" DRIVE = 8;
@@ -183,13 +186,15 @@ NET "switch"         LOC = "K14"  | IOSTANDARD = LVTTL | PULLDOWN;
 # TMS99105 #RD and #WE/#IOCLK
 # #RD = PMOD2-IO3 "B8"
 # #WE = PMOD2-IO1 "A8"
-NET "RD_n"			LOC = "B8" | IOSTANDARD = LVCMOS33;
-NET "WE_n"			LOC = "A8" | IOSTANDARD = LVCMOS33;
+NET "MEM_n_ext"		LOC = "B8" | IOSTANDARD = LVCMOS33;
+# NET "RD_n"			LOC = "B8" | IOSTANDARD = LVCMOS33;
+NET "WE_n_ext"			LOC = "A8" | IOSTANDARD = LVCMOS33;
 
 # Debugging pins (PS2 keyboard port)
 # Actually taken into real use.
-NET "INTERRUPT"	LOC = "C9" | IOSTANDARD = LVCMOS33; # PMOD2-IO4 (pin 5)
-NET "CPU_RESET"	LOC = "A9" | IOSTANDARD = LVCMOS33; # PMOD2-IO2 (pin 1)
+NET "DEBUG2"	LOC = "C9" | IOSTANDARD = LVCMOS33; # PMOD2-IO4 (pin 5)
+NET "DEBUG1"	LOC = "A9" | IOSTANDARD = LVCMOS33; # PMOD2-IO2 (pin 1)
+
 
 # audio
 NET "AUDIO_L"      LOC = "K15"| IOSTANDARD = LVCMOS33;

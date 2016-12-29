@@ -66,16 +66,40 @@ entity ep994a is
 			  
 			  -- I/O interfaces
 			  INDATA		: inout std_logic_vector(15 downto 0);	-- TMS99105 multiplexed A/D bus
-			  CH1_DIR	: out std_logic;		-- LVC16245 control signals. low = input
-			  CH2_DIR	: out std_logic;
-			  CH1_EN		: out std_logic;
-			  CH2_EN		: out std_logic;
+			  --------------------------------------
+			  -- LVC16245 control signals. low = input. Pin numbers for the nRF24L01 connector.
+			  -- 			FPGA	label	J7		label		FPGA	
+			  ------------------------------------------
+			  --				A14	IRQ 	8  7	MISO		C10
+			  --	CH1_EN	D8		MOSI 	6  5	SCK		D9		CH1_DIR
+			  --	CH2_EN	F9		SS		4  3	NE			C8		CH2_DIR
+			  --	   				3V3	2	1	GND
+			  --
+			  -- two traces on PCB cut: J7-5 (CH1_DIR) and J7-4 (CH2_EN)
+			  --------------------------------------
 			  
-			  -- TMS99105 control signals
-			  ALATCH		: in std_logic;		
-			  MEM_n		: in std_logic;		
-			  RD_n		: in std_logic;
-			  WE_n		: in std_logic;
+--			  CH1_DIR	: out std_logic;	-- FPGA pin D9 - CUT
+--			  CH2_DIR	: out std_logic;	-- FPGA pin C8 
+--			  CH1_EN		: out std_logic;	-- FPGA pin D8 
+--			  CH2_EN		: out std_logic;	-- FPGA pin F9 - CUT
+--			  
+--			  -- TMS99105 control signals
+--			  ALATCH		: in std_logic;		
+			  MEM_n_ext	: in std_logic;		
+--			  RD_n		: in std_logic;
+			  WE_n_ext	: in std_logic;
+
+			  ----------------------------------------------
+			  -- Signals for the PCB
+			  ALATCH    : in std_logic;	-- CPU address latch input
+			  RD_n      : in std_logic;	-- CPU read signal
+			  BUS_OE_n  : out std_logic;	-- when low, 16-bit bus drivers active
+			  BUSDIR 	: out std_logic;	-- direction of 16-bit bus. High=TMS99105 driving the bus
+			  CTRL_RD_n : out std_logic;	-- when IO1N..IO8N contains bus control signals from CPU
+			  CTRL_CP   : out std_logic;  -- rising edge clocks IO1P..IO8P to control latch
+
+			  
+
 			  
 			  -- VGA output
 			  VGA_HSYNC	: out std_logic;
@@ -85,8 +109,10 @@ entity ep994a is
 			  VGA_GREEN	: out std_logic_vector(2 downto 0);
 			  
 			  -- DEBUG (PS2 KBD port)
-			  INTERRUPT	: out std_logic;	-- interrupt to the CPU
-			  CPU_RESET		: out std_logic;
+			  DEBUG1		: out std_logic;
+			  DEBUG2		: out std_logic;
+--			  INTERRUPT	: out std_logic;	-- interrupt to the CPU
+--			  CPU_RESET		: out std_logic;
 			  
 			  -- AUDIO
 			  AUDIO_L	: out std_logic;
@@ -166,7 +192,7 @@ architecture Behavioral of ep994a is
 	signal cpu_addr			: std_logic_vector(15 downto 0);
 	signal cpu_data_out		: std_logic_vector(15 downto 0);	-- data to CPU
 --	signal cpu_data_in		: std_logic_vector(15 downto 0);	-- data from CPU
-	signal alatch_sampler	: std_logic_vector(3 downto 0);
+	signal alatch_sampler	: std_logic_vector(15 downto 0);
 	signal wr_sampler			: std_logic_vector(3 downto 0);
 	signal rd_sampler			: std_logic_vector(3 downto 0);
 	signal cpu_access			: std_logic;		-- when '1' CPU owns the SRAM memory bus	
@@ -227,6 +253,26 @@ architecture Behavioral of ep994a is
 	signal paging_enable_cs : std_logic;	-- access to some registers to enable paging etc.
 	signal paging_regs_visible : std_logic;	-- when 1 page registers can be accessed
 	-- signal pager_extended   : std_logic;
+	
+	-- TMS99105 Shield control latch signals (written to control latch during control cycle)
+	signal conl_led1  : std_logic;	-- IO8P - indata[7]
+	signal conl_led2  : std_logic;	-- IO7P - indata[6]
+	signal conl_app_n : std_logic;
+	signal conl_ready : std_logic;
+	signal conl_hold  : std_logic;
+	signal conl_nmi   : std_logic;
+	signal conl_int   : std_logic;	-- IO2P - indata[1]
+	signal conl_reset : std_logic;	-- IO1P - indata[0]
+	-- TMS99105 Shield control signal buffer read signals (read during control control cycle)
+	signal WE_n			: std_logic;	-- IO1N - indata[8]
+	signal MEM_n		: std_logic;	-- IO2N - indata[9]
+	signal BST1			: std_logic;	-- IO6N - indata[13]
+	signal BST2			: std_logic;	-- IO7N - indata[14]
+	signal BST3			: std_logic;	-- IO8N - indata[15]
+	signal bus_oe_n_internal : std_logic;
+	-- when to write to places
+	signal go_write   : std_logic;
+	signal cpu_mem_write_pending : std_logic;
 
 -------------------------------------------------------------------------------	
 	component pager612
@@ -333,11 +379,13 @@ begin
 	-- CPU reset out. If either cpu_reset_ctrl(0) or funky_reset(MSB) is zero, put CPU to reset.
 	real_reset <= funky_reset(funky_reset'length-1);
 	real_reset_n <= not real_reset;
-	CPU_RESET <= cpu_reset_ctrl(0) and real_reset;
+	-- CPU_RESET <= cpu_reset_ctrl(0) and real_reset;
+	conl_reset <= cpu_reset_ctrl(0) and real_reset;
 	
 	-------------------------------------
 	-- vdp interrupt
-	INTERRUPT <=  not vdp_interrupt when cru9901(2)='1' else '1';	-- TMS9901 interrupt mask bit
+	-- INTERRUPT <=  not vdp_interrupt when cru9901(2)='1' else '1';	-- TMS9901 interrupt mask bit
+	conl_int <= not vdp_interrupt when cru9901(2)='1' else '1';	-- TMS9901 interrupt mask bit
 	-- cartridge memory select
   	cartridge_cs 	<= '1' when MEM_n = '0' and cpu_addr(15 downto 13) = "011" else '0'; -- cartridge_cs >6000..>7FFF
 	
@@ -365,6 +413,15 @@ begin
 				cru9901 <= x"00000000";
 				cru1100 <= '0';
 				sams_regs <= (others => '0');
+				
+				conl_led1   <= '0';
+				conl_led2   <= '0';
+				conl_app_n  <= '1';
+				conl_ready  <= '1';
+				conl_hold 	<= '1';
+				conl_nmi 	<= '1';
+				
+				cpu_mem_write_pending <= '0';
 			else
 				-- processing of normal clocks here. We run at 100MHz.
 				---------------------------------------------------------
@@ -418,6 +475,14 @@ begin
 						sram_addr_bus <= "0" & translated_addr(6 downto 0) & cpu_addr(11 downto 1);
 					end if;
 				end if;
+				
+				if MEM_n = '0' and go_write = '1' 
+					and cpu_addr(15 downto 12) /= x"9"			-- 9XXX addresses don't go to RAM
+					and cpu_addr(15 downto 11) /= x"8" & '1'	-- 8800-8FFF don't go to RAM
+					and cartridge_cs='0' 							-- writes to cartridge region do not go to RAM
+					then
+						cpu_mem_write_pending <= '1';
+				end if;
 
 				-- memory controller state machine
 				case mem_state is
@@ -428,7 +493,8 @@ begin
 						debug_sram_oe <= '1';
 						mem_read_ack <= '0';
 						mem_write_ack <= '0';
-						cpu_access <= '1';			
+						cpu_access <= '1';		
+						DEBUG2 <= '0';						
 						if mem_write_rq = '1' and mem_addr(20)='0' and alatch_sampler(1 downto 0) = "01" then
 							-- normal memory write
 							sram_addr_bus <= mem_addr(19 downto 1);	-- setup address
@@ -447,19 +513,15 @@ begin
 							debug_sram_ce0 <= '0';	-- init read cycle
 							debug_sram_oe <= '0';
 							mem_drive_bus <= '0';
-						elsif MEM_n = '0' and wr_sampler = "1000" 
-								and cpu_addr(15 downto 12) /= x"9"			-- 9XXX addresses don't go to RAM
-								and cpu_addr(15 downto 11) /= x"8" & '1'	-- 8800-8FFF don't go to RAM
-								and cartridge_cs='0' 							-- writes to cartridge region do not go to RAM
---								and translated_addr(15 downto 6) = "0000000000" -- if paging is on only bottom 256K currently available
-								-- and cpu_addr(15 downto 13) /= "000"			-- No writes to low 8K (ROM)
-							then
+						elsif cpu_mem_write_pending = '1' then
 							-- init CPU write cycle
 							cpu_access <= '1';
-							mem_state <= cpu_wr0;
+							mem_state <= cpu_wr1;	-- EPEP jump directly to stare 1!!!
 							debug_sram_ce0 <= '0';	-- initiate write cycle
 							debug_sram_WE <= '0';	
 							mem_drive_bus <= '1';	-- only writes drive the bus
+							DEBUG2 <= '1';
+							cpu_mem_write_pending <= '0';
 						end if;
 					when wr0 => 
 						debug_sram_ce0 <= '0';	-- issue write strobes
@@ -571,7 +633,8 @@ begin
 				
 				-- CPU signal samplers
 				alatch_sampler <= alatch_sampler(alatch_sampler'length-2 downto 0) & ALATCH;
-				if alatch_sampler(1 downto 0) = "01" then
+				-- if alatch_sampler(1 downto 0) = "01" then
+				if alatch_sampler(2 downto 0) = "011" then
 					cpu_addr <= indata;		-- latch CPU address bus on ALATCH going high
 				end if;
 				wr_sampler <= wr_sampler(wr_sampler'length-2 downto 0) & WE_n;
@@ -582,7 +645,7 @@ begin
 				tms9919_we <= '0';
 				paging_wr_enable <= '0';
 				if sams_regs(6)='0' then	-- if sams_regs(6) is set I/O is out and paged RAM is there instead
-					if wr_sampler = "1000" and MEM_n='0' then
+					if go_write = '1' and MEM_n='0' then
 						if cpu_addr(15 downto 8) = x"80" then
 							outreg <= indata;			-- write to >80XX is sampled in the output register
 						elsif cpu_addr(15 downto 8) = x"8C" then
@@ -607,7 +670,7 @@ begin
 				end if;
 				
 				-- CRU cycle to TMS9901
-				if MEM_n='1' and cpu_addr(15 downto 8)=x"00" and wr_sampler = "1000" then
+				if MEM_n='1' and cpu_addr(15 downto 8)=x"00" and go_write = '1' then
 
 					if cru9901(0) = '1' and cpu_addr(5)='0' and cpu_addr(4 downto 1) /= "0000" then
 						-- write to timer bits (not bit 0)
@@ -620,11 +683,11 @@ begin
 				end if;
 				
 				-- CRU write cycle to disk control system
-				if MEM_n='1' and cpu_addr(15 downto 1)= x"110" & "000" and wr_sampler = "1000" then
+				if MEM_n='1' and cpu_addr(15 downto 1)= x"110" & "000" and go_write = '1' then
 					cru1100 <= indata(0);
 				end if;
 				-- SAMS register writes
-				if MEM_n='1' and cpu_addr(15 downto 4) = x"1E0" and wr_sampler = "1000" then
+				if MEM_n='1' and cpu_addr(15 downto 4) = x"1E0" and go_write = '1' then
 					sams_regs(to_integer(unsigned(cpu_addr(3 downto 1)))) <= indata(0);
 				end if;				
 				
@@ -683,16 +746,52 @@ begin
 	led <= outreg(15 downto 8);
 
 	-- TMS99105 CPU interface.
+	BUSDIR <= RD_n;	-- Bus buffers towards TMS99105 only during read cycle
+	bus_oe_n_internal <= '1' when alatch_sampler(2) = '1' and alatch_sampler(5) = '0' else '0'; -- only four clock cycles during which indata buffers are disabled
+	BUS_OE_n <= bus_oe_n_internal;
+	CTRL_RD_n <= not bus_oe_n_internal;	-- Control bits readable when addr/data buffers are off
+	CTRL_CP <= '1' when alatch_sampler(4) = '1' and alatch_sampler(6) = '0' else '0';	-- issue clock pulse	
+	-- FPGA drivers follow RD_n except during control signal operations (CTRL_RD_n = '0')
+	INDATA <= "ZZZZZZZZ" & conl_led1 & conl_led2 & conl_app_n & conl_ready & conl_hold & conl_nmi & conl_int & conl_reset when bus_oe_n_internal='1'
+		else "ZZZZZZZZZZZZZZZZ" when RD_n = '1'
+		else cpu_data_out;
+		
+	DEBUG1 <= go_write;
+	WE_n <= WE_n_ext;
 	
-	-- Control LVC16245 direction and output enables.
-	-- ALATCH, MEN_n, RD_n, WE_n are control signals that we always receive from the CPU.
-	-- The LVC16245 is in input mode, i.e. driving from CPU to FPGA, always except when #RD is low.
-	CH1_DIR <= not RD_n;		-- CH1_DIR='0' means input, '1' means output i.e. serving CPU reads.
-	CH2_DIR <= not RD_n;
-	INDATA <= "ZZZZZZZZZZZZZZZZ" when RD_n = '1' else cpu_data_out;	-- FPGA drivers follow RD_n
-	-- Enable signals for the LVC16245
-	CH1_EN <= '0'; -- when ALATCH='1' or RD_n='0' or WE_n = '0' else '1';
-	CH2_EN <= '0'; -- when ALATCH='1' or RD_n='0' or WE_n = '0' else '1';
+	go_write <= '1' when wr_sampler = "1000" else '0';
+
+	process(clk)
+	begin
+		if rising_edge(clk) then
+		
+--			if alatch_sampler(8 downto 7) = "01" and WE_n = '0' then
+--				go_write <= '1';
+--			else
+--				go_write <= '0';
+--			end if;
+
+			if alatch_sampler(4 downto 3) = "01" then 
+				-- WE_n 	<= indata(8); -- need to be sampled externally for good timing
+				MEM_n <= indata(9);
+				BST1  <= indata(13);
+				BST2  <= indata(14);
+				BST3  <= indata(15);
+			end if;
+		end if;
+	end process;
+	
+	
+	
+--	-- Control LVC16245 direction and output enables.
+--	-- ALATCH, MEN_n, RD_n, WE_n are control signals that we always receive from the CPU.
+--	-- The LVC16245 is in input mode, i.e. driving from CPU to FPGA, always except when #RD is low.
+--	CH1_DIR <= 'Z'; -- trace cut not RD_n;		-- CH1_DIR='0' means input, '1' means output i.e. serving CPU reads.
+--	CH2_DIR <= not RD_n;
+--	INDATA <= "ZZZZZZZZZZZZZZZZ" when RD_n = '1' else cpu_data_out;	-- FPGA drivers follow RD_n
+--	-- Enable signals for the LVC16245
+--	CH1_EN <= '0';
+--	CH2_EN <= 'Z'; -- TRACE CUT '0'; 
 	
 	cpu_data_out <= 
 		vdp_data_out         			when sams_regs(6)='0' and cpu_addr(15 downto 10) = "100010" else	-- 10001000..10001011 (8800..8BFF)

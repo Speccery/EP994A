@@ -1,1 +1,2 @@
-../memloader/memloader -k
+../memloader/memloader -k $1
+
