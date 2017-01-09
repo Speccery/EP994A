@@ -67,6 +67,13 @@ entity ep994a is
 			  -- I/O interfaces
 			  INDATA		: inout std_logic_vector(15 downto 0);	-- TMS99105 multiplexed A/D bus
 			  --------------------------------------
+			  -- The connection information below is the Pepino FPGA buffer board.
+			  -- There were two iterations in my circuit: 
+			  -- 	1st I used the board as is, just using the extension connectors
+			  --	2nd I cut a few traces and soldered a couple of wires, to free up two I/O pins.
+			  --		 This was done by having the LVC16245 buffer chip be operated as a single 16-bit wide
+			  --		 buffer instead of two 8 bit buffers.
+			  --
 			  -- LVC16245 control signals. low = input. Pin numbers for the nRF24L01 connector.
 			  -- 			FPGA	label	J7		label		FPGA	
 			  ------------------------------------------
@@ -273,6 +280,8 @@ architecture Behavioral of ep994a is
 	-- when to write to places
 	signal go_write   : std_logic;
 	signal cpu_mem_write_pending : std_logic;
+	-- counter of alatch pulses to produce a sign of life of the CPU
+	signal alatch_counter : std_logic_vector(19 downto 0);
 
 -------------------------------------------------------------------------------	
 	component pager612
@@ -414,12 +423,12 @@ begin
 				cru1100 <= '0';
 				sams_regs <= (others => '0');
 				
-				conl_led1   <= '0';
-				conl_led2   <= '0';
 				conl_app_n  <= '1';
 				conl_ready  <= '1';
 				conl_hold 	<= '1';
 				conl_nmi 	<= '1';
+				
+				alatch_counter <= (others => '0');
 				
 				cpu_mem_write_pending <= '0';
 			else
@@ -636,6 +645,7 @@ begin
 				-- if alatch_sampler(1 downto 0) = "01" then
 				if alatch_sampler(2 downto 0) = "011" then
 					cpu_addr <= indata;		-- latch CPU address bus on ALATCH going high
+					alatch_counter <= std_logic_vector(to_unsigned(1+to_integer(unsigned(alatch_counter)), alatch_counter'length));
 				end if;
 				wr_sampler <= wr_sampler(wr_sampler'length-2 downto 0) & WE_n;
 				rd_sampler <= rd_sampler(rd_sampler'length-2 downto 0) & RD_n;
@@ -781,6 +791,11 @@ begin
 		end if;
 	end process;
 	
+	-- Here drive the two shield board LEDs to include a little status information:
+	-- LED1: Disk access
+	-- LED2: ALATCH counter indication (i.e. CPU is alive)
+	conl_led1 <= cru1100;
+	conl_led2 <= alatch_counter(19);
 	
 	
 --	-- Control LVC16245 direction and output enables.
