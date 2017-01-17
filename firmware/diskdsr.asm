@@ -13,7 +13,7 @@ VDPPTR EQU  >8890             * VDP extension: VRAM address pointer
 
 MYRAM   EQU >8000        * EP994A scratchpad is 1k in size, starts at >8000
 ENTRYN  EQU >8002        * Save entry point number
-PABSTA  EQU >8004        * Start of PAB in VDP memory
+PABSTA  EQU >8004        * Start of PAB in VDP memory (also used by host program)
 MARKER  EQU >8006
 RCOUNT  EQU >8008        * DSR call count
 

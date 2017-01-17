@@ -13,7 +13,7 @@ export CART_ROM=90000
 export CART_ROM2=92000
 export CONSOLE_ROM=BA000
 export DSR_ROM=B0000
-export PORT=-4
+export PORT=-6
 
 
 ../memloader/memloader $PORT 100008 cpu_reset_on.bin
