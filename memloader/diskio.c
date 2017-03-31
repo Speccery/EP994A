@@ -82,6 +82,7 @@ int find_tifile_handle(unsigned short vdp_pab_addr) {
 }
 
 int create_new_file(int i, struct ti_pab *pab, unsigned short pab_vdp_addr) {
+  struct tifiles_header *th;
   // create a new file.
   files[i]->m_file = fopen(files[i]->m_name, "wb");
   if (files[i]->m_file == NULL) {
@@ -94,7 +95,7 @@ int create_new_file(int i, struct ti_pab *pab, unsigned short pab_vdp_addr) {
 
   files[i]->m_var = (pab->flags & 0x10) ? variable : fixed;
   // initialize the header.
-  struct tifiles_header *th = &files[i]->m_header;
+  th = &files[i]->m_header;
   memcpy(th->id, "\x07TIFILES", 8);
   th->FileType = pab->flags & 0x10 ? 0x80 : 0;  // bit: record type fixed=0 or variable=1
   // Setup internal / display: in PAB flags bit 3: 0=display, 1=internal

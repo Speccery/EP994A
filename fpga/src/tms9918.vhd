@@ -155,6 +155,7 @@ architecture Behavioral of tms9918 is
 	signal sprite_line 		: std_logic_vector(8 downto 0);
 	signal sprite_pixels		: std_logic_vector(15 downto 0);
 	signal sprite_write_count : std_logic_vector(3 downto 0);
+	signal active_sprites : std_logic_vector(5 downto 0);
 	
 	--https://www.msx.org/forum/semi-msx-talk/emulation/question-about-msx1-palette?page=2
 	--1:0, 0, 0
@@ -299,6 +300,7 @@ begin
 			if vdp_rd_prev='1' and rd='0' and vdp_mode_prev='1' and vdp_addr_prev="00" then
 				-- read became inactive on status register, clear interrupt request
 				stat_reg(7) <= '0';
+				stat_reg(6) <= '0'; -- also reset fifth sprite bit if active
 			end if;
 			
 			if bump_rq='1' then
@@ -436,6 +438,7 @@ begin
 						sprite_counter_next <= "00001";
 						refresh_state <= count_active_sprites;
 						vram_out_addr <= reg5(6 downto 0) & "00000" & "00";	-- start reading sprite 0 Y-coordinate
+						active_sprites <= (others => '0');
 
 					when count_active_sprites =>
 						if vram_out_data = x"D0" then
@@ -485,6 +488,12 @@ begin
 							sprite_name <=  vram_out_data;
 							vram_out_addr <= reg5(6 downto 0) & sprite_counter & "11";
 							refresh_state <= sprite_read_color;
+							active_sprites <= std_logic_vector(to_unsigned(to_integer(unsigned(active_sprites)) + 1, active_sprites'length));
+							if active_sprites = "00" & x"4" then
+								-- this would be the fifth sprite
+								stat_reg(6) <= '1';
+								stat_reg(4 downto 0) <= sprite_counter;
+							end if;
 						else
 							-- sprite does not belong to this scanline. Either the offset is negative or beyound 15 ("1111")
 							refresh_state <= sprite_next;

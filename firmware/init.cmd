@@ -13,7 +13,7 @@ set CART_ROM=90000
 set CART_ROM2=92000
 set CONSOLE_ROM=BA000
 set DSR_ROM=B0000
-set PORT=-6
+set PORT=-4
 
 
 memloader %PORT% 100008 cpu_reset_on.bin
@@ -36,16 +36,16 @@ REM  Memory extension test
 REM  memloader %PORT% %CART_ROM% AMSTEST4-8.BIN
 
 REM  Editor/Assembler
-REM  memloader %PORT% %CART_GROM% TIEAG.BIN
+memloader %PORT% %CART_GROM% TIEAG.BIN
 
 REM  RXB
-memloader %PORT% %CART_ROM% RXBC.Bin
-memloader %PORT% %CART_ROM2% RXBD.Bin
-memloader %PORT% %CART_GROM% RXBG.Bin
+REM memloader %PORT% %CART_ROM% RXBC.Bin
+REM memloader %PORT% %CART_ROM2% RXBD.Bin
+REM memloader %PORT% %CART_GROM% RXBG.Bin
 
 REM  TI Invaders
-REM  memloader %PORT% %CART_ROM% TI-InvaC.bin
-REM  memloader %PORT% %CART_GROM% TI-InvaG.bin
+REM memloader %PORT% %CART_ROM% TI-InvaC.bin
+REM memloader %PORT% %CART_GROM% TI-InvaG.bin
 
 REM  ERIK test ROM
 REM  cp ../../../ticart/ASCART.bin .
@@ -55,8 +55,8 @@ REM  Defender
 REM  memloader %CART_ROM% Defender.C.bin
 
 REM  TI Parsec
-REM  memloader %PORT% %CART_ROM% PARSECC.bin
-REM  memloader %PORT% %CART_GROM% PARSECG.bin
+REM memloader %PORT% %CART_ROM% PARSECC.bin
+REM memloader %PORT% %CART_GROM% PARSECG.bin
 
 REM  Alpiner
 REM  memloader %CART_ROM% ALPINERC.BIN

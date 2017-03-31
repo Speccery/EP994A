@@ -297,6 +297,8 @@ int ReceiveComPortBlockComplete(void *block, size_t size, unsigned timeout)
     DWORD realsize = 0, read;
     char *result;
 	int loops = 0;
+  unsigned int u;
+  unsigned char *up;
 	unsigned now = GetTickCount();
 
     result = (char*) block;
@@ -318,8 +320,9 @@ int ReceiveComPortBlockComplete(void *block, size_t size, unsigned timeout)
     // sprintf(tmp_string, "Answer(Length=%ld): ", realsize);
     // DumpString(3, result, realsize, tmp_string);
 	DebugPrintf(4, "Answer(length=%ld, loops=%d, %dms): ", realsize, loops, GetTickCount() - now);
-	for(unsigned i=0; i<realsize; i++) {
-		DebugPrintf(4, "%02X ", block);
+  up = block;
+	for(u=0; u<realsize; u++) {
+		DebugPrintf(4, "%02X ", up[u]);
 	}
 	DebugPrintf(4, "\n");
 
@@ -472,9 +475,10 @@ void check_addressing() {
 	unsigned test_data[] = { 0, 1, 0xFF00, 0xFF00FF00, 0x12345678, 0x87654321, 0x101, 0x7F0000 };
 	int ok;
 	int i;
+  unsigned k;
 	for(i=0; i<sizeof(test_data)/sizeof(test_data[0]); i++) {
 		setup_hw_address(test_data[i]);
-		unsigned k = read_hw_address(&ok);
+		k = read_hw_address(&ok);
 		if (k != test_data[i]) {
 			printf("Error: check_addressing failed %i %0X!=%0X\n", i, test_data[i], k);
 			exit(1);
@@ -482,7 +486,7 @@ void check_addressing() {
 	}
 	// Check increment command
 	SendComPortString("+++++++");
-	unsigned k = read_hw_address(&ok);
+	k = read_hw_address(&ok);
 	if (k != test_data[i-1]+7) {
 		printf("Autoincrement test failed.\n");
 		exit(1);
@@ -495,14 +499,17 @@ void check_writes_reads() {
 	int ok;
 	char *s = "This is our test string to be written to actual memory!";
 	int len = strlen(s)+1;
+  int i;
+  unsigned read_addr;
+	char response[256];
 	setup_hw_address(base_addr);
-	for(int i=0; i<len; i++) {
+	for(i=0; i<len; i++) {
 		char buf[4] = { "!_+" };
 		buf[1] = s[i];
 		SendComPortBlock(buf, 3);
 	}
 	// verify autoincrement address
-	unsigned read_addr = read_hw_address(&ok);
+	read_addr = read_hw_address(&ok);
 	if(read_addr != len+base_addr) {
 		printf("Error: check_writes_reads() failed %0X\n", read_addr);
 		exit(2);
@@ -510,16 +517,15 @@ void check_writes_reads() {
 	DebugPrintf(2, "Memory writes done.\n");
 	// verify reading
 	setup_hw_address(base_addr);
-	char response[256];
 	ZeroMemory(response, sizeof(response));
 	SendComPortString("@");
-	for(int i=0; i<len; i++) {
+	for(i=0; i<len; i++) {
 		response[i] = RxByte(100);
 		SendComPortString("+@");
 	}
 	response[len] = RxByte(100);
 	DebugPrintf(2,"Memory reads done.\n");
-	for(int i=0; i<len; i++) {
+	for(i=0; i<len; i++) {
 		if(response[i])
 			DebugPrintf(2, "%c", response[i]);
 		if(response[i] != s[i]) {
@@ -538,12 +544,13 @@ void SetRepeatCounter16(int len) {
 }
 
 unsigned GetRepeatCounter() {
+  unsigned char buf[2];
+  unsigned k;
   // Send read command
   SendComPortString("P");
   // Receive our bytes
-  unsigned char buf[2];
   ReceiveComPortBlockComplete(buf, 2, 200);
-  unsigned k = buf[0] | (buf[1] << 8);
+  k = buf[0] | (buf[1] << 8);
     return k;
 }
 
@@ -551,9 +558,10 @@ unsigned GetRepeatCounter() {
    // check reads and writes to repeat counter register.
 	unsigned test_data[] = { 0, 1, 0xF0, 0xFFFF, 0x55AA, 0xAA55 };
 	int i;
+  unsigned k;
 	for(i=0; i<sizeof(test_data)/sizeof(test_data[0]); i++) {
     SetRepeatCounter16(test_data[i]);
-    unsigned k = GetRepeatCounter();
+    k = GetRepeatCounter();
 		if (k != test_data[i]) {
 			printf("Error: check_counter failed %i wrote %0X!= read %0X\n", i, test_data[i], k);
 			exit(1);
@@ -615,10 +623,10 @@ int WriteMemoryBlock(unsigned char *source, unsigned address, int len) {
 
 int cmd_keys()
 {
+  char keybuf[8];
   printf("Sending keyboard state codes to TI994A\n");
   OpenSerialPort();
   ClearSerialPortBuffers();
-  char keybuf[8];
   while (1) {
     // VK_LEFT, VK_SHIFT
     memset(keybuf, 0xff, sizeof(keybuf));
@@ -632,7 +640,8 @@ int cmd_keys()
     if (GetAsyncKeyState(VK_LCONTROL) & 0x8000) {
       keybuf[0] &= ~0x40;
     }
-    if (GetAsyncKeyState(VK_RCONTROL) & 0x8000) {
+    if ((GetAsyncKeyState(VK_RCONTROL) & 0x8000) || (GetAsyncKeyState(VK_RMENU) & 0x8000)) {
+      // printf("FCTN "); // VK_RMENU is actually right alt (alt gr on scandinavian keyboard)
       keybuf[0] &= ~0x10;   // FCTN
     }
     if (GetAsyncKeyState(VK_RETURN) & 0x8000) {
@@ -761,12 +770,12 @@ int cmd_keys()
 }
 
 int cmd_regs() {
+  int ok;
   ////////////////////////////////////////////////////////////////////
   // Show register status
   ////////////////////////////////////////////////////////////////////
   OpenSerialPort();
   ClearSerialPortBuffers();
-  int ok;
   printf("Address: 0x%X\n", read_hw_address(&ok));
   printf("Repeat count: 0x%X\n", GetRepeatCounter());
   SendComPortString("V");
@@ -785,6 +794,7 @@ int cmd_read(int k, int argc, char *argv[]) {
   ////////////////////////////////////////////////////////////////////
   unsigned addr = 0;
   unsigned len = 0;
+  FILE *f = NULL;
   if (sscanf(argv[k], "%X", &addr) != 1) {
     printf("Unable to decode hex address: %s\n", argv[2]);
     return 10;
@@ -793,7 +803,7 @@ int cmd_read(int k, int argc, char *argv[]) {
     printf("Unable to decode hex count: %s\n", argv[3]);
     return 10;
   }
-  FILE *f = fopen(argv[k+2], "wb");
+  f = fopen(argv[k+2], "wb");
   if (f == NULL) {
     printf("Unable to open destination file: %s\n", argv[4]);
     return 10;
@@ -808,21 +818,25 @@ int cmd_read(int k, int argc, char *argv[]) {
     return 11;
   }
   // Now just go and read the stuff.
-  unsigned char buf[2048];
-  int block_size = sizeof(buf);
-  int i = 0;
-  while (i < len) {
-    if ((i & 0xFFF) == 0)
-      printf("%d \n", i);
-    int chunk = block_size;
-    if (len - i < chunk)
-      chunk = len - i;
-    ReadMemoryBlock(buf, addr + i, chunk);
-    int wrote = fwrite(buf, 1, chunk, f);
-    if (wrote != chunk) {
-      printf("Error: file write %d != %d\n", wrote, chunk);
+  {
+    unsigned char buf[2048];
+    int block_size = sizeof(buf);
+    int i = 0;
+    int chunk;
+    int wrote;
+    while (i < len) {
+      if ((i & 0xFFF) == 0)
+        printf("%d \n", i);
+      chunk = block_size;
+      if (len - i < chunk)
+        chunk = len - i;
+      ReadMemoryBlock(buf, addr + i, chunk);
+      wrote = fwrite(buf, 1, chunk, f);
+      if (wrote != chunk) {
+        printf("Error: file write %d != %d\n", wrote, chunk);
+      }
+      i += chunk;
     }
-    i += chunk;
   }
   fclose(f);
   CloseSerialPort();
@@ -836,6 +850,7 @@ int cmd_write(int k, int argc, char *argv[]) {
   // format: memloader <hex-address> <filename>
   unsigned addr = 0;
   int ok;
+  FILE *f;
   if (sscanf(argv[k], "%X", &addr) != 1) {
     printf("Unable to decode hex address: %s\n", argv[k]);
     return 10;
@@ -846,7 +861,7 @@ int cmd_write(int k, int argc, char *argv[]) {
   return 10;
   }
   */
-  FILE *f = fopen(argv[k+1], "rb"); 
+  f = fopen(argv[k+1], "rb"); 
   if (f == NULL) {
     printf("Unable to open source file: %s\n", argv[2]);
     return 10;
@@ -1101,6 +1116,11 @@ int main(int argc, char *argv[])
       case '1': case '2': case '3': case '4': case '5': 
       case '6': case '7': case '8': case '9': 
         serial_port[3] = argv[i][1];
+        if (argv[i][2] >= '0' && argv[i][2] <= '9') {
+          serial_port[4] = argv[i][2];
+          serial_port[5] = 0;
+        }
+
         break;
       default:
         printf("Unknown option: %s\n", argv[i]);
