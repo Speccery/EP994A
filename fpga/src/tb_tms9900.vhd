@@ -27,10 +27,9 @@
 --------------------------------------------------------------------------------
 LIBRARY ieee;
 USE ieee.std_logic_1164.ALL;
- 
 -- Uncomment the following library declaration if using
 -- arithmetic functions with Signed or Unsigned values
---USE ieee.numeric_std.ALL;
+USE ieee.numeric_std.ALL;
  
 ENTITY tb_tms9900 IS
 END tb_tms9900;
@@ -75,6 +74,30 @@ ARCHITECTURE behavior OF tb_tms9900 IS
 
    -- Clock period definitions
    constant clk_period : time := 10 ns;
+	
+	
+	
+--	type		kbBuffArray is array (0 to 7) of std_logic_vector(6 downto 0);
+--	signal	kbBuffer : kbBuffArray;
+--	signal	kbInPointer: integer range 0 to 15 :=0;	
+	-- Program ROM
+	type pgmRomArray is array(0 to 7) of STD_LOGIC_VECTOR (15 downto 0);
+	constant pgmRom : pgmRomArray := (
+		x"8300", -- initial W
+		x"0008", -- initial PC
+		x"BEEF",
+		x"BEEF",
+		x"1000",
+		x"02E0",
+		x"5678",
+		x"10FC"
+	);
+	signal pgmRomIndex : integer range 0 to 15 := 0;
+	
+	-- RAM block to 8300
+	type ramArray is array (0 to 127) of STD_LOGIC_VECTOR (15 downto 0);
+	signal scratchpad : ramArray;
+	signal ramIndex : integer range 0 to 15 := 0;
  
 BEGIN
  
@@ -105,6 +128,7 @@ BEGIN
 	
    -- Stimulus process
    stim_proc: process
+	variable addr_int : integer range 0 to 32767 := 0;
    begin		
       -- hold reset state for 100 ns.
 		reset <= '1';
@@ -117,25 +141,27 @@ BEGIN
 			wait for clk_period/2;
 			
 			if rd='1' then
-				case addr is
-					when x"0000" =>
-						data_in <= x"1234";
-					when x"0002" =>
-						data_in <= x"5678";
-					when x"5678" =>
-						data_in <= x"1000";	-- NOP, ie branch next
-					when x"567A" =>
-						data_in <= x"02E0";
-					when x"567C" =>
-						data_in <= x"ABCD";
-					when x"567E" =>
-						data_in <= x"10FC";	-- Branch backwards a bit
-					when others =>
-						data_in <= x"DEAD";
-				end case;
+				addr_int := to_integer( unsigned( addr(15 downto 1) ));	-- word address
+				if addr_int >= 0 and addr_int <= 7 then
+					data_in <= pgmRom( addr_int );
+				elsif addr_int >= 16768 and addr_int < 16896 then	-- scratch pad memory range in words
+					-- we're in the scratchpad
+					data_in <= scratchpad( addr_int - 16768 );
+				else
+					data_in <= x"DEAD";
+				end if;
 			else
 				data_in <= (others => 'Z');
 			end if;
+			
+			if wr = '1' then
+				addr_int := to_integer( unsigned( addr(15 downto 1) ));	-- word address
+				if addr_int >= 16768 and addr_int < 16896 then	-- scratch pad memory range in words
+					-- we're in the scratchpad
+					scratchpad( addr_int - 16768 ) <= data_out;
+				end if;
+			end if;
+			
 		end loop;
 		
 
