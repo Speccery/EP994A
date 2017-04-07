@@ -81,16 +81,18 @@ ARCHITECTURE behavior OF tb_tms9900 IS
 --	signal	kbBuffer : kbBuffArray;
 --	signal	kbInPointer: integer range 0 to 15 :=0;	
 	-- Program ROM
-	type pgmRomArray is array(0 to 7) of STD_LOGIC_VECTOR (15 downto 0);
+	type pgmRomArray is array(0 to 11) of STD_LOGIC_VECTOR (15 downto 0);
 	constant pgmRom : pgmRomArray := (
 		x"8300", -- initial W
 		x"0008", -- initial PC
 		x"BEEF",
 		x"BEEF",
-		x"1000",
-		x"02E0",
-		x"5678",
-		x"10FC"
+		x"1000",				-- BOOT: NOP
+		x"02E0", x"83E0", -- LWPI >83E0
+		x"0203", x"ED07", -- LI R3,>ED07
+								-- LOOPPI
+		x"0223", x"0001", -- AI R3,>0001
+		x"10FD"				-- JMP LOOPPI
 	);
 	signal pgmRomIndex : integer range 0 to 15 := 0;
 	
@@ -137,12 +139,12 @@ BEGIN
       -- wait for clk_period*20;
       -- insert stimulus here 
 		
-		for i in 0 to 199 loop
+		for i in 0 to 399 loop
 			wait for clk_period/2;
 			
 			if rd='1' then
 				addr_int := to_integer( unsigned( addr(15 downto 1) ));	-- word address
-				if addr_int >= 0 and addr_int <= 7 then
+				if addr_int >= 0 and addr_int <= 11 then
 					data_in <= pgmRom( addr_int );
 				elsif addr_int >= 16768 and addr_int < 16896 then	-- scratch pad memory range in words
 					-- we're in the scratchpad

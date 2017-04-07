@@ -96,13 +96,14 @@
       <ClosedNodes>
          <ClosedNodesVersion>2</ClosedNodesVersion>
          <ClosedNode>/ep994a - Behavioral C:|Users|Erik Piehl|Dropbox|Omat|trunk|EP994A|fpga|src|ep994a.vhd</ClosedNode>
+         <ClosedNode>/ep994a - Behavioral X:|Omat|trunk|EP994A|fpga|src|ep994a.vhd</ClosedNode>
       </ClosedNodes>
       <SelectedItems>
          <SelectedItem>tb_tms9900 - behavior (X:/Omat/trunk/EP994A/fpga/src/tb_tms9900.vhd)</SelectedItem>
       </SelectedItems>
-      <ScrollbarPosition orientation="vertical" >1</ScrollbarPosition>
+      <ScrollbarPosition orientation="vertical" >0</ScrollbarPosition>
       <ScrollbarPosition orientation="horizontal" >0</ScrollbarPosition>
-      <ViewHeaderState orientation="horizontal" >000000ff0000000000000001000000010000000000000000000000000000000002020000000100000001000000640000027a000000020000000000000000000000000200000064ffffffff0000008100000003000000020000027a0000000100000003000000000000000100000003</ViewHeaderState>
+      <ViewHeaderState orientation="horizontal" >000000ff000000000000000100000001000000000000000000000000000000000202000000010000000100000064000001e1000000020000000000000000000000000200000064ffffffff000000810000000300000002000001e10000000100000003000000000000000100000003</ViewHeaderState>
       <UserChangedColumnWidths orientation="horizontal" >true</UserChangedColumnWidths>
       <CurrentItem>tb_tms9900 - behavior (X:/Omat/trunk/EP994A/fpga/src/tb_tms9900.vhd)</CurrentItem>
    </ItemView>
