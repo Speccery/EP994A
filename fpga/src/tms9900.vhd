@@ -76,7 +76,7 @@ architecture Behavioral of tms9900 is
 	signal alu_result :  std_logic_vector(15 downto 0);
 	
 	type alu_operation_type is (
-		alu_load2, alu_add, alu_or
+		alu_load2, alu_add, alu_or, alu_and, alu_compare
 	);
 	signal ope : alu_operation_type;
 	signal alu_flag_zero : std_logic;
@@ -95,6 +95,12 @@ begin
 					);
 			when alu_or =>
 				alu_result <= arg1 or arg2;
+			when alu_and =>
+				alu_result <= arg1 and arg2;
+			when alu_compare =>
+				alu_result <= std_logic_vector(
+					to_unsigned(to_integer(unsigned(arg1)) - to_integer(unsigned(arg2)), alu_result'length)
+					);
 		end case;			
 	end process;
 	alu_flag_neg <= alu_result(15);
@@ -178,7 +184,10 @@ begin
 						if rd_dat(15 downto 8) = "00010000" then
 							cpu_state <= do_branch;
 						else 
-							if rd_dat(15 downto 4) = x"020" or rd_dat(15 downto 4) = x"022" then 
+							if rd_dat(15 downto 4) = x"020" or rd_dat(15 downto 4) = x"022" or   -- LI, AI
+								rd_dat(15 downto 4) = x"024" or rd_dat(15 downto 4) = x"026" or 	-- ANDI, ORI
+								rd_dat(15 downto 4) = x"028"													-- CI
+							then -- ANDI, ORI 
 								cpu_state <= do_load_imm;	-- LI or AI
 							elsif rd_dat(15 downto 9) = "0000001" and rd_dat(4 downto 0) = "00000" then
 								cpu_state <= do_ir_imm;
@@ -207,7 +216,7 @@ begin
 							st(3 downto 0) <= rd_dat(3 downto 0);	-- LIMI
 						end if;
 						
-					when do_load_imm =>	-- AI or LI instruction here
+					when do_load_imm =>	-- LI, AI, ANDI, ORI, CI instruction here
 						test_out <= x"0001";
 						cpu_state <= do_pc_read;		-- read immediate value from instruction stream
 						cpu_state_next <= do_load_imm2;
@@ -227,11 +236,14 @@ begin
 						test_out <= x"0004";
 						arg1 <= rd_dat;	-- contents of workspace register
 						arg2 <= reg_t;		-- temporary holds the immediate addess
-						if ir(7 downto 4) = x"2" then
-							ope <= alu_add;
-						elsif ir(7 downto 4) = x"0" then
-							ope <= alu_load2;
-						end if;
+						case ir(7 downto 4) is
+							when x"0" => ope <= alu_load2;
+							when x"2" => ope <= alu_add;
+							when x"4" => ope <= alu_and;
+							when x"6" => ope <= alu_or;
+							when x"8" => ope <= alu_compare;
+							when others => cpu_state <= do_stuck;
+						end case;
 						cpu_state <= do_load_imm5;
 					when do_load_imm5 =>		-- write to workspace the result of ALU, ea still points to register
 						test_out <= x"0005";

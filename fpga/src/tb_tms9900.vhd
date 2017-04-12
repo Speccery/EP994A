@@ -30,6 +30,9 @@ USE ieee.std_logic_1164.ALL;
 -- Uncomment the following library declaration if using
 -- arithmetic functions with Signed or Unsigned values
 USE ieee.numeric_std.ALL;
+
+USE STD.TEXTIO.ALL;
+USE IEEE.STD_LOGIC_TEXTIO.ALL;
  
 ENTITY tb_tms9900 IS
 END tb_tms9900;
@@ -100,6 +103,7 @@ ARCHITECTURE behavior OF tb_tms9900 IS
 	type ramArray is array (0 to 127) of STD_LOGIC_VECTOR (15 downto 0);
 	signal scratchpad : ramArray;
 	signal ramIndex : integer range 0 to 15 := 0;
+	signal write_detect : std_logic_vector(1 downto 0);
  
 BEGIN
  
@@ -131,6 +135,7 @@ BEGIN
    -- Stimulus process
    stim_proc: process
 	variable addr_int : integer range 0 to 32767 := 0;
+	variable my_line : line;	-- from textio
    begin		
       -- hold reset state for 100 ns.
 		reset <= '1';
@@ -156,11 +161,19 @@ BEGIN
 				data_in <= (others => 'Z');
 			end if;
 			
+			write_detect <= write_detect(0) & wr;
 			if wr = '1' then
 				addr_int := to_integer( unsigned( addr(15 downto 1) ));	-- word address
 				if addr_int >= 16768 and addr_int < 16896 then	-- scratch pad memory range in words
 					-- we're in the scratchpad
 					scratchpad( addr_int - 16768 ) <= data_out;
+				end if;
+				if write_detect = "01" then 
+					write(my_line, STRING'("write to "));
+					write(my_line, addr_int*2);
+					write(my_line, STRING'(" data "));
+					write(my_line, data_out);
+					writeline(OUTPUT, my_line);
 				end if;
 			end if;
 			
