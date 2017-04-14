@@ -84,18 +84,34 @@ ARCHITECTURE behavior OF tb_tms9900 IS
 --	signal	kbBuffer : kbBuffArray;
 --	signal	kbInPointer: integer range 0 to 15 :=0;	
 	-- Program ROM
-	type pgmRomArray is array(0 to 11) of STD_LOGIC_VECTOR (15 downto 0);
+	constant romLast : integer := 15;
+	type pgmRomArray is array(0 to romLast) of STD_LOGIC_VECTOR (15 downto 0);
+	constant pgmRom2 : pgmRomArray := (
+		x"8300", -- initial W
+		x"0008", -- initial PC
+		x"BEEF",
+		x"BEEF",
+		x"1000",				-- 08 BOOT: NOP
+		x"02E0", x"83E0", -- 0A LWPI >83E0
+		x"0203", x"ED07", -- 0E LI R3,>ED07
+								-- LOOPPI
+		x"0223", x"0001", -- 12 AI R3,>0001
+		x"0243", x"0003", -- 16 ANDI R3,>3
+		x"0263", x"0400", -- 1A ORI  R3,>0400
+		x"10F9"				-- 1E JMP LOOPPI
+	);
 	constant pgmRom : pgmRomArray := (
 		x"8300", -- initial W
 		x"0008", -- initial PC
 		x"BEEF",
 		x"BEEF",
-		x"1000",				-- BOOT: NOP
-		x"02E0", x"83E0", -- LWPI >83E0
-		x"0203", x"ED07", -- LI R3,>ED07
-								-- LOOPPI
-		x"0223", x"0001", -- AI R3,>0001
-		x"10FD"				-- JMP LOOPPI
+		x"0201", x"0002",
+		x"0221", x"FFFF",
+		x"16FD",
+		x"1302",
+		x"0207", x"0077",
+		x"10F7",
+		x"0000", x"0000", x"0000"
 	);
 	signal pgmRomIndex : integer range 0 to 15 := 0;
 	
@@ -144,12 +160,12 @@ BEGIN
       -- wait for clk_period*20;
       -- insert stimulus here 
 		
-		for i in 0 to 399 loop
+		for i in 0 to 1799 loop
 			wait for clk_period/2;
 			
 			if rd='1' then
 				addr_int := to_integer( unsigned( addr(15 downto 1) ));	-- word address
-				if addr_int >= 0 and addr_int <= 11 then
+				if addr_int >= 0 and addr_int <= romLast then
 					data_in <= pgmRom( addr_int );
 				elsif addr_int >= 16768 and addr_int < 16896 then	-- scratch pad memory range in words
 					-- we're in the scratchpad
@@ -175,6 +191,12 @@ BEGIN
 					write(my_line, data_out);
 					writeline(OUTPUT, my_line);
 				end if;
+			end if;
+			
+			if stuck='1' then
+				write(my_line, STRING'("CPU GOT STUCK"));
+				writeline(OUTPUT, my_line);
+				exit;
 			end if;
 			
 		end loop;

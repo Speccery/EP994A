@@ -79,9 +79,10 @@ architecture Behavioral of tms9900 is
 		alu_load2, alu_add, alu_or, alu_and, alu_compare
 	);
 	signal ope : alu_operation_type;
-	signal alu_flag_zero : std_logic;
-	signal alu_flag_neg  : std_logic;
-	
+	signal alu_flag_zero     : std_logic;
+	signal alu_flag_overflow : std_logic;
+	signal alu_logical_gt 	 : std_logic;
+	signal alu_arithmetic_gt : std_logic;
 begin
 	
 	process(arg1, arg2, ope)
@@ -103,11 +104,23 @@ begin
 					);
 		end case;			
 	end process;
-	alu_flag_neg <= alu_result(15);
-	alu_flag_zero <= '1' when alu_result = x"0000" else '0';
+	-- ST0 ST1 ST2 ST3 ST4 ST5
+	-- L>  A>  =   C   O   P
+	-- ST0
+	alu_logical_gt 	<= '1' when (arg1(15)='0' and arg2(15)='1') or (arg1(15)=arg2(15) and alu_result(15)= '1') else '0';
+	-- ST1
+	alu_arithmetic_gt <= '1' when (arg1(15)='1' and arg2(15)='0') or (arg1(15)=arg2(15) and alu_result(15)= '1') else '0';
+	-- ST2
+	alu_flag_zero 		<= '1' when alu_result = x"0000" else '0';
+	-- ST3 carry
+	-- ST4 overflow
+	alu_flag_overflow <= '1' when arg1(15)=arg2(15) and alu_result(15) /= arg1(15) else '0';
+	
+	
 
 	process(clk, reset) is
 	variable offset : std_logic_vector(15 downto 0);
+	variable take_branch : boolean;
 	begin
 		if reset = '1' then
 			st <= (others => '0');
@@ -181,7 +194,7 @@ begin
 						ir <= rd_dat;						-- read done, store to instruction register
 						iaq <= '0';
 						-- Next analyze what we got
-						if rd_dat(15 downto 8) = "00010000" then
+						if rd_dat(15 downto 12) = "0001" then
 							cpu_state <= do_branch;
 						else 
 							if rd_dat(15 downto 4) = x"020" or rd_dat(15 downto 4) = x"022" or   -- LI, AI
@@ -197,9 +210,28 @@ begin
 						end if;
 					when do_branch =>
 						-- do branching, we need to sign extend ir(7 downto 0) and add it to PC and continue.
-						offset := ir(7) & ir(7) & ir(7) & ir(7) & ir(7) & ir(7) & ir(7) & ir(7 downto 0) & '0';
-						pc <= std_logic_vector(to_unsigned(to_integer(unsigned(offset)) + to_integer(unsigned(pc)), pc'length));
-						cpu_state <= do_fetch;
+						cpu_state <= do_fetch; -- may be overwritten with do_stuck
+						take_branch := False;
+						case ir(11 downto 8) is
+						when "0000" => take_branch := True;	-- JMP
+						when "0001" => if ST(14)='0' and ST(13)='0' then take_branch := True; end if; -- JLT
+						when "0010" => if ST(15)='0' or  ST(13)='1' then take_branch := True; end if; -- JLE
+						when "0011" => if                ST(13)='1' then take_branch := True; end if; -- JEQ
+						when "0100" => if ST(15)='1' or  ST(13)='1' then take_branch := True; end if; -- JHE
+						when "0101" => if                ST(14)='1' then take_branch := True; end if; -- JGT
+						when "0110" => if                ST(13)='0' then take_branch := True; end if; -- JNE
+						when "0111" => if                ST(12)='0' then take_branch := True; end if; -- JNC
+						when "1000" => if                ST(12)='1' then take_branch := True; end if; -- JOC (on carry)
+						when "1001" => if                ST(11)='0' then take_branch := True; end if; -- JNO (no overflow)
+						when "1010" => if ST(15)='0' and ST(13)='0' then take_branch := True; end if; -- JL
+						when "1011" => if ST(15)='1' and ST(13)='0' then take_branch := True; end if; -- JH
+						when "1100" => if                ST(10)='1' then take_branch := True; end if; -- JOP (odd parity)
+						when others => cpu_state <= do_stuck;
+						end case;
+						if take_branch then
+							offset := ir(7) & ir(7) & ir(7) & ir(7) & ir(7) & ir(7) & ir(7) & ir(7 downto 0) & '0';
+							pc <= std_logic_vector(to_unsigned(to_integer(unsigned(offset)) + to_integer(unsigned(pc)), pc'length));
+						end if;
 					when do_ir_imm =>
 						test_out <= x"EE00";
 						if ir(8 downto 5) = "0111" or ir(8 downto 5) = "1000" then	-- 4 LSBs don't care
@@ -247,9 +279,23 @@ begin
 						cpu_state <= do_load_imm5;
 					when do_load_imm5 =>		-- write to workspace the result of ALU, ea still points to register
 						test_out <= x"0005";
-						wr_dat <= alu_result;	
-						cpu_state <= do_write;
-						cpu_state_next <= do_fetch;
+						-- let's write flags 0-2 for all instructions
+						st(15) <= alu_logical_gt;
+						st(14) <= alu_arithmetic_gt;
+						st(13) <= alu_flag_zero;
+						if ope = alu_add then
+							-- carry to ST3
+							st(11) <= alu_flag_overflow;
+						end if;
+						
+						if ope /= alu_compare then
+							wr_dat <= alu_result;	
+							cpu_state <= do_write;
+							cpu_state_next <= do_fetch;
+						else
+							-- compare, skip result write altogether
+							cpu_state <= do_fetch;
+						end if;
 					when do_stuck =>
 						stuck <= '1';
 				end case;
