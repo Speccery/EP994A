@@ -71,7 +71,9 @@ architecture Behavioral of tms9900 is
 		do_read_operand0, do_read_operand1, do_read_operand2, do_read_operand3, do_read_operand4,
 		do_write_operand0, do_write_operand1, do_write_operand2, do_write_operand3, do_write_operand4,
 		do_alu_write,
-		do_dual_op, do_dual_op1, do_dual_op2
+		do_dual_op, do_dual_op1, do_dual_op2,
+		do_source_address0, do_source_address1, do_source_address2, do_source_address3, do_source_address4, do_source_address5, do_source_address6,
+		do_branch_b_bl
 	);
 	signal cpu_state : cpu_state_type;
 	signal cpu_state_next : cpu_state_type;
@@ -220,6 +222,9 @@ begin
 						cpu_state <= do_pc_read;
 						cpu_state_next <= do_decode;
 						test_out <= x"0000";
+					-------------------------------------------------------------------------------
+					-- do_decode
+					-------------------------------------------------------------------------------
 					when do_decode =>
 						ir <= rd_dat;						-- read done, store to instruction register
 						iaq <= '0';
@@ -240,21 +245,22 @@ begin
 							end if;
 							cpu_state <= do_read_operand0;
 							cpu_state_operand_return <= do_dual_op;
-						else
-							if rd_dat(15 downto 12) = "0001" then
+						elsif rd_dat(15 downto 12) = "0001" then
 								cpu_state <= do_branch;
-							else 
-								if rd_dat(15 downto 4) = x"020" or rd_dat(15 downto 4) = x"022" or   -- LI, AI
+						elsif rd_dat(15 downto 4) = x"020" or rd_dat(15 downto 4) = x"022" or   -- LI, AI
 									rd_dat(15 downto 4) = x"024" or rd_dat(15 downto 4) = x"026" or 	-- ANDI, ORI
 									rd_dat(15 downto 4) = x"028"													-- CI
 								then -- ANDI, ORI 
 									cpu_state <= do_load_imm;	-- LI or AI
-								elsif rd_dat(15 downto 9) = "0000001" and rd_dat(4 downto 0) = "00000" then
+						elsif rd_dat(15 downto 9) = "0000001" and rd_dat(4 downto 0) = "00000" then
 									cpu_state <= do_ir_imm;
-								else
-									cpu_state <= do_stuck;		-- unknown instruction, let's get stuck
-								end if;
-							end if;
+						elsif rd_dat(15 downto 6) = "0000011010" or rd_dat(15 downto 6) = "0000010001" then -- BL, B
+							operand_word <= True;
+							operand_mode <= rd_dat(5 downto 0);
+							cpu_state <= do_source_address0;
+							cpu_state_operand_return <= do_branch_b_bl;
+						else
+							cpu_state <= do_stuck;		-- unknown instruction, let's get stuck
 						end if;
 					when do_branch =>
 						-- do branching, we need to sign extend ir(7 downto 0) and add it to PC and continue.
@@ -387,7 +393,88 @@ begin
 							cpu_state_operand_return <= do_fetch;
 							cpu_state <= do_write_operand0;
 						end if;
-						
+					when do_branch_b_bl =>
+						-- when we enter here source address is at the ALU output
+						pc <= alu_result;	-- the source address is our PC destination
+						if ir(15 downto 6) = "0000010001" then -- B instruction
+							cpu_state <= do_fetch;
+						else -- BL instruction. Store old PC to R11 before returning.
+							wr_dat <= pc;		-- capture old PC before to write data
+							arg1 <= w;
+							arg2 <= x"0016";	-- 2*11 = 22 = 0x16, offset to R11
+							ope <= alu_add;
+							cpu_state <= do_alu_write;
+							cpu_state_next <= do_fetch;
+						end if;
+					
+					-------------------------------------------------------------
+					-- subprogram to calculate source operand address SA
+					-- This does not include reading the source operand, the address is
+					-- left at ALU output register alu_result
+					-------------------------------------------------------------					
+					when do_source_address0 =>
+						arg1 <= w;
+						arg2 <= x"00" & "000" & operand_mode(3 downto 0) & '0';
+						ope <= alu_add;	-- calculate workspace address
+						case operand_mode(5 downto 4) is
+							when "00" => -- workspace register
+								cpu_state <= cpu_state_operand_return;	-- return the workspace register address
+							when "01" => -- workspace register indirect
+								cpu_state <= do_alu_read;
+								cpu_state_next <= do_source_address1;
+							when "10" => -- symbolic or indexed mode
+								cpu_state <= do_pc_read;
+								if operand_mode(3 downto 0) = "0000" then
+									cpu_state_next <= do_source_address1;	-- symbolic
+								else
+									cpu_state_next <= do_source_address2;	-- indexed
+								end if;
+							when "11" => -- workspace register indirect with autoincrement
+								cpu_state <= do_alu_read;
+								cpu_state_next <= do_source_address4;
+							when others =>
+								cpu_state <= do_stuck;
+						end case;
+					when do_source_address1 =>
+						-- Make the result visible in alu output, i.e. the contents of the memory read.
+						-- This is either workspace register contents in case of *Rx or the immediate operand in case of @LABEL
+						arg2 <= rd_dat;
+						ope  <= alu_load2;
+						cpu_state <= cpu_state_operand_return;
+					when do_source_address2 =>
+						-- Indexed. rd_dat is the immediate parameter. alu_result is still the address of register Rx.
+						-- We need to read the register and add it to rd_dat.
+						reg_t <= rd_dat;
+						cpu_state <= do_alu_read;
+						cpu_state_next <= do_source_address3;
+					when do_source_address3 =>
+						arg1 <= rd_dat;	-- contents of Rx
+						arg2 <= reg_t;		-- @TABLE
+						ope <= alu_add;
+						cpu_state <= cpu_state_operand_return;
+					when do_source_address4 =>	-- autoincrement
+						reg_t <= rd_dat;	-- save the value of Rx, this is our return value
+						arg1 <= rd_dat;
+						if operand_word then
+							arg2 <= x"0002";	
+						else
+							arg2 <= x"0001";	
+						end if;
+						ope <= alu_add;
+						ea <= alu_result;	-- save address of register before alu op destroys it					
+						cpu_state <= do_source_address5;
+					when do_source_address5 =>
+						-- writeback the autoincremented value
+						wr_dat <= alu_result;
+						cpu_state <= do_write;
+						cpu_state_next <= do_source_address6;
+					when do_source_address6 =>
+						-- end of the autoincrement stuff, now put source address to ALU output
+						arg2 <= reg_t;
+						ope <= alu_load2;
+						cpu_state <= cpu_state_operand_return;
+					
+					-------------------------------------------------------------
 					-- subprogram to do operand fetching, data returned in rd_dat
 					when do_read_operand0 =>
 						-- read workspace register. Goes to waste if symbolic mode.

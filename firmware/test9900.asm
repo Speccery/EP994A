@@ -46,7 +46,12 @@ BOOT
   MOV R1,*R3      ** write to 8342 data 0001 0000000000000001
   A   R1,*R3      ** write to 8342 data 0002 0000000000000010
   MOV @>4,@>8344
+  BL  @SUBROUTINE
   JMP BOOT
+  
+SUBROUTINE  
+  LI  R4,123
+  RT
 
 * Thus source modes Rx, *Rx, *Rx+, @addr work
 * Destination modes Rx and *Rx work 
