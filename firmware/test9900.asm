@@ -5,6 +5,9 @@
 *
 
 	IDT 'TEST9900'
+WRKSP  EQU >8300
+    DATA WRKSP,BOOT   * RESET VECTOR
+    DATA >BEEF,>BEEF
 	
 BOOT
 ********** TEST 1
@@ -45,9 +48,10 @@ BOOT
   MOV @>4,@>8344
   JMP BOOT
 
-* Thus source modes Rx, *Rx, *Rx+ work
+* Thus source modes Rx, *Rx, *Rx+, @addr work
 * Destination modes Rx and *Rx work 
-
+*   Also destination mode @addr works for MOV but not other instructions
+* First iteration of MOV @>4,@>8344 takes 3375-2915=460ns from iaq to iaq
   
 SLAST  END  BOOT
 

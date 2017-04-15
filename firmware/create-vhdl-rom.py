@@ -2,7 +2,7 @@
 # EP 2017-04-15
 
 src = open("test9900_0000.bin", "rb")
-dst = open("testrom.vhd", "wt")
+dst = open("../fpga/src/testrom.vhd", "wt")
 count = 0
 try:
 
