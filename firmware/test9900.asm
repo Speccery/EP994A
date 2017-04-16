@@ -38,6 +38,15 @@ BOOT
   LI  R3,>8340    ** write to 8306 data 8340 1000001101000000
   LI R2,2
 BACK  
+  BL    @SUBROUTINE
+  CLR R1
+  CLR   @4(R3)
+  SETO  @6(R3)
+  CLR   @>8348
+  SETO  *R3
+  CLR   *R3+
+  CLR   *R3+
+  CLR   *R3+
   NEG R2
   MOV R2,*R3+
   JMP BACK
