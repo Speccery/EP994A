@@ -54,6 +54,10 @@ ARCHITECTURE behavior OF tb_tms9900 IS
          iaq : OUT  std_logic;
          as : OUT  std_logic;
 			test_out : OUT  std_logic_vector(15 downto 0);
+			alu_debug_out : OUT  std_logic_vector(15 downto 0);
+			alu_debug_oper : out STD_LOGIC_VECTOR(3 downto 0);
+			alu_debug_arg1 : OUT  std_logic_vector(15 downto 0);
+			alu_debug_arg2 : OUT  std_logic_vector(15 downto 0);
          stuck : OUT  std_logic
         );
     END COMPONENT;
@@ -80,6 +84,10 @@ ARCHITECTURE behavior OF tb_tms9900 IS
    signal iaq : std_logic;
    signal as : std_logic;
 	signal test_out : STD_LOGIC_VECTOR (15 downto 0);
+	signal alu_debug_out : STD_LOGIC_VECTOR (15 downto 0);
+	signal alu_debug_oper : STD_LOGIC_VECTOR (3 downto 0);
+	signal alu_debug_arg1 : STD_LOGIC_VECTOR (15 downto 0);
+	signal alu_debug_arg2 : STD_LOGIC_VECTOR (15 downto 0);
    signal stuck : std_logic;
 
    -- Clock period definitions
@@ -108,6 +116,10 @@ BEGIN
           iaq => iaq,
           as => as,
 			 test_out => test_out,
+			 alu_debug_out => alu_debug_out,
+			 alu_debug_oper => alu_debug_oper,
+			 alu_debug_arg1 => alu_debug_arg1,
+			 alu_debug_arg2 => alu_debug_arg2,
           stuck => stuck
         );
 		  

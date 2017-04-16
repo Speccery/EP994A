@@ -36,6 +36,24 @@ BOOT
 
 ********** TEST 3 ** Simulation output
   LI  R3,>8340    ** write to 8306 data 8340 1000001101000000
+  LI R2,2
+BACK  
+  NEG R2
+  MOV R2,*R3+
+  JMP BACK
+  NEG R2
+  LI R2, >8002
+  NEG R2
+  NEG R2
+  INCT R3
+  MOV R3,R5
+  INC R5
+  DEC R5
+  SWPB R5
+  INV R5
+  SETO *R3
+  ABS R5
+  NEG R5
   LI  R0,>1234    ** write to 8300 data 1234 0001001000110100
   LI  R1,1        ** write to 8302 data 0001 0000000000000001
   MOV R0,*R3      ** write to 8340 data 1234 0001001000110100

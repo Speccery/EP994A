@@ -39,6 +39,10 @@ entity tms9900 is Port (
 	iaq 		: out  STD_LOGIC;
 	as 		: out  STD_LOGIC;		-- address strobe, when high new address is valid, starts a memory cycle
 	test_out : out STD_LOGIC_VECTOR (15 downto 0);
+	alu_debug_out  : out STD_LOGIC_VECTOR (15 downto 0); -- ALU debug bus
+	alu_debug_oper : out STD_LOGIC_VECTOR(3 downto 0);
+	alu_debug_arg1 :  out STD_LOGIC_VECTOR (15 downto 0);
+	alu_debug_arg2 :  out STD_LOGIC_VECTOR (15 downto 0);	
 	stuck	 	: out  STD_LOGIC		-- when high the CPU is stuck
 	);
 end tms9900;
@@ -73,7 +77,7 @@ architecture Behavioral of tms9900 is
 		do_alu_write,
 		do_dual_op, do_dual_op1, do_dual_op2,
 		do_source_address0, do_source_address1, do_source_address2, do_source_address3, do_source_address4, do_source_address5, do_source_address6,
-		do_branch_b_bl
+		do_branch_b_bl, do_single_op_read, do_single_op_writeback
 	);
 	signal cpu_state : cpu_state_type;
 	signal cpu_state_next : cpu_state_type;
@@ -85,7 +89,7 @@ architecture Behavioral of tms9900 is
 	signal alu_result :  std_logic_vector(15 downto 0);
 	
 	type alu_operation_type is (
-		alu_load2, alu_add, alu_or, alu_and, alu_compare, alu_and_not
+		alu_load2, alu_add, alu_or, alu_and, alu_sub, alu_and_not, alu_xor, alu_swpb2, alu_abs
 	);
 	signal ope : alu_operation_type;
 	signal alu_flag_zero     : std_logic;
@@ -102,28 +106,50 @@ architecture Behavioral of tms9900 is
 begin
 	
 	process(arg1, arg2, ope)
+	variable t : std_logic_vector(15 downto 0);
 	begin
 		-- arg1 is DA, arg2 is SA when ALU used for instruction execute
 		case ope is
 			when alu_load2 =>
 				alu_out <= '0' & arg2;
+				alu_debug_oper <= x"1";
 			when alu_add =>
-				alu_out <= std_logic_vector(
-					to_unsigned(to_integer(unsigned('0' & arg1)) + to_integer(unsigned('0' & arg2)), alu_out'length)
-					);
+				alu_out <= std_logic_vector(unsigned('0' & arg1) + unsigned('0' & arg2));
+				alu_debug_oper <= x"2";
 			when alu_or =>
 				alu_out <= '0' & arg1 or '0' & arg2;
+				alu_debug_oper <= x"3";
 			when alu_and =>
 				alu_out <= '0' & arg1 and '0' & arg2;
-			when alu_compare =>
-				alu_out <= std_logic_vector(
-					to_unsigned(to_integer(unsigned('0' & arg1)) - to_integer(unsigned('0' & arg2)), alu_out'length)
-					);
+				alu_debug_oper <= x"4";
+			when alu_sub =>
+				t := std_logic_vector(unsigned(arg1) - unsigned(arg2));
+				alu_out <= t(15) & t;
+				alu_debug_oper <= x"5";
 			when alu_and_not =>
 				alu_out <= '0' & arg1 and not '0' & arg2;
+				alu_debug_oper <= x"6";
+			when alu_xor =>
+				alu_out <= '0' & arg1 xor '0' & arg2;
+				alu_debug_oper <= x"7";
+			when alu_swpb2 =>
+				alu_out <= '0' & arg2(7 downto 0) & arg2(15 downto 8); -- swap bytes of arg2
+				alu_debug_oper <= x"8";
+			when alu_abs => -- compute abs value of arg2
+				alu_debug_oper <= x"9";
+				if arg2(15) = '0' then
+					alu_out <= '0' & arg2;
+				else
+					-- same as alu sub (arg1 must be zero; this is set elsewhere)
+					alu_out <= std_logic_vector(unsigned(arg1(15) & arg1) - unsigned(arg2(15) & arg2));
+				end if;
 		end case;			
 	end process;
 	alu_result <= alu_out(15 downto 0);
+	alu_debug_out <= alu_out(15 downto 0);
+	alu_debug_arg1 <= arg1;
+	alu_debug_arg2 <= arg2;
+	
 	-- ST0 ST1 ST2 ST3 ST4 ST5
 	-- L>  A>  =   C   O   P
 	-- ST0
@@ -160,7 +186,7 @@ begin
 				------------------------
 					when do_pc_read =>
 						addr <= pc;
-						pc <= std_logic_vector(to_unsigned(2+to_integer(unsigned(pc)), pc'length));	-- increment pc always
+						pc <= std_logic_vector(unsigned(pc) + to_unsigned(2,16));
 						as <= '1';
 						rd <= '1';
 						cpu_state <= do_read0;
@@ -254,7 +280,8 @@ begin
 									cpu_state <= do_load_imm;	-- LI or AI
 						elsif rd_dat(15 downto 9) = "0000001" and rd_dat(4 downto 0) = "00000" then
 									cpu_state <= do_ir_imm;
-						elsif rd_dat(15 downto 6) = "0000011010" or rd_dat(15 downto 6) = "0000010001" then -- BL, B
+						elsif rd_dat(15 downto 10) = "000001" then 
+							-- Single operand instructions: BL, B, etc.
 							operand_word <= True;
 							operand_mode <= rd_dat(5 downto 0);
 							cpu_state <= do_source_address0;
@@ -284,7 +311,7 @@ begin
 						end case;
 						if take_branch then
 							offset := ir(7) & ir(7) & ir(7) & ir(7) & ir(7) & ir(7) & ir(7) & ir(7 downto 0) & '0';
-							pc <= std_logic_vector(to_unsigned(to_integer(unsigned(offset)) + to_integer(unsigned(pc)), pc'length));
+							pc <= std_logic_vector(unsigned(offset) + unsigned(pc));
 						end if;
 					when do_ir_imm =>
 						test_out <= x"EE00";
@@ -327,7 +354,7 @@ begin
 							when x"2" => ope <= alu_add;
 							when x"4" => ope <= alu_and;
 							when x"6" => ope <= alu_or;
-							when x"8" => ope <= alu_compare;
+							when x"8" => ope <= alu_sub;
 							when others => cpu_state <= do_stuck;
 						end case;
 						cpu_state <= do_load_imm5;
@@ -342,7 +369,7 @@ begin
 							st(11) <= alu_flag_overflow;
 						end if;
 						
-						if ope /= alu_compare then
+						if ope /= alu_sub then
 							wr_dat <= alu_result;	
 							cpu_state <= do_write;
 							cpu_state_next <= do_fetch;
@@ -373,8 +400,8 @@ begin
 						cpu_state <= do_dual_op2;
 						case ir(15 downto 13) is
 							when "101" => ope <= alu_add;
-							when "100" => ope <= alu_compare;
-							when "011" => ope <= alu_compare;
+							when "100" => ope <= alu_sub;
+							when "011" => ope <= alu_sub;
 							when "111" => ope <= alu_or;
 							when "010" => ope <= alu_and_not;
 							when "110" => ope <= alu_load2;
@@ -395,17 +422,108 @@ begin
 						end if;
 					when do_branch_b_bl =>
 						-- when we enter here source address is at the ALU output
-						pc <= alu_result;	-- the source address is our PC destination
-						if ir(15 downto 6) = "0000010001" then -- B instruction
-							cpu_state <= do_fetch;
-						else -- BL instruction. Store old PC to R11 before returning.
-							wr_dat <= pc;		-- capture old PC before to write data
-							arg1 <= w;
-							arg2 <= x"0016";	-- 2*11 = 22 = 0x16, offset to R11
-							ope <= alu_add;
-							cpu_state <= do_alu_write;
-							cpu_state_next <= do_fetch;
+						case ir(9 downto 6) is 
+							when "0001" => -- B instruction
+								pc <= alu_result;	-- the source address is our PC destination
+								cpu_state <= do_fetch;
+							when "1010" => -- BL instruction.Store old PC to R11 before returning.
+								pc <= alu_result;	-- the source address is our PC destination
+								wr_dat <= pc;		-- capture old PC before to write data
+								arg1 <= w;
+								arg2 <= x"0016";	-- 2*11 = 22 = 0x16, offset to R11
+								ope <= alu_add;
+								cpu_state <= do_alu_write;
+								cpu_state_next <= do_fetch;
+							when "0011" => -- CLR instruction
+								wr_dat <= x"0000";
+								cpu_state <= do_alu_write;
+								cpu_state_next <= do_fetch;
+							when "1100" => -- SETO instruction
+								wr_dat <= x"FFFF";
+								cpu_state <= do_alu_write;
+								cpu_state_next <= do_fetch;
+							when "0101" => -- INV instruction
+								ea <= alu_result;	-- save address SA
+								cpu_state_next <= do_single_op_read;
+								cpu_state <= do_read;
+								arg1 <= x"FFFF";
+								ope <= alu_xor;
+							when "0100" => -- NEG instruction
+								test_out <= x"EEFF";
+								ea <= alu_result;	-- save address SA
+								cpu_state_next <= do_single_op_read;
+								cpu_state <= do_read;
+								arg1 <= x"0000";
+								ope <= alu_sub;
+							when "1101" => -- ABS instruction
+								test_out <= x"AABB";
+								ea <= alu_result;	-- save address SA
+								cpu_state_next <= do_single_op_read;
+								cpu_state <= do_read;
+								arg1 <= x"0000";
+								ope <= alu_abs;
+							when "1011" =>  -- SWPB instruction
+								ea <= alu_result;	-- save address SA
+								cpu_state_next <= do_single_op_read;
+								cpu_state <= do_read;
+								arg1 <= x"0000";
+								ope <= alu_swpb2;
+							when "0110" => -- INC instruction
+								ea <= alu_result;	-- save address SA
+								cpu_state_next <= do_single_op_read;
+								cpu_state <= do_read;
+								arg1 <= x"0001";
+								ope <= alu_add;
+							when "0111" => -- INCT instruction
+								ea <= alu_result;	-- save address SA
+								cpu_state_next <= do_single_op_read;
+								cpu_state <= do_read;
+								arg1 <= x"0002";
+								ope <= alu_add;
+							when "1000" => -- DEC instruction
+								ea <= alu_result;	-- save address SA
+								cpu_state_next <= do_single_op_read;
+								cpu_state <= do_read;
+								arg1 <= x"FFFF";	-- add -1 to create DEC
+								ope <= alu_add;
+							when "1001" => -- DECT instruction
+								ea <= alu_result;	-- save address SA
+								cpu_state_next <= do_single_op_read;
+								cpu_state <= do_read;
+								arg1 <= x"FFFE";	-- add -2 to create DEC
+								ope <= alu_add;
+							when "0010" => -- X instruction...
+								cpu_state_next <= do_single_op_read;
+								cpu_state <= do_read;
+							when "0000" => -- BLWP instruction
+								cpu_state <= do_stuck;	-- unimplemented still
+							when others =>
+								cpu_state <= do_stuck;
+						end case;
+					when do_single_op_read =>
+						if ir(9 downto 6) /= "0010" then -- if not X instruction
+							arg2 <= rd_dat;	-- feed the data that was read to ALU
+							cpu_state <= do_single_op_writeback;
+						else -- Here we process the X instruction...
+							ir <= rd_dat;
+							cpu_state <= do_decode;	-- off we go to do something... BUGBUG: this may not work as flags will be impacted.
 						end if;
+					when do_single_op_writeback =>
+						-- setup flags
+						if ope /= alu_swpb2 then 
+							-- set flags for INV, NEG, ABS, INC, INCT, DEC, DECT
+							st(15) <= alu_logical_gt;
+							st(14) <= alu_arithmetic_gt;
+							st(13) <= alu_flag_zero;
+							if ope = alu_add or ope = alu_sub or ope = alu_abs then
+								st(12) <= alu_flag_carry;
+								st(11) <= alu_flag_overflow;
+							end if;
+						end if;
+						-- write the result
+						wr_dat <= alu_result;
+						cpu_state <= do_write;	-- ea still holds our address; return via write
+						cpu_state_next <= do_fetch;
 					
 					-------------------------------------------------------------
 					-- subprogram to calculate source operand address SA
