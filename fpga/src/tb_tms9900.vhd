@@ -65,7 +65,7 @@ ARCHITECTURE behavior OF tb_tms9900 IS
 	 COMPONENT TESTROM
 	 PORT (
 		clk : IN  std_logic;
-      addr : in  STD_LOGIC_VECTOR (6 downto 0);
+      addr : in  STD_LOGIC_VECTOR (7 downto 0);
       data_out : out  STD_LOGIC_VECTOR (15 downto 0));
 	 END COMPONENT;
     
@@ -125,7 +125,7 @@ BEGIN
 		  
 	ROM: TESTROM PORT MAP(
 		clk => clk,
-		addr => addr(7 downto 1),
+		addr => addr(8 downto 1),
 		data_out => rom_data
 		);
 
@@ -177,9 +177,17 @@ BEGIN
 				if write_detect = "01" then 
 					write(my_line, STRING'("write to "));
 					hwrite(my_line, addr);
+					-- If in 8300..831F assume it is a register, print its name
+					if addr_int >= 16768 and addr_int < 16784 then
+						write(my_line, STRING'(" R"));
+						write(my_line, addr_int - 16768);
+						write(my_line, STRING'(" "));
+					else
+						write(my_line, STRING'("    "));
+					end if;
 					write(my_line, STRING'(" data "));
 					hwrite(my_line, data_out);
-					write(my_line, STRING'(" "));
+					write(my_line, STRING'("               "));
 					write(my_line, data_out);
 					writeline(OUTPUT, my_line);
 				end if;

@@ -75,7 +75,7 @@ architecture Behavioral of tms9900 is
 		do_read_operand0, do_read_operand1, do_read_operand2, do_read_operand3, do_read_operand4,
 		do_write_operand0, do_write_operand1, do_write_operand2, do_write_operand3, do_write_operand4,
 		do_alu_write,
-		do_dual_op, do_dual_op1, do_dual_op2,
+		do_dual_op, do_dual_op1, do_dual_op2, do_dual_op3,
 		do_source_address0, do_source_address1, do_source_address2, do_source_address3, do_source_address4, do_source_address5, do_source_address6,
 		do_branch_b_bl, do_single_op_read, do_single_op_writeback
 	);
@@ -378,26 +378,37 @@ begin
 							cpu_state <= do_fetch;
 						end if;
 					
+					-------------------------------------------------------------
+					-- Dual operand instructions
+					-------------------------------------------------------------					
 					when do_dual_op =>
-						source_op <= rd_dat;	-- store source
+						source_op <= rd_dat;	-- store source operand
+						-- calculate address of destination operand
+						cpu_state <= do_source_address0;
+						cpu_state_operand_return <= do_dual_op1;
 						operand_mode <= ir(11 downto  6);
-						-- read destination operand, except if we have MOV in that case optimized
+					when do_dual_op1 =>
+						-- Now ALU output has address of destination (side effects done), and source_op
+						-- has the source operand.
+						-- Read destination operand, except if we have MOV in that case optimized
+						ea <= alu_result;	-- Save destination address
 						if ir(15 downto 13) = "110" then
-							-- we have MOV, skip reading of dest operand.
+							-- We have MOV, skip reading of dest operand. We still need to
+							-- move along as we need to set flags.
 							test_out <= x"DD00";
-							cpu_state <= do_dual_op1;
-						else 
+							cpu_state <= do_dual_op2;
+						else
 							-- we have any of the other ones expect MOV
-							cpu_state <= do_read_operand0;
-							cpu_state_operand_return <= do_dual_op1;
+							cpu_state <= do_read;
+							cpu_state_next <= do_dual_op2;
 							test_out <= x"DD10";
 						end if;
-					when do_dual_op1 =>
+					when do_dual_op2 =>
 						-- perform the actual operation
-						test_out <= x"DD01";
+						test_out <= x"DD02";
 						arg1 <= rd_dat;
 						arg2 <= source_op;
-						cpu_state <= do_dual_op2;
+						cpu_state <= do_dual_op3;
 						case ir(15 downto 13) is
 							when "101" => ope <= alu_add;
 							when "100" => ope <= alu_sub;
@@ -407,19 +418,31 @@ begin
 							when "110" => ope <= alu_load2;
 							when others =>	cpu_state <= do_stuck;
 						end case;
-						
-					when do_dual_op2 =>
-						-- store the result except with compare instruction
-						-- BUGBUG need to process the flags
+					when do_dual_op3 =>
+						-- Store flags.
+						st(15) <= alu_logical_gt;
+						st(14) <= alu_arithmetic_gt;
+						st(13) <= alu_flag_zero;
+						if ir(15 downto 13) = "101" or ir(15 downto 13) = "011" then
+							-- add and sub set two more flags
+							st(12) <= alu_flag_carry;
+							st(11) <= alu_flag_overflow;
+						end if;						
+						-- Store the result except with compare instruction.
 						if ir(15 downto 13) = "100" then
 							cpu_state <= do_fetch;	-- compare, we are already done
-							test_out <= x"DD02";
+							test_out <= x"DD03";
 						else
-							test_out <= x"DD12";
+							-- writeback result
+							test_out <= x"DD13";
 							wr_dat <= alu_result;
-							cpu_state_operand_return <= do_fetch;
-							cpu_state <= do_write_operand0;
+							cpu_state_next <= do_fetch;
+							cpu_state <= do_write;
 						end if;
+						
+					-------------------------------------------------------------
+					-- Single operand instructions
+					-------------------------------------------------------------					
 					when do_branch_b_bl =>
 						-- when we enter here source address is at the ALU output
 						case ir(9 downto 6) is 

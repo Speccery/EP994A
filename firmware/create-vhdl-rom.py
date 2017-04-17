@@ -29,12 +29,12 @@ use IEEE.NUMERIC_STD.ALL;
 
 entity testrom is
     Port ( clk : in  STD_LOGIC;
-           addr : in  STD_LOGIC_VECTOR (6 downto 0);
+           addr : in  STD_LOGIC_VECTOR (7 downto 0);
            data_out : out  STD_LOGIC_VECTOR (15 downto 0));
 end testrom;
 
 architecture Behavioral of testrom is
-	constant romLast : integer := 63;
+	constant romLast : integer := 255;
 	type pgmRomArray is array(0 to romLast) of STD_LOGIC_VECTOR (15 downto 0);
 	constant pgmRom : pgmRomArray := (  
 """
@@ -72,7 +72,7 @@ end Behavioral;
     byte2 = src.read(1)
 finally:
   src.close()
-  while count < 64:
+  while count < 256:
     dst.write("           " + ',x"0000"' + '\n')
     count = count+1
   dst.write(postfix)

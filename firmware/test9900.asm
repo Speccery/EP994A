@@ -36,7 +36,26 @@ BOOT
 
 ********** TEST 3 ** Simulation output
   LI  R3,>8340    ** write to 8306 data 8340 1000001101000000
-  LI R2,2
+  CLR *R3
+  LI  R4,>8350
+  LI  R2,2
+  MOV *R3+,*R4+
+  DECT R4
+  A   R2,*R4+
+  S   R2,@>8350
+  CI  R3,>8342
+  JEQ GOOD1
+  RTWP
+GOOD1:
+  LI  R1,>4444
+  MOV R1,@>8360
+  MOV @>8360,@>8350
+  C   @>8350,R1
+  JEQ GOOD2
+  RTWP
+GOOD2:  
+  LI  R0,>1234
+  RTWP
 BACK  
   BL    @SUBROUTINE
   CLR R1
