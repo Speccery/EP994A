@@ -6,7 +6,10 @@
 
 	IDT 'TEST9900'
 WRKSP  EQU >8300
+WRKSP2 EQU >8320
     DATA WRKSP,BOOT   * RESET VECTOR
+BLWPTEST
+    DATA WRKSP2,TEST2
     DATA >BEEF,>BEEF
 	
 BOOT
@@ -35,6 +38,7 @@ BOOT
 *  JMP LOOPPI2
 
 ********** TEST 3 ** Simulation output
+  BLWP @BLWPTEST
   LI  R3,>8340    ** write to 8306 data 8340 1000001101000000
   LI  R7,>8350
   LI  R1,>0123
@@ -130,6 +134,19 @@ SUBROUTINE
 * Destination modes Rx and *Rx work 
 *   Also destination mode @addr works for MOV but not other instructions
 * First iteration of MOV @>4,@>8344 takes 3375-2915=460ns from iaq to iaq
+
+TEST2
+  LI  R0,>0004
+  MOV R0,R1
+  LI R2,-4
+  MOV R0,R3
+  LI  R4,-4
+  SLA R1,8
+  SRA R2,1
+  SRC R3,4
+  SRL R4,1
+  RTWP
+
   
 SLAST  END  BOOT
 

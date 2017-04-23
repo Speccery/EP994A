@@ -69,7 +69,6 @@ architecture Behavioral of tms9900 is
 		
 	type cpu_state_type is (
 		do_pc_read, do_alu_read,
-		do_blwp, do_blwp1, do_blwp2,
 		do_fetch, do_decode,
 		do_branch,
 		do_stuck,
@@ -84,7 +83,10 @@ architecture Behavioral of tms9900 is
 		do_alu_write,
 		do_dual_op, do_dual_op1, do_dual_op2, do_dual_op3,
 		do_source_address0, do_source_address1, do_source_address2, do_source_address3, do_source_address4, do_source_address5, do_source_address6,
-		do_branch_b_bl, do_single_op_read, do_single_op_writeback
+		do_branch_b_bl, do_single_op_read, do_single_op_writeback,
+		do_rtwp0, do_rtwp1, do_rtwp2, do_rtwp3,
+		do_shifts0, do_shifts1, do_shifts2, do_shifts3, do_shifts4,
+		do_blwp0, do_blwp1, do_blwp2, do_blwp3 
 	);
 	signal cpu_state : cpu_state_type;
 	signal cpu_state_next : cpu_state_type;
@@ -94,9 +96,11 @@ architecture Behavioral of tms9900 is
 	signal arg2 : std_logic_vector(15 downto 0);
 	signal alu_out : std_logic_vector(16 downto 0);
 	signal alu_result :  std_logic_vector(15 downto 0);
+	signal shift_count : std_logic_vector(4 downto 0);
 	
 	type alu_operation_type is (
-		alu_load2, alu_add, alu_or, alu_and, alu_sub, alu_and_not, alu_xor, alu_swpb2, alu_abs
+		alu_load2, alu_add, alu_or, alu_and, alu_sub, alu_and_not, alu_xor, alu_swpb2, alu_abs,
+		alu_sla, alu_sra, alu_src, alu_srl
 	);
 	signal ope : alu_operation_type;
 	signal alu_flag_zero     : std_logic;
@@ -150,6 +154,18 @@ begin
 					-- same as alu sub (arg1 must be zero; this is set elsewhere)
 					alu_out <= std_logic_vector(unsigned(arg1(15) & arg1) - unsigned(arg2(15) & arg2));
 				end if;
+			when alu_sla =>
+				alu_debug_oper <= x"A";
+				alu_out <= arg2 & '0';
+			when alu_sra =>
+				alu_debug_oper <= x"B";
+				alu_out <= arg2(0) & arg2(15) & arg2(15 downto 1);
+			when alu_src =>
+				alu_debug_oper <= x"C";
+				alu_out <= arg2(0) & arg2(0) & arg2(15 downto 1);
+			when alu_srl =>
+				alu_debug_oper <= x"D";
+				alu_out <= arg2(0) & '0' & arg2(15 downto 1);
 		end case;			
 	end process;
 	alu_result <= alu_out(15 downto 0);
@@ -200,9 +216,15 @@ begin
 			st <= (others => '0');
 			pc <= (others => '0');
 			stuck <= '0';
-			cpu_state <= do_blwp;		-- do blwp from pc (zero)
 			rd <= '0';
 			wr <= '0';
+			-- Prepare for BLWP from 0
+			ea   <= x"0000";
+			arg1 <= x"0002";
+			arg2 <= x"0000";
+			ope <= alu_add;
+			cpu_state <= do_read;		-- read from 0, i.e the workspace pointer
+			cpu_state_next <= do_blwp0;		-- do blwp from pc (zero)
 		else
 			if rising_edge(clk) then
 			
@@ -260,17 +282,7 @@ begin
 					----------------
 					-- operations --
 					----------------
-					when do_blwp =>						-- read from pc new W, from pc+2 new PC
-						cpu_state <= do_pc_read;
-						cpu_state_next <= do_blwp1;
-					when do_blwp1 =>
-						w <= rd_dat;						-- first read done, put it to workspace pointer
-						cpu_state <= do_pc_read;		-- do second read
-						cpu_state_next <= do_blwp2;	-- continue from here
-					when do_blwp2 =>
-						pc <= rd_dat;						-- 2nd read done, put it to program counter
-						cpu_state <= do_fetch;			-- go to instruction fetch
-					when do_fetch =>
+					when do_fetch =>		-- instruction opcode fetch
 						iaq <= '1';
 						cpu_state <= do_pc_read;
 						cpu_state_next <= do_decode;
@@ -300,7 +312,20 @@ begin
 							cpu_state <= do_read_operand0;
 							cpu_state_operand_return <= do_dual_op;
 						elsif rd_dat(15 downto 12) = "0001" then
-								cpu_state <= do_branch;
+								cpu_state <= do_branch; 
+						elsif rd_dat(15 downto 10) = "000010" then -- SLA, SRA, SRC, SRL
+							-- Do all the shifts SLA(10) SRA(00) SRC(11) SRL(01), OPCODE:6 INS:2 C:4 W:4
+							shift_count <= '0' & rd_dat(7 downto 4);
+							arg1 <= w;
+							arg2 <= x"00" & "000" & rd_dat(3 downto 0) & '0';
+							ope <= alu_add;	-- calculate workspace address
+							cpu_state <= do_shifts0;
+						elsif rd_dat = x"0380" then	-- RTWP
+							arg1 <= w;
+							arg2 <= x"00" & "000" & x"D" & '0';	-- calculate of register 13 (WP)
+							ope <= alu_add;	
+							cpu_state <= do_rtwp0;
+							
 						elsif rd_dat(15 downto 4) = x"020" or rd_dat(15 downto 4) = x"022" or   -- LI, AI
 									rd_dat(15 downto 4) = x"024" or rd_dat(15 downto 4) = x"026" or 	-- ANDI, ORI
 									rd_dat(15 downto 4) = x"028"													-- CI
@@ -574,7 +599,13 @@ begin
 								cpu_state_next <= do_single_op_read;
 								cpu_state <= do_read;
 							when "0000" => -- BLWP instruction
-								cpu_state <= do_stuck;	-- unimplemented still
+								-- alu_result points to new WP
+								ea <= alu_result;
+								arg1 <= x"0002";			-- calculate address of PC
+								arg2 <= alu_result;
+								ope <= alu_add;
+								cpu_state <= do_read;	-- read new WP
+								cpu_state_next <= do_blwp0;
 							when others =>
 								cpu_state <= do_stuck;
 						end case;
@@ -601,6 +632,127 @@ begin
 						-- write the result
 						wr_dat <= alu_result;
 						cpu_state <= do_write;	-- ea still holds our address; return via write
+						cpu_state_next <= do_fetch;
+
+					-------------------------------------------------------------
+					-- BLWP
+					-- (SA) -> WP, (SA+2) -> PC
+					-- R13 -> old_WP, R14 -> old_PC, R15 -> ST
+					-------------------------------------------------------------					
+					when do_blwp0 =>
+						-- here rd_dat is our new WP, alu_result is addr of new PC
+						ea 	<= alu_result;
+						reg_t <= rd_dat;	-- store new WP to temp register
+						arg1 	<= rd_dat;
+						arg2 	<= x"00" & "000" & x"D" & '0';	-- calculate new addr 13 (WP)
+						ope 	<= alu_add;
+						cpu_state <= do_read;
+						cpu_state_next <= do_blwp1;
+					when do_blwp1 =>
+						-- now rd_dat is new PC, reg_t new WP, alu_result addr of new R13
+						wr_dat <= w;
+						ea     <= alu_result;
+						arg1   <= x"0002";
+						arg2   <= alu_result;		-- prepare for PC write, i.e. point to new R14
+						cpu_state 		<= do_write; -- write old WP
+						cpu_state_next <= do_blwp2;
+					when do_blwp2 =>
+						wr_dat <= pc;
+						ea     <= alu_result;
+						arg2   <= alu_result;		-- prepare for ST write, i.e. point to new R15
+						cpu_state 		<= do_write; -- write old PC
+						cpu_state_next <= do_blwp3;
+					when do_blwp3 =>
+						wr_dat <= st;
+						ea     <= alu_result;
+						arg2   <= alu_result;
+						cpu_state 		<= do_write; -- write old ST
+						cpu_state_next <= do_fetch;
+						-- now do the context switch
+						pc <= rd_dat;
+						w 	<= reg_t;
+					
+					-------------------------------------------------------------
+					-- RTWP
+					-- R13 -> WP, R14 -> PC, R15 -> ST
+					-------------------------------------------------------------					
+					when do_rtwp0 =>
+						-- Here start first read cycle (from R13) and calculate also addr of R14
+						ea <= alu_result;		-- Addr of R13
+						arg1 <= x"0002";
+						arg2 <= alu_result;
+						ope <= alu_add;
+						cpu_state <= do_read;
+						cpu_state_next <= do_rtwp1;
+					when do_rtwp1 =>
+						w <= rd_dat;			-- W from previous R13
+						ea <= alu_result;		-- addr of previous R14
+						arg2 <= alu_result;	-- start calculation of R15
+						cpu_state <= do_read;
+						cpu_state_next <= do_rtwp2;
+					when do_rtwp2 =>
+						pc <= rd_dat;			-- PC from previous R14
+						ea <= alu_result;		-- addr of previous R15
+						cpu_state <= do_read;
+						cpu_state_next <= do_rtwp3;
+					when do_rtwp3 =>
+						st <= rd_dat;			-- ST from previous R15
+						cpu_state <= do_fetch;
+						
+					-------------------------------------------------------------
+					-- All shift instructions
+					-------------------------------------------------------------					
+					when do_shifts0 =>
+						ea <= alu_result;	-- address of our working register
+						if shift_count = "00000" then 
+							-- we need to read WR0 to get shift count
+							arg1 <= w;
+							arg2 <= x"0000";
+							ope <= alu_add;
+							cpu_state <= do_alu_read;
+							cpu_state_next <= do_shifts1;
+						else
+							-- shift count is ready, it came from the instruction already.
+							cpu_state <= do_read;			-- read the register.
+							cpu_state_next <= do_shifts2;
+						end if;
+					when do_shifts1 =>
+						-- rd_dat is now contents of WR0. Setup shift count and read the operand.
+						if rd_dat(3 downto 0) = x"0" then
+							shift_count <= '1' & rd_dat(3 downto 0);
+						else
+							shift_count <= '0' & rd_dat(3 downto 0);
+						end if;
+						cpu_state <= do_read;
+						cpu_state_next <= do_shifts2;
+					when do_shifts2 => 
+						-- shift count is now ready. rd_dat is our operand.
+						arg2 <= rd_dat;
+						case ir(9 downto 8) is 
+							when "00" =>
+								ope <= alu_sra;
+							when "01" =>
+								ope <= alu_srl;
+							when "10" =>
+								ope <= alu_sla;
+							when "11" =>
+								ope <= alu_src;
+							when others =>
+						end case;
+						cpu_state <= do_shifts3;
+					when do_shifts3 => 	-- we stay here doing the shifting
+						arg2 <= alu_result;
+						shift_count <= std_logic_vector(unsigned(shift_count) - to_unsigned(1, 5));
+						if shift_count = "00001" then 
+							ope <= alu_load2;				-- pass through the previous result
+							cpu_state <= do_shifts4;	-- done with shifting altogether
+						else 
+							cpu_state <= do_shifts3;	-- more shifting to be done
+						end if;
+					when do_shifts4 =>
+						-- Store the result of shifting, and return to next instruction.
+						wr_dat <= alu_result;
+						cpu_state <= do_write;
 						cpu_state_next <= do_fetch;
 					
 					-------------------------------------------------------------
