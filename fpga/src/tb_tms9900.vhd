@@ -150,7 +150,7 @@ BEGIN
       -- wait for clk_period*20;
       -- insert stimulus here 
 		
-		for i in 0 to 1799 loop
+		for i in 0 to 2999 loop
 			wait for clk_period/2;
 			
 			if rd='1' then

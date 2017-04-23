@@ -27,6 +27,12 @@ use IEEE.NUMERIC_STD.ALL;
 library UNISIM;
 use UNISIM.VComponents.all;
 
+-- simulation begin
+USE STD.TEXTIO.ALL;
+USE IEEE.STD_LOGIC_TEXTIO.ALL;
+-- simulation end
+
+
 entity tms9900 is Port ( 
 	clk 		: in  STD_LOGIC;		-- input clock
 	reset 	: in  STD_LOGIC;		-- reset, active high
@@ -59,6 +65,7 @@ architecture Behavioral of tms9900 is
 	signal wr_dat : std_logic_vector(15 downto 0);	-- data written to memory
 	signal reg_t : std_logic_vector(15 downto 0);	-- temporary register
 	signal source_op : std_logic_vector(15 downto 0); -- storage of source operand
+	signal read_byte_aligner : std_logic_vector(15 downto 0); -- align bytes to words for reads
 		
 	type cpu_state_type is (
 		do_pc_read, do_alu_read,
@@ -72,7 +79,7 @@ architecture Behavioral of tms9900 is
 		do_write0, do_write1, do_write2, do_write3,
 		do_ir_imm, do_lwpi_limi,
 		do_load_imm, do_load_imm2, do_load_imm3, do_load_imm4, do_load_imm5,
-		do_read_operand0, do_read_operand1, do_read_operand2, do_read_operand3, do_read_operand4,
+		do_read_operand0, do_read_operand1, do_read_operand2, do_read_operand3, do_read_operand4, do_read_operand5,
 		do_write_operand0, do_write_operand1, do_write_operand2, do_write_operand3, do_write_operand4,
 		do_alu_write,
 		do_dual_op, do_dual_op1, do_dual_op2, do_dual_op3,
@@ -162,12 +169,32 @@ begin
 	alu_flag_carry    <= alu_out(16);
 	-- ST4 overflow
 	alu_flag_overflow <= '1' when arg1(15)=arg2(15) and alu_result(15) /= arg1(15) else '0';
-	
-	
+
+	-- Byte aligner
+	process(ea, rd_dat, operand_mode, operand_word)
+	begin
+		-- We have a byte operation. If the data came from register,
+		-- we don't need to do anything. If it came from memory,
+		-- we will zero extend and possibly shift.
+		if operand_word or operand_mode(5 downto 4) = "00" then
+			read_byte_aligner <= rd_dat;
+		else
+			-- Not register operand. Need to check that EA is still valid.
+			-- BUGBUG: EA is not always valid here! For autoinc / etc.
+			if ea(0) = '0' then
+				read_byte_aligner <= rd_dat(15 downto 8) & x"00";
+			else
+				read_byte_aligner <= rd_dat(7 downto 0) & x"00";
+			end if;
+		end if;
+	end process;
 
 	process(clk, reset) is
 	variable offset : std_logic_vector(15 downto 0);
 	variable take_branch : boolean;
+	-- simulation begin
+	variable my_line : line;	-- from textio
+	-- simulation end
 	begin
 		if reset = '1' then
 			st <= (others => '0');
@@ -206,8 +233,8 @@ begin
 					when do_read3 => 
 						-- if ready='1' then 
 							cpu_state <= cpu_state_next;
-							rd_dat <= data_in;
 							rd <= '0';
+							rd_dat <= data_in;
 						-- end if;
 					-- write cycles --
 					when do_write =>
@@ -252,6 +279,7 @@ begin
 					-- do_decode
 					-------------------------------------------------------------------------------
 					when do_decode =>
+						operand_word <= True;			-- By default 16-bit operations.
 						ir <= rd_dat;						-- read done, store to instruction register
 						iaq <= '0';
 						-- Next analyze what we got
@@ -382,7 +410,7 @@ begin
 					-- Dual operand instructions
 					-------------------------------------------------------------					
 					when do_dual_op =>
-						source_op <= rd_dat;	-- store source operand
+						source_op <= read_byte_aligner;
 						-- calculate address of destination operand
 						cpu_state <= do_source_address0;
 						cpu_state_operand_return <= do_dual_op1;
@@ -392,7 +420,7 @@ begin
 						-- has the source operand.
 						-- Read destination operand, except if we have MOV in that case optimized
 						ea <= alu_result;	-- Save destination address
-						if ir(15 downto 13) = "110" then
+						if ir(15 downto 13) = "110" and operand_word then
 							-- We have MOV, skip reading of dest operand. We still need to
 							-- move along as we need to set flags.
 							test_out <= x"DD00";
@@ -406,7 +434,8 @@ begin
 					when do_dual_op2 =>
 						-- perform the actual operation
 						test_out <= x"DD02";
-						arg1 <= rd_dat;
+						-- Handle processing of byte operations for rd_dat.
+						arg1 <= read_byte_aligner;
 						arg2 <= source_op;
 						cpu_state <= do_dual_op3;
 						case ir(15 downto 13) is
@@ -435,7 +464,33 @@ begin
 						else
 							-- writeback result
 							test_out <= x"DD13";
-							wr_dat <= alu_result;
+							if operand_word then
+								wr_dat <= alu_result;
+							else
+								-- simulation debug start
+								write(my_line, STRING'("do_dual_op3 byte arg1 "));
+								hwrite(my_line, arg1);
+								write(my_line, STRING'(" arg2 "));
+								hwrite(my_line, arg2);
+								write(my_line, STRING'(" alu_result "));
+								hwrite(my_line, alu_result);
+								write(my_line, STRING'(" rd_dat "));
+								hwrite(my_line, rd_dat);
+
+								-- simulation debug end
+								-- Byte operation.
+								if operand_mode(5 downto 4) = "00" or ea(0)='0' then
+									-- Register operation or write to high byte. Always impacts high byte.
+									wr_dat <= alu_result(15 downto 8) & rd_dat(7 downto 0);
+									write(my_line, STRING'(" HIGH "));
+								else
+									-- Memory operation going to low byte. High byte not impacted.
+									wr_dat <= rd_dat(15 downto 8) & alu_result(15 downto 8); 
+									write(my_line, STRING'(" LOW "));
+								end if;
+								
+								writeline(OUTPUT, my_line);	-- simulation
+							end if;
 							cpu_state_next <= do_fetch;
 							cpu_state <= do_write;
 						end if;
@@ -616,7 +671,8 @@ begin
 						cpu_state <= cpu_state_operand_return;
 					
 					-------------------------------------------------------------
-					-- subprogram to do operand fetching, data returned in rd_dat
+					-- subprogram to do operand fetching, data returned in rd_dat.
+					-- operand address is left to EA (when appropriate)
 					when do_read_operand0 =>
 						-- read workspace register. Goes to waste if symbolic mode.
 						arg1 <= w;
@@ -644,10 +700,16 @@ begin
 							cpu_state_next <= do_read_operand2;
 						when "11" =>
 							-- workspace register indirect auto-increment
-							ea <= rd_dat;
-							reg_t <= rd_dat;
-							cpu_state <= do_read;
-							cpu_state_next <= do_read_operand3;
+							reg_t <= rd_dat;		-- register value, to be left to EA
+							ea <= alu_result;		-- address of register
+							arg1 <= rd_dat;
+							if operand_word then
+								arg2 <= x"0002";	
+							else
+								arg2 <= x"0001";	
+							end if;
+							ope <= alu_add;		-- add for autoincrement
+							cpu_state <= do_read_operand3;
 						when others =>
 							cpu_state <= do_stuck;	-- get stuck, should never happen
 						end case;
@@ -662,31 +724,28 @@ begin
 							cpu_state_next <= cpu_state_operand_return;
 						else
 							-- indexed, need to compute the address
+							-- We need to return via an extra state (not with do_alu_read) since
+							-- EA needs to be setup.
 							arg1 <= rd_dat;
 							arg2 <= reg_t;
 							ope <= alu_add;
-							cpu_state <= do_alu_read;
-							-- return after read
-							cpu_state_next <= cpu_state_operand_return;
+							cpu_state <= do_read_operand5;
 						end if;
 					when do_read_operand3 =>
 						test_out <= x"EE03";
-						-- need to autoincrement our register. rd_dat contains still our read data.
-						arg1 <= reg_t;		-- register value
-						if operand_word then
-							arg2 <= x"0002";	
-						else
-							arg2 <= x"0001";	
-						end if;
-						ope <= alu_add;
-						ea <= alu_result;	-- save address of register before alu op destroys it
-						cpu_state <= do_read_operand4;
-					when do_read_operand4 =>
-						-- writeback of autoincremented register
-						test_out <= x"EE04";
+						-- write back our result to the register
 						wr_dat <= alu_result;
 						cpu_state <= do_write;
+						cpu_state_next <= do_read_operand4;
+					when do_read_operand4 =>
+						-- Now we need to read the actual value. And return in EA where it came from.
+						ea <= reg_t;
+						cpu_state <= do_read;
 						cpu_state_next <= cpu_state_operand_return;
+					when do_read_operand5 =>
+						ea <= alu_result;
+						cpu_state <= do_read;
+						cpu_state_next <= cpu_state_operand_return; 	-- return via read
 						
 						
 					-- subprogram to do operand writing, data to write in wr_dat

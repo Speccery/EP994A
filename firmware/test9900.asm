@@ -36,6 +36,33 @@ BOOT
 
 ********** TEST 3 ** Simulation output
   LI  R3,>8340    ** write to 8306 data 8340 1000001101000000
+  LI  R7,>8350
+  LI  R1,>0123
+  LI  R2,>4567
+  LI  R4,>89AB
+  MOV R1,*R3
+  MOV R2,@2(R3)
+  MOV R4,@4(R3)
+  CLR @6(R3)
+  MOVB *R3+,*R7+
+  MOVB *R3+,*R7+
+  MOVB *R3+,*R7+
+  MOVB *R3+,*R7+
+  MOV  *R3+,*R7+
+  MOVB @>8303,@>8350
+  LI   R3,>8340
+* Test byte operations
+  MOVB R4,@>8340
+  MOVB R2,@>8341
+  MOV  R1,*R3   * Restore
+  MOVB R4,*R3
+  AB   R1,*R3+
+  AB   R1,*R3
+  AI   R3,-1
+  MOVB *R3+,R1
+  MOVB *R3,R1
+  DEC  R3
+  
   CLR *R3
   LI  R4,>8350
   LI  R2,2
