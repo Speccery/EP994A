@@ -39,6 +39,15 @@ BOOT
 
 ********** TEST 3 ** Simulation output
   BLWP @BLWPTEST
+  LI  R12,>0240
+  SBO 0
+  SBZ 1
+  SBO 2
+  SBZ -1
+  TB  5
+  JNE GOODO
+  DATA >0381    ** RTWP but illegal on TMS9995, will get stuck
+GOODO
   LI  R3,>8340    ** write to 8306 data 8340 1000001101000000
   LI  R7,>8350
   LI  R1,>0123

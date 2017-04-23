@@ -49,6 +49,9 @@ entity tms9900 is Port (
 	alu_debug_oper : out STD_LOGIC_VECTOR(3 downto 0);
 	alu_debug_arg1 :  out STD_LOGIC_VECTOR (15 downto 0);
 	alu_debug_arg2 :  out STD_LOGIC_VECTOR (15 downto 0);	
+	cruin		: in STD_LOGIC;
+	cruout   : out STD_LOGIC;
+	cruclk   : out STD_LOGIC;
 	stuck	 	: out  STD_LOGIC		-- when high the CPU is stuck
 	);
 end tms9900;
@@ -86,7 +89,8 @@ architecture Behavioral of tms9900 is
 		do_branch_b_bl, do_single_op_read, do_single_op_writeback,
 		do_rtwp0, do_rtwp1, do_rtwp2, do_rtwp3,
 		do_shifts0, do_shifts1, do_shifts2, do_shifts3, do_shifts4,
-		do_blwp0, do_blwp1, do_blwp2, do_blwp3 
+		do_blwp0, do_blwp1, do_blwp2, do_blwp3,
+		do_single_bit_cru0, do_single_bit_cru1, do_single_bit_cru2
 	);
 	signal cpu_state : cpu_state_type;
 	signal cpu_state_next : cpu_state_type;
@@ -218,6 +222,7 @@ begin
 			stuck <= '0';
 			rd <= '0';
 			wr <= '0';
+			cruclk <= '0';
 			-- Prepare for BLWP from 0
 			ea   <= x"0000";
 			arg1 <= x"0002";
@@ -311,7 +316,8 @@ begin
 							end if;
 							cpu_state <= do_read_operand0;
 							cpu_state_operand_return <= do_dual_op;
-						elsif rd_dat(15 downto 12) = "0001" then
+						elsif rd_dat(15 downto 12) = "0001" and 
+							rd_dat(11 downto 8) /= x"D" and rd_dat(11 downto 8) /= x"E" and rd_dat(11 downto 8) /= x"F" then
 								cpu_state <= do_branch; 
 						elsif rd_dat(15 downto 10) = "000010" then -- SLA, SRA, SRC, SRL
 							-- Do all the shifts SLA(10) SRA(00) SRC(11) SRL(01), OPCODE:6 INS:2 C:4 W:4
@@ -325,7 +331,16 @@ begin
 							arg2 <= x"00" & "000" & x"D" & '0';	-- calculate of register 13 (WP)
 							ope <= alu_add;	
 							cpu_state <= do_rtwp0;
-							
+						elsif 
+						   rd_dat(15 downto 8) = x"1D" or  --SBO
+							rd_dat(15 downto 8) = x"1E" or -- SBZ
+							rd_dat(15 downto 8) = x"1F" then	-- TB
+								test_out <= x"8877";
+							 arg1	<= w;
+							 arg2 <= x"00" & "000" & x"C" & '0';
+							 ope <= alu_add;
+							 cpu_state <= do_alu_read;	-- Read WR12
+							 cpu_state_next <= do_single_bit_cru0;
 						elsif rd_dat(15 downto 4) = x"020" or rd_dat(15 downto 4) = x"022" or   -- LI, AI
 									rd_dat(15 downto 4) = x"024" or rd_dat(15 downto 4) = x"026" or 	-- ANDI, ORI
 									rd_dat(15 downto 4) = x"028"													-- CI
@@ -742,6 +757,13 @@ begin
 						cpu_state <= do_shifts3;
 					when do_shifts3 => 	-- we stay here doing the shifting
 						arg2 <= alu_result;
+						st(15) <= alu_logical_gt;
+						st(14) <= alu_arithmetic_gt;
+						st(13) <= alu_flag_zero;
+						st(12) <= alu_flag_carry;
+						if ir(9 downto 8) = "10" then
+							st(11) <= alu_flag_overflow;
+						end if;
 						shift_count <= std_logic_vector(unsigned(shift_count) - to_unsigned(1, 5));
 						if shift_count = "00001" then 
 							ope <= alu_load2;				-- pass through the previous result
@@ -754,7 +776,33 @@ begin
 						wr_dat <= alu_result;
 						cpu_state <= do_write;
 						cpu_state_next <= do_fetch;
-					
+						
+					when do_single_bit_cru0 =>
+						-- contents of R12 are in rd_dat. Sign extend the 8-bit displacement.
+						arg1 <= ir(7) & ir(7) & ir(7) & ir(7) & ir(7) & ir(7) & ir(7) & ir(7 downto 0) & '0';
+						arg2 <= rd_dat;
+						ope <= alu_add;
+						cpu_state <= do_single_bit_cru1;
+					when do_single_bit_cru1 =>
+						addr <= "000" & alu_result(12 downto 1) & '0';
+						cruout <= ir(8);	-- in case of output, drive to CRUOUT the bit (SBZ, SBO)
+						cpu_state <= do_single_bit_cru2;
+						shift_count <= "00101";	-- 5 clock cycles, used as delay counter
+					when do_single_bit_cru2 =>
+						-- stay in this state until delay over. For writes drive CRUCLK high.
+						if ir(9 downto 8) = "01" or ir(9 downto 8) = "10" then
+							-- SBO or SBZ
+							cruclk <= '1';
+						end if;
+						shift_count <= std_logic_vector(unsigned(shift_count) - to_unsigned(1, 5));
+						if shift_count = "00001" then
+							cpu_state <= do_fetch;
+							cruclk <= '0';		-- drive low, regardless of write or read. For reads (TB) this was zero to begin with.
+							if ir(9 downto 8) = "11" then -- Check if we have SBZ instruction
+								st(13) <= cruin;	-- If SBZ, now capture the input bit
+							end if;
+						end if;
+						
 					-------------------------------------------------------------
 					-- subprogram to calculate source operand address SA
 					-- This does not include reading the source operand, the address is

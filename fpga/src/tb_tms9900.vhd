@@ -58,6 +58,9 @@ ARCHITECTURE behavior OF tb_tms9900 IS
 			alu_debug_oper : out STD_LOGIC_VECTOR(3 downto 0);
 			alu_debug_arg1 : OUT  std_logic_vector(15 downto 0);
 			alu_debug_arg2 : OUT  std_logic_vector(15 downto 0);
+			cruin		: in STD_LOGIC;
+			cruout   : out STD_LOGIC;
+			cruclk   : out STD_LOGIC;
          stuck : OUT  std_logic
         );
     END COMPONENT;
@@ -75,6 +78,7 @@ ARCHITECTURE behavior OF tb_tms9900 IS
    signal reset : std_logic := '0';
    signal data_in : std_logic_vector(15 downto 0) := (others => '0');
    signal ready : std_logic := '0';
+	signal cruin : std_logic := '0';
 
  	--Outputs
    signal addr : std_logic_vector(15 downto 0);
@@ -88,6 +92,8 @@ ARCHITECTURE behavior OF tb_tms9900 IS
 	signal alu_debug_oper : STD_LOGIC_VECTOR (3 downto 0);
 	signal alu_debug_arg1 : STD_LOGIC_VECTOR (15 downto 0);
 	signal alu_debug_arg2 : STD_LOGIC_VECTOR (15 downto 0);
+	signal cruout : std_logic;
+	signal cruclk : std_logic;
    signal stuck : std_logic;
 
    -- Clock period definitions
@@ -120,6 +126,9 @@ BEGIN
 			 alu_debug_oper => alu_debug_oper,
 			 alu_debug_arg1 => alu_debug_arg1,
 			 alu_debug_arg2 => alu_debug_arg2,
+			 cruin => cruin,
+			 cruout => cruout,
+			 cruclk => cruclk,
           stuck => stuck
         );
 		  
