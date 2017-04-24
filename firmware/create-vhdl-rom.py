@@ -34,7 +34,7 @@ entity testrom is
 end testrom;
 
 architecture Behavioral of testrom is
-	constant romLast : integer := 255;
+	constant romLast : integer := 4095;
 	type pgmRomArray is array(0 to romLast) of STD_LOGIC_VECTOR (15 downto 0);
 	constant pgmRom : pgmRomArray := (  
 """
@@ -72,7 +72,7 @@ end Behavioral;
     byte2 = src.read(1)
 finally:
   src.close()
-  while count < 256:
+  while count < 4096:
     dst.write("           " + ',x"0000"' + '\n')
     count = count+1
   dst.write(postfix)
