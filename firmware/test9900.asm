@@ -145,6 +145,13 @@ SUBROUTINE
 * First iteration of MOV @>4,@>8344 takes 3375-2915=460ns from iaq to iaq
 
 TEST2
+  CKON
+  STWP R0
+  LI   R2,4
+  MOV  R2,R3
+  INC  R3
+  S    R3,R2
+  STST R1
   LI  R0,>0004
   MOV R0,R1
   LI R2,-4

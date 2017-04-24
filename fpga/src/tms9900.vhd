@@ -90,7 +90,9 @@ architecture Behavioral of tms9900 is
 		do_rtwp0, do_rtwp1, do_rtwp2, do_rtwp3,
 		do_shifts0, do_shifts1, do_shifts2, do_shifts3, do_shifts4,
 		do_blwp0, do_blwp1, do_blwp2, do_blwp3,
-		do_single_bit_cru0, do_single_bit_cru1, do_single_bit_cru2
+		do_single_bit_cru0, do_single_bit_cru1, do_single_bit_cru2,
+		do_ext_instructions, do_store_instructions, 
+		do_coc_czc_etc0, do_coc_czc_etc1
 	);
 	signal cpu_state : cpu_state_type;
 	signal cpu_state_next : cpu_state_type;
@@ -200,7 +202,6 @@ begin
 			read_byte_aligner <= rd_dat;
 		else
 			-- Not register operand. Need to check that EA is still valid.
-			-- BUGBUG: EA is not always valid here! For autoinc / etc.
 			if ea(0) = '0' then
 				read_byte_aligner <= rd_dat(15 downto 8) & x"00";
 			else
@@ -341,6 +342,19 @@ begin
 							 ope <= alu_add;
 							 cpu_state <= do_alu_read;	-- Read WR12
 							 cpu_state_next <= do_single_bit_cru0;
+						elsif rd_dat = x"0340" or rd_dat = x"0360" or rd_dat = x"03C0" or rd_dat = x"03A0" or rd_dat = x"03E0" then
+							-- external instructions IDLE, RSET, CKOF, CKON, LREX
+							cpu_state <= do_ext_instructions;
+						elsif rd_dat(15 downto 4) = x"02C" or rd_dat(15 downto 4) = x"02A" then -- STST, STWP
+							arg1 <= w;
+							arg2 <= x"00" & "000" & rd_dat(3 downto 0) & '0';
+							ope <= alu_add;	-- calculate workspace address
+							cpu_state <= do_store_instructions;
+						elsif rd_dat(15 downto 13) = "001" and rd_dat(12 downto 10) /= "100" and rd_dat(12 downto 10) /= "101" then
+							--	COC, CZC, XOR, MPY, DIV, XOP
+							operand_mode <= rd_dat(5 downto 0);
+							cpu_state <= do_source_address0;
+							cpu_state_operand_return <= do_coc_czc_etc0;
 						elsif rd_dat(15 downto 4) = x"020" or rd_dat(15 downto 4) = x"022" or   -- LI, AI
 									rd_dat(15 downto 4) = x"024" or rd_dat(15 downto 4) = x"026" or 	-- ANDI, ORI
 									rd_dat(15 downto 4) = x"028"													-- CI
@@ -630,7 +644,7 @@ begin
 							cpu_state <= do_single_op_writeback;
 						else -- Here we process the X instruction...
 							ir <= rd_dat;
-							cpu_state <= do_decode;	-- off we go to do something... BUGBUG: this may not work as flags will be impacted.
+							cpu_state <= do_decode;	-- off we go to do something... 
 						end if;
 					when do_single_op_writeback =>
 						-- setup flags
@@ -777,6 +791,9 @@ begin
 						cpu_state <= do_write;
 						cpu_state_next <= do_fetch;
 						
+					-------------------------------------------------------------
+					-- Single bit CRU instructions
+					-------------------------------------------------------------
 					when do_single_bit_cru0 =>
 						-- contents of R12 are in rd_dat. Sign extend the 8-bit displacement.
 						arg1 <= ir(7) & ir(7) & ir(7) & ir(7) & ir(7) & ir(7) & ir(7) & ir(7 downto 0) & '0';
@@ -790,18 +807,53 @@ begin
 						shift_count <= "00101";	-- 5 clock cycles, used as delay counter
 					when do_single_bit_cru2 =>
 						-- stay in this state until delay over. For writes drive CRUCLK high.
-						if ir(9 downto 8) = "01" or ir(9 downto 8) = "10" then
-							-- SBO or SBZ
+						if ir(15 downto 8) /= x"1F" then	-- Not TB
+							-- SBO or SBZ - or external instructions
 							cruclk <= '1';
 						end if;
 						shift_count <= std_logic_vector(unsigned(shift_count) - to_unsigned(1, 5));
 						if shift_count = "00001" then
 							cpu_state <= do_fetch;
 							cruclk <= '0';		-- drive low, regardless of write or read. For reads (TB) this was zero to begin with.
-							if ir(9 downto 8) = "11" then -- Check if we have SBZ instruction
+							if ir(15 downto 8) = x"1F" then -- Check if we have SBZ instruction
 								st(13) <= cruin;	-- If SBZ, now capture the input bit
 							end if;
 						end if;
+						
+					-------------------------------------------------------------
+					-- External instructions
+					-------------------------------------------------------------
+					when do_ext_instructions =>
+						-- external instructions IDLE, RSET, CKOF, CKON, LREX
+						-- These are all the same in that they issue a CRUCLK pulse.
+						-- But high bits of address bus indicate which instruction it is.
+						-- BUGBUG: IDLE does not wait for interrupt
+						if ir = x"0360" then 
+							st(3 downto 0) <= "0000";  -- RSET
+						end if;
+						addr(15 downto 13) <= rd_dat(7 downto 5);
+						shift_count <= "00101";	-- 5 clock cycles, used as delay counter
+						cpu_state <= do_single_bit_cru2; -- issue CRUCLK pulse
+						
+					-------------------------------------------------------------
+					-- Store ST or W to workspace register
+					-------------------------------------------------------------
+					when do_store_instructions => -- STST, STWP
+						if ir(6 downto 5)="10" then
+							wr_dat <= st;	-- STST
+						else
+							wr_dat <= w;	-- STWP
+						end if;
+						cpu_state <= do_alu_write;
+						cpu_state_next <= do_fetch;
+						
+					-------------------------------------------------------------
+					-- COC, CZC, XOR, MPY, DIV, XOP
+					-------------------------------------------------------------
+					when do_coc_czc_etc0 =>
+						cpu_state <= do_stuck;
+					when do_coc_czc_etc1 =>
+						cpu_state <= do_stuck;
 						
 					-------------------------------------------------------------
 					-- subprogram to calculate source operand address SA
