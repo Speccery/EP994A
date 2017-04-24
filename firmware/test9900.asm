@@ -11,6 +11,13 @@ WRKSP2 EQU >8320
 BLWPTEST
     DATA WRKSP2,TEST2
     DATA >BEEF,>BEEF
+    DATA 0,0
+    DATA 0,0,0,0,0,0,0,0
+    DATA 0,0,0,0,0,0,0,0
+    DATA 0,0,0,0,0,0,0,0
+* Here are the XOP vectors
+    DATA WRKSP2,MYXOP0
+    DATA WRKSP2,MYXOP1
 	
 BOOT
 ********** TEST 1
@@ -48,6 +55,11 @@ BOOT
   JNE GOODO
   DATA >0381    ** RTWP but illegal on TMS9995, will get stuck
 GOODO
+  LI  R0,>3333
+  XOP @>BEEF,0
+  LI  R0,>5555
+  XOP @>0011,1
+
   LI  R3,>8340    ** write to 8306 data 8340 1000001101000000
   LI  R7,>8350
   LI  R1,>0123
@@ -133,7 +145,7 @@ BACK
   A   R1,*R3      ** write to 8342 data 0002 0000000000000010
   MOV @>4,@>8344
   BL  @SUBROUTINE
-  JMP BOOT
+  B   @BOOT
   
 SUBROUTINE  
   LI  R4,123
@@ -161,6 +173,17 @@ TEST2
   SRA R2,1
   SRC R3,4
   SRL R4,1
+  RTWP
+
+MYXOP0
+  LI R12,>0100
+  STST R1
+  SBO 0
+  RTWP
+MYXOP1
+  LI R12,>0100
+  STST R1
+  SBO 1
   RTWP
 
   

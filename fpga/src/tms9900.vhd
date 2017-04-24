@@ -67,7 +67,7 @@ architecture Behavioral of tms9900 is
 	signal rd_dat : std_logic_vector(15 downto 0);	-- data read from memory
 	signal wr_dat : std_logic_vector(15 downto 0);	-- data written to memory
 	signal reg_t : std_logic_vector(15 downto 0);	-- temporary register
-	signal source_op : std_logic_vector(15 downto 0); -- storage of source operand
+	signal reg_t2 : std_logic_vector(15 downto 0); -- storage of source operand
 	signal read_byte_aligner : std_logic_vector(15 downto 0); -- align bytes to words for reads
 		
 	type cpu_state_type is (
@@ -89,10 +89,10 @@ architecture Behavioral of tms9900 is
 		do_branch_b_bl, do_single_op_read, do_single_op_writeback,
 		do_rtwp0, do_rtwp1, do_rtwp2, do_rtwp3,
 		do_shifts0, do_shifts1, do_shifts2, do_shifts3, do_shifts4,
-		do_blwp0, do_blwp1, do_blwp2, do_blwp3,
+		do_blwp00, do_blwp0, do_blwp_xop, do_blwp1, do_blwp2, do_blwp3,
 		do_single_bit_cru0, do_single_bit_cru1, do_single_bit_cru2,
 		do_ext_instructions, do_store_instructions, 
-		do_coc_czc_etc0, do_coc_czc_etc1
+		do_coc_czc_etc0, do_coc_czc_etc1, do_xop
 	);
 	signal cpu_state : cpu_state_type;
 	signal cpu_state_next : cpu_state_type;
@@ -115,11 +115,14 @@ architecture Behavioral of tms9900 is
 	signal alu_arithmetic_gt : std_logic;
 	signal alu_flag_carry    : std_logic;
 	
+	signal i_am_xop			 : boolean := False;
+	
 	-- operand_mode controls fetching of operands, i.e. addressing modes
 	-- operand_mode(5:4) is the mode R, *R, @ADDR, @ADDR(R), *R+
 	-- operand_mode(3:0) is the register number
 	signal operand_mode		 : std_logic_vector(5 downto 0);
 	signal operand_word		 : boolean;	-- if false, we have a byte (matters for autoinc)
+
 begin
 	
 	process(arg1, arg2, ope)
@@ -225,12 +228,10 @@ begin
 			wr <= '0';
 			cruclk <= '0';
 			-- Prepare for BLWP from 0
-			ea   <= x"0000";
-			arg1 <= x"0002";
-			arg2 <= x"0000";
-			ope <= alu_add;
-			cpu_state <= do_read;		-- read from 0, i.e the workspace pointer
-			cpu_state_next <= do_blwp0;		-- do blwp from pc (zero)
+			i_am_xop <= False;
+			arg2 <= x"0000";				-- pass pointer to WP via ALU as our EA
+			ope <= alu_load2;
+			cpu_state <= do_blwp00;		-- do blwp from zero
 		else
 			if rising_edge(clk) then
 			
@@ -289,6 +290,7 @@ begin
 					-- operations --
 					----------------
 					when do_fetch =>		-- instruction opcode fetch
+						i_am_xop <= False;
 						iaq <= '1';
 						cpu_state <= do_pc_read;
 						cpu_state_next <= do_decode;
@@ -352,9 +354,15 @@ begin
 							cpu_state <= do_store_instructions;
 						elsif rd_dat(15 downto 13) = "001" and rd_dat(12 downto 10) /= "100" and rd_dat(12 downto 10) /= "101" then
 							--	COC, CZC, XOR, MPY, DIV, XOP
-							operand_mode <= rd_dat(5 downto 0);
-							cpu_state <= do_source_address0;
-							cpu_state_operand_return <= do_coc_czc_etc0;
+							if rd_dat(12 downto 10) = "011" then	-- XOP
+								operand_mode <= rd_dat(5 downto 0);
+								cpu_state <= do_source_address0;
+								cpu_state_operand_return <= do_xop;
+							else
+								operand_mode <= rd_dat(5 downto 0);
+								cpu_state <= do_read_operand0;
+								cpu_state_operand_return <= do_coc_czc_etc0;
+							end if;
 						elsif rd_dat(15 downto 4) = x"020" or rd_dat(15 downto 4) = x"022" or   -- LI, AI
 									rd_dat(15 downto 4) = x"024" or rd_dat(15 downto 4) = x"026" or 	-- ANDI, ORI
 									rd_dat(15 downto 4) = x"028"													-- CI
@@ -464,7 +472,7 @@ begin
 					-- Dual operand instructions
 					-------------------------------------------------------------					
 					when do_dual_op =>
-						source_op <= read_byte_aligner;
+						reg_t2 <= read_byte_aligner;
 						-- calculate address of destination operand
 						cpu_state <= do_source_address0;
 						cpu_state_operand_return <= do_dual_op1;
@@ -490,7 +498,7 @@ begin
 						test_out <= x"DD02";
 						-- Handle processing of byte operations for rd_dat.
 						arg1 <= read_byte_aligner;
-						arg2 <= source_op;
+						arg2 <= reg_t2;
 						cpu_state <= do_dual_op3;
 						case ir(15 downto 13) is
 							when "101" => ope <= alu_add;
@@ -629,12 +637,7 @@ begin
 								cpu_state <= do_read;
 							when "0000" => -- BLWP instruction
 								-- alu_result points to new WP
-								ea <= alu_result;
-								arg1 <= x"0002";			-- calculate address of PC
-								arg2 <= alu_result;
-								ope <= alu_add;
-								cpu_state <= do_read;	-- read new WP
-								cpu_state_next <= do_blwp0;
+								cpu_state <= do_blwp00;
 							when others =>
 								cpu_state <= do_stuck;
 						end case;
@@ -668,15 +671,39 @@ begin
 					-- (SA) -> WP, (SA+2) -> PC
 					-- R13 -> old_WP, R14 -> old_PC, R15 -> ST
 					-------------------------------------------------------------					
+					when do_blwp00 =>
+						-- alu_result points to new WP
+						ea <= alu_result;
+						arg1 <= x"0002";			-- calculate address of PC
+						arg2 <= alu_result;
+						ope <= alu_add;
+						cpu_state <= do_read;	-- read new WP
+						cpu_state_next <= do_blwp0;					
 					when do_blwp0 =>
 						-- here rd_dat is our new WP, alu_result is addr of new PC
 						ea 	<= alu_result;
 						reg_t <= rd_dat;	-- store new WP to temp register
 						arg1 	<= rd_dat;
-						arg2 	<= x"00" & "000" & x"D" & '0';	-- calculate new addr 13 (WP)
+						if not i_am_xop then
+							-- normal BLWP
+							arg2 <= x"00" & "000" & x"D" & '0';	-- calculate new addr 13 (WP)
+							cpu_state_next <= do_blwp1;						
+						else
+							-- XOP
+							arg2 <= x"00" & "000" & x"B" & '0';	-- calculate new addr R11 (WP)
+							cpu_state_next <= do_blwp_xop;		-- XOP has an extra step to store EA to R11
+						end if;
 						ope 	<= alu_add;
 						cpu_state <= do_read;
-						cpu_state_next <= do_blwp1;
+					when do_blwp_xop =>
+						-- ** This phase only exists for XOP **
+						-- Now rd_dat is new PC, reg_t new WP, alu_result addr of new R11
+						wr_dat <= reg_t2;				-- Write effective address to R11
+						ea     <= alu_result;
+						arg1   <= x"0004";			-- Add 4 to skip R12, point to R13 for WP storage
+						arg2   <= alu_result;		-- prepare for WP write, i.e. point to new R14
+						cpu_state 		<= do_write; -- write effective address to new R11
+						cpu_state_next <= do_blwp1;						
 					when do_blwp1 =>
 						-- now rd_dat is new PC, reg_t new WP, alu_result addr of new R13
 						wr_dat <= w;
@@ -700,6 +727,9 @@ begin
 						-- now do the context switch
 						pc <= rd_dat;
 						w 	<= reg_t;
+						if i_am_xop then
+							st(9) <= '1';		-- Set XOP flag
+						end if;
 					
 					-------------------------------------------------------------
 					-- RTWP
@@ -848,12 +878,40 @@ begin
 						cpu_state_next <= do_fetch;
 						
 					-------------------------------------------------------------
-					-- COC, CZC, XOR, MPY, DIV, XOP
+					-- COC, CZC, XOR, MPY, DIV
 					-------------------------------------------------------------
 					when do_coc_czc_etc0 =>
+--						ea <= alu_result;	-- store the effective address
+--						if ir(12 downto 10) = "011" then
+--							cpu_state <= do_xop0;
+--						else 
+--							-- read the register operand
+--							
+--						end if;
+--						case ir(12 downto 10) is 
+--							when "000" => -- COC
+--							when "001" => -- CZC
+--							when "010" => -- XOR
+--							when "110" => -- MPY
+--							when "111" => -- DIV
+--							when "011" => -- XOP
+--						end case;
 						cpu_state <= do_stuck;
 					when do_coc_czc_etc1 =>
 						cpu_state <= do_stuck;
+						
+					-------------------------------------------------------------
+					-- XOP - processed like BLWP but with a few extra steps
+					-------------------------------------------------------------
+					when do_xop =>
+						-- alu_result is here the effective address
+						reg_t2 <= alu_result;	-- effective address on its way to R11, save to t2
+						-- calculate XOP vector address
+						arg1 <= x"0040";
+						arg2 <= x"00" & "00" & ir(9 downto 6) & "00";	-- 4*XOP number
+						ope <= alu_add;
+						cpu_state <= do_blwp00;
+						i_am_xop <= True;
 						
 					-------------------------------------------------------------
 					-- subprogram to calculate source operand address SA
