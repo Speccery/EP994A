@@ -18,35 +18,23 @@ BLWPTEST
 * Here are the XOP vectors
     DATA WRKSP2,MYXOP0
     DATA WRKSP2,MYXOP1
-	
+
+COCTEST DATA >0040
+CZCTEST DATA >F000
+    
 BOOT
-********** TEST 1
-*	NOP
-*	LI R3,>ED07
-* LOOPPI
-*	AI	R3,>0001
-*	ANDI R3,>3
-*	ORI  R3,>0400
-*	JMP LOOPPI
-
-********** TEST 2
-* LOOPPI2
-*  LI R1,2
-*LOOPPI
-*  AI R1,>FFFF
-*  JNC KOE
-*  LI R8,>88
-*KOE
-*  CI  R1,0
-*  JNE LOOPPI
-*  JEQ SKIPLOAD
-*  LI R7,>77
-*SKIPLOAD
-*  JMP LOOPPI2
-
-********** TEST 3 ** Simulation output
   BLWP @BLWPTEST
   LI  R12,>0240
+  SBO 0          * debug marker
+  LI  R2,>1
+  XOR R12,R2
+  COC @COCTEST,R2
+  JEQ !
+  DATA >0381    ** RTWP but illegal on TMS9995, will get stuck
+! CZC @CZCTEST,R2
+  JEQ !
+  DATA >0381    ** RTWP but illegal on TMS9995, will get stuck  
+!  
   SBO 0
   SBZ 1
   SBO 2

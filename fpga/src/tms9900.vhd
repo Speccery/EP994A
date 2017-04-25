@@ -92,7 +92,8 @@ architecture Behavioral of tms9900 is
 		do_blwp00, do_blwp0, do_blwp_xop, do_blwp1, do_blwp2, do_blwp3,
 		do_single_bit_cru0, do_single_bit_cru1, do_single_bit_cru2,
 		do_ext_instructions, do_store_instructions, 
-		do_coc_czc_etc0, do_coc_czc_etc1, do_xop
+		do_coc_czc_etc0, do_coc_czc_etc1, do_coc_czc_etc2, do_coc_czc_etc3,
+		do_xop
 	);
 	signal cpu_state : cpu_state_type;
 	signal cpu_state_next : cpu_state_type;
@@ -105,7 +106,9 @@ architecture Behavioral of tms9900 is
 	signal shift_count : std_logic_vector(4 downto 0);
 	
 	type alu_operation_type is (
-		alu_load2, alu_add, alu_or, alu_and, alu_sub, alu_and_not, alu_xor, alu_swpb2, alu_abs,
+		alu_load2, alu_add, alu_or, alu_and, alu_sub, alu_and_not, alu_xor, 
+		alu_coc, alu_czc,
+		alu_swpb2, alu_abs,
 		alu_sla, alu_sra, alu_src, alu_srl
 	);
 	signal ope : alu_operation_type;
@@ -144,14 +147,20 @@ begin
 				alu_debug_oper <= x"4";
 			when alu_sub =>
 				t := std_logic_vector(unsigned(arg1) - unsigned(arg2));
-				alu_out <= t(15) & t;
+				alu_out <= t(15) & t;		-- BUGBUG I wonder if this is right for carry generation?
 				alu_debug_oper <= x"5";
 			when alu_and_not =>
-				alu_out <= '0' & arg1 and not '0' & arg2;
+				alu_out <= '0' & arg1 and not ('0' & arg2);
 				alu_debug_oper <= x"6";
 			when alu_xor =>
 				alu_out <= '0' & arg1 xor '0' & arg2;
 				alu_debug_oper <= x"7";
+			when alu_coc => -- compare ones corresponding
+				alu_out <= ('0' & arg1 xor ('0' & arg2)) and ('0' & arg1);
+				alu_debug_oper <= x"7";		-- BUGBUG show still debug code 7 as in xor
+			when alu_czc => -- compare zeros corresponding
+				alu_out <= ('0' & arg1 xor not ('0' & arg2)) and ('0' & arg1);
+				alu_debug_oper <= x"7";		-- BUGBUG show still debug code 7 as in xor
 			when alu_swpb2 =>
 				alu_out <= '0' & arg2(7 downto 0) & arg2(15 downto 8); -- swap bytes of arg2
 				alu_debug_oper <= x"8";
@@ -881,25 +890,50 @@ begin
 					-- COC, CZC, XOR, MPY, DIV
 					-------------------------------------------------------------
 					when do_coc_czc_etc0 =>
---						ea <= alu_result;	-- store the effective address
---						if ir(12 downto 10) = "011" then
---							cpu_state <= do_xop0;
---						else 
---							-- read the register operand
---							
---						end if;
---						case ir(12 downto 10) is 
---							when "000" => -- COC
---							when "001" => -- CZC
---							when "010" => -- XOR
+						-- Need to read destination operand. Source operand is in rd_dat.
+						reg_t <= rd_dat;	-- store source operand
+						operand_mode <= "00" & ir(9 downto 6);	-- register operand
+						cpu_state <= do_source_address0;			-- calculate address of our register
+						cpu_state_operand_return <= do_coc_czc_etc1;
+					when do_coc_czc_etc1 =>
+						ea <= alu_result;	-- store the effective address and go and read the destination operand
+						cpu_state <= do_read;
+						cpu_state_next <= do_coc_czc_etc2;
+					when do_coc_czc_etc2 =>
+						arg1 <= reg_t;		-- source
+						arg2 <= rd_dat;	-- dest
+						cpu_state <= do_stuck;
+						case ir(12 downto 10) is 
+							when "000" => -- COC
+								ope <= alu_coc;
+								cpu_state <= do_coc_czc_etc3;
+							when "001" => -- CZC
+								ope <= alu_czc;
+								cpu_state <= do_coc_czc_etc3;
+							when "010" => -- XOR
+								ope <= alu_xor;
+								cpu_state <= do_coc_czc_etc3;
+--                   The following are commented out and will stuck the CPU								
 --							when "110" => -- MPY
 --							when "111" => -- DIV
---							when "011" => -- XOP
---						end case;
-						cpu_state <= do_stuck;
-					when do_coc_czc_etc1 =>
-						cpu_state <= do_stuck;
-						
+							when others =>
+						end case;
+					when do_coc_czc_etc3 =>
+						-- COC, CZC, set only flag 2. Nothing is written to destination register.
+						-- XOR sets flags 0-2
+						st(13) <= alu_flag_zero;
+						if ir(12 downto 11) = "00" then
+							cpu_state <= do_fetch;			-- done for COC and CZC
+						elsif ir(12 downto 11) = "01" then -- XOR
+							st(15) <= alu_logical_gt;
+							st(14) <= alu_arithmetic_gt;
+							wr_dat <= alu_result;
+							cpu_state <= do_write;
+							cpu_state_next <= do_fetch;
+						else
+							cpu_state <= do_stuck;
+						end if;
+
 					-------------------------------------------------------------
 					-- XOP - processed like BLWP but with a few extra steps
 					-------------------------------------------------------------
