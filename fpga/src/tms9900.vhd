@@ -93,7 +93,8 @@ architecture Behavioral of tms9900 is
 		do_single_bit_cru0, do_single_bit_cru1, do_single_bit_cru2,
 		do_ext_instructions, do_store_instructions, 
 		do_coc_czc_etc0, do_coc_czc_etc1, do_coc_czc_etc2, do_coc_czc_etc3,
-		do_xop
+		do_xop,
+		do_ldcr0, do_ldcr1, do_ldcr2, do_ldcr3, do_ldcr4, do_ldcr5 
 	);
 	signal cpu_state : cpu_state_type;
 	signal cpu_state_next : cpu_state_type;
@@ -119,6 +120,7 @@ architecture Behavioral of tms9900 is
 	signal alu_flag_carry    : std_logic;
 	
 	signal i_am_xop			 : boolean := False;
+	signal dec_shift_count   : boolean := False;
 	
 	-- operand_mode controls fetching of operands, i.e. addressing modes
 	-- operand_mode(5:4) is the mode R, *R, @ADDR, @ADDR(R), *R+
@@ -236,6 +238,7 @@ begin
 			rd <= '0';
 			wr <= '0';
 			cruclk <= '0';
+			dec_shift_count <= False;
 			-- Prepare for BLWP from 0
 			i_am_xop <= False;
 			arg2 <= x"0000";				-- pass pointer to WP via ALU as our EA
@@ -243,6 +246,11 @@ begin
 			cpu_state <= do_blwp00;		-- do blwp from zero
 		else
 			if rising_edge(clk) then
+			
+				if dec_shift_count then
+					shift_count <= std_logic_vector(unsigned(shift_count) - to_unsigned(1, 5));
+					dec_shift_count <= False;
+				end if;
 			
 				-- CPU state changes
 				case cpu_state is
@@ -372,6 +380,14 @@ begin
 								cpu_state <= do_read_operand0;
 								cpu_state_operand_return <= do_coc_czc_etc0;
 							end if;
+						elsif rd_dat(15 downto 10) = "001100" then -- LDCR
+							-- set operand_word to byte mode if count of bits is 1..8
+							if rd_dat(9 downto 6) = "1000" or (rd_dat(9) = '0' and rd_dat(8 downto 6) /= "000") then
+								operand_word <= False;
+							end if;
+							operand_mode <= rd_dat(5 downto 0);
+							cpu_state <= do_read_operand0;
+							cpu_state_operand_return <= do_ldcr0;
 						elsif rd_dat(15 downto 4) = x"020" or rd_dat(15 downto 4) = x"022" or   -- LI, AI
 									rd_dat(15 downto 4) = x"024" or rd_dat(15 downto 4) = x"026" or 	-- ANDI, ORI
 									rd_dat(15 downto 4) = x"028"													-- CI
@@ -817,7 +833,7 @@ begin
 						if ir(9 downto 8) = "10" then
 							st(11) <= alu_flag_overflow;
 						end if;
-						shift_count <= std_logic_vector(unsigned(shift_count) - to_unsigned(1, 5));
+						dec_shift_count <= True;
 						if shift_count = "00001" then 
 							ope <= alu_load2;				-- pass through the previous result
 							cpu_state <= do_shifts4;	-- done with shifting altogether
@@ -946,7 +962,54 @@ begin
 						ope <= alu_add;
 						cpu_state <= do_blwp00;
 						i_am_xop <= True;
-						
+
+					-------------------------------------------------------------
+					-- LDCR
+					-------------------------------------------------------------
+					when do_ldcr0 =>
+						-- now rd_dat is source operand
+						reg_t <= read_byte_aligner;
+						operand_mode <= "001100";	-- Reg 12 in direct addressing mode
+						cpu_state <= do_read_operand0;
+						cpu_state_operand_return <= do_ldcr1;
+					when do_ldcr1 =>
+						-- rd_dat is now R12
+						ea <= rd_dat;
+						if ir(9 downto 6) = "0000" then
+							shift_count <= '1' & ir(9 downto 6);
+						else
+							shift_count <= '0' & ir(9 downto 6);
+						end if;
+						cpu_state <= do_ldcr2;
+					when do_ldcr2 =>
+						arg2 <= reg_t;
+						ope <= alu_srl;
+						cpu_state <= do_ldcr3;
+					when do_ldcr3 =>
+						if operand_word then
+							cruout <= alu_flag_carry;
+						else
+							cruout <= alu_result(7);	-- Byte operand
+						end if;
+						reg_t <= alu_result;				-- store right shifted operand
+						addr <= "000" & ea(12 downto 1) & '0'; -- "000" & alu_result(12 downto 1) & '0';
+						arg1 <= x"0002";
+						arg2 <= ea;
+						ope <= alu_add;
+						cpu_state <= do_ldcr4;
+					when do_ldcr4 =>
+						cruclk <= '1';
+						cpu_state <= do_ldcr5;
+					when do_ldcr5 =>
+						ea <= alu_result;
+						cruclk <= '0';
+						dec_shift_count <= True;
+						if shift_count = "00001" then
+							cpu_state <= do_fetch;
+						else
+							cpu_state <= do_ldcr2;
+						end if;
+
 					-------------------------------------------------------------
 					-- subprogram to calculate source operand address SA
 					-- This does not include reading the source operand, the address is

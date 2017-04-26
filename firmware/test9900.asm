@@ -47,6 +47,13 @@ GOODO
   XOP @>BEEF,0
   LI  R0,>5555
   XOP @>0011,1
+* Test LDCR
+  LI  R12,>550
+  LI  R3,>0055
+  LDCR R3,0
+  LDCR R3,9
+  LDCR R3,3  
+  
 
   LI  R3,>8340    ** write to 8306 data 8340 1000001101000000
   LI  R7,>8350
@@ -85,17 +92,17 @@ GOODO
   S   R2,@>8350
   CI  R3,>8342
   JEQ GOOD1
-  RTWP
+  DATA >0381    ** RTWP but illegal on TMS9995, will get stuck
 GOOD1:
   LI  R1,>4444
   MOV R1,@>8360
   MOV @>8360,@>8350
   C   @>8350,R1
   JEQ GOOD2
-  RTWP
+  DATA >0381    ** RTWP but illegal on TMS9995, will get stuck
 GOOD2:  
   LI  R0,>1234
-  RTWP
+  DATA >0381    ** RTWP but illegal on TMS9995, will get stuck
 BACK  
   BL    @SUBROUTINE
   CLR R1
