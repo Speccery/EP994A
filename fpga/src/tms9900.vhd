@@ -28,8 +28,8 @@ library UNISIM;
 use UNISIM.VComponents.all;
 
 -- simulation begin
-USE STD.TEXTIO.ALL;
-USE IEEE.STD_LOGIC_TEXTIO.ALL;
+--USE STD.TEXTIO.ALL;
+--USE IEEE.STD_LOGIC_TEXTIO.ALL;
 -- simulation end
 
 
@@ -44,11 +44,11 @@ entity tms9900 is Port (
 	ready 	: in  STD_LOGIC;		-- memory read input, a high terminates a memory cycle
 	iaq 		: out  STD_LOGIC;
 	as 		: out  STD_LOGIC;		-- address strobe, when high new address is valid, starts a memory cycle
-	test_out : out STD_LOGIC_VECTOR (15 downto 0);
-	alu_debug_out  : out STD_LOGIC_VECTOR (15 downto 0); -- ALU debug bus
-	alu_debug_oper : out STD_LOGIC_VECTOR(3 downto 0);
-	alu_debug_arg1 :  out STD_LOGIC_VECTOR (15 downto 0);
-	alu_debug_arg2 :  out STD_LOGIC_VECTOR (15 downto 0);	
+--	test_out : out STD_LOGIC_VECTOR (15 downto 0);
+--	alu_debug_out  : out STD_LOGIC_VECTOR (15 downto 0); -- ALU debug bus
+--	alu_debug_oper : out STD_LOGIC_VECTOR(3 downto 0);
+--	alu_debug_arg1 :  out STD_LOGIC_VECTOR (15 downto 0);
+--	alu_debug_arg2 :  out STD_LOGIC_VECTOR (15 downto 0);	
 	cruin		: in STD_LOGIC;
 	cruout   : out STD_LOGIC;
 	cruclk   : out STD_LOGIC;
@@ -138,37 +138,37 @@ begin
 		case ope is
 			when alu_load2 =>
 				alu_out <= '0' & arg2;
-				alu_debug_oper <= x"1";
+--				alu_debug_oper <= x"1";
 			when alu_add =>
 				alu_out <= std_logic_vector(unsigned('0' & arg1) + unsigned('0' & arg2));
-				alu_debug_oper <= x"2";
+--				alu_debug_oper <= x"2";
 			when alu_or =>
 				alu_out <= '0' & arg1 or '0' & arg2;
-				alu_debug_oper <= x"3";
+--				alu_debug_oper <= x"3";
 			when alu_and =>
 				alu_out <= '0' & arg1 and '0' & arg2;
-				alu_debug_oper <= x"4";
+--				alu_debug_oper <= x"4";
 			when alu_sub =>
 				t := std_logic_vector(unsigned(arg1) - unsigned(arg2));
 				alu_out <= t(15) & t;		-- BUGBUG I wonder if this is right for carry generation?
-				alu_debug_oper <= x"5";
+--				alu_debug_oper <= x"5";
 			when alu_and_not =>
 				alu_out <= '0' & arg1 and not ('0' & arg2);
-				alu_debug_oper <= x"6";
+--				alu_debug_oper <= x"6";
 			when alu_xor =>
 				alu_out <= '0' & arg1 xor '0' & arg2;
-				alu_debug_oper <= x"7";
+--				alu_debug_oper <= x"7";
 			when alu_coc => -- compare ones corresponding
 				alu_out <= ('0' & arg1 xor ('0' & arg2)) and ('0' & arg1);
-				alu_debug_oper <= x"7";		-- BUGBUG show still debug code 7 as in xor
+--				alu_debug_oper <= x"7";		-- BUGBUG show still debug code 7 as in xor
 			when alu_czc => -- compare zeros corresponding
 				alu_out <= ('0' & arg1 xor not ('0' & arg2)) and ('0' & arg1);
-				alu_debug_oper <= x"7";		-- BUGBUG show still debug code 7 as in xor
+--				alu_debug_oper <= x"7";		-- BUGBUG show still debug code 7 as in xor
 			when alu_swpb2 =>
 				alu_out <= '0' & arg2(7 downto 0) & arg2(15 downto 8); -- swap bytes of arg2
-				alu_debug_oper <= x"8";
+--				alu_debug_oper <= x"8";
 			when alu_abs => -- compute abs value of arg2
-				alu_debug_oper <= x"9";
+--				alu_debug_oper <= x"9";
 				if arg2(15) = '0' then
 					alu_out <= '0' & arg2;
 				else
@@ -176,23 +176,23 @@ begin
 					alu_out <= std_logic_vector(unsigned(arg1(15) & arg1) - unsigned(arg2(15) & arg2));
 				end if;
 			when alu_sla =>
-				alu_debug_oper <= x"A";
+--				alu_debug_oper <= x"A";
 				alu_out <= arg2 & '0';
 			when alu_sra =>
-				alu_debug_oper <= x"B";
+--				alu_debug_oper <= x"B";
 				alu_out <= arg2(0) & arg2(15) & arg2(15 downto 1);
 			when alu_src =>
-				alu_debug_oper <= x"C";
+--				alu_debug_oper <= x"C";
 				alu_out <= arg2(0) & arg2(0) & arg2(15 downto 1);
 			when alu_srl =>
-				alu_debug_oper <= x"D";
+--				alu_debug_oper <= x"D";
 				alu_out <= arg2(0) & '0' & arg2(15 downto 1);
 		end case;			
 	end process;
 	alu_result <= alu_out(15 downto 0);
-	alu_debug_out <= alu_out(15 downto 0);
-	alu_debug_arg1 <= arg1;
-	alu_debug_arg2 <= arg2;
+--	alu_debug_out <= alu_out(15 downto 0);
+--	alu_debug_arg1 <= arg1;
+--	alu_debug_arg2 <= arg2;
 	
 	-- ST0 ST1 ST2 ST3 ST4 ST5
 	-- L>  A>  =   C   O   P
@@ -230,7 +230,7 @@ begin
 	variable take_branch : boolean;
 	variable dec_shift_count   : boolean := False;
 	-- simulation begin
-	variable my_line : line;	-- from textio
+--	variable my_line : line;	-- from textio
 	-- simulation end
 	begin
 		if reset = '1' then
@@ -309,7 +309,7 @@ begin
 						iaq <= '1';
 						cpu_state <= do_pc_read;
 						cpu_state_next <= do_decode;
-						test_out <= x"0000";
+--						test_out <= x"0000";
 					-------------------------------------------------------------------------------
 					-- do_decode
 					-------------------------------------------------------------------------------
@@ -353,7 +353,7 @@ begin
 						   rd_dat(15 downto 8) = x"1D" or  --SBO
 							rd_dat(15 downto 8) = x"1E" or -- SBZ
 							rd_dat(15 downto 8) = x"1F" then	-- TB
-								test_out <= x"8877";
+--								test_out <= x"8877";
 							 arg1	<= w;
 							 arg2 <= x"00" & "000" & x"C" & '0';
 							 ope <= alu_add;
@@ -432,7 +432,7 @@ begin
 							pc <= std_logic_vector(unsigned(offset) + unsigned(pc));
 						end if;
 					when do_ir_imm =>
-						test_out <= x"EE00";
+--						test_out <= x"EE00";
 						if ir(8 downto 5) = "0111" or ir(8 downto 5) = "1000" then	-- 4 LSBs don't care
 							cpu_state <= do_pc_read;
 							cpu_state_next <= do_lwpi_limi;
@@ -448,23 +448,23 @@ begin
 						end if;
 						
 					when do_load_imm =>	-- LI, AI, ANDI, ORI, CI instruction here
-						test_out <= x"0001";
+						-- test_out <= x"0001";
 						cpu_state <= do_pc_read;		-- read immediate value from instruction stream
 						cpu_state_next <= do_load_imm2;
 					when do_load_imm2 =>
-						test_out <= x"0002";
+						-- test_out <= x"0002";
 						reg_t <= rd_dat;	-- store the immediate to temp
 						arg1 <= w;
 						arg2 <= x"00" & "000" & ir(3 downto 0) & '0';
 						ope <= alu_add;	-- calculate workspace address
 						cpu_state <= do_load_imm3;
 					when do_load_imm3 =>	-- read from workspace register
-						test_out <= x"0003";
+--						-- test_out <= x"0003";
 						ea <= alu_result; 
 						cpu_state <= do_read;	
 						cpu_state_next <= do_load_imm4;
 					when do_load_imm4 =>	-- do actual operation
-						test_out <= x"0004";
+						-- test_out <= x"0004";
 						arg1 <= rd_dat;	-- contents of workspace register
 						arg2 <= reg_t;		-- temporary holds the immediate addess
 						case ir(7 downto 4) is
@@ -477,7 +477,7 @@ begin
 						end case;
 						cpu_state <= do_load_imm5;
 					when do_load_imm5 =>		-- write to workspace the result of ALU, ea still points to register
-						test_out <= x"0005";
+						-- test_out <= x"0005";
 						-- let's write flags 0-2 for all instructions
 						st(15) <= alu_logical_gt;
 						st(14) <= alu_arithmetic_gt;
@@ -513,17 +513,17 @@ begin
 						if ir(15 downto 13) = "110" and operand_word then
 							-- We have MOV, skip reading of dest operand. We still need to
 							-- move along as we need to set flags.
-							test_out <= x"DD00";
+							-- test_out <= x"DD00";
 							cpu_state <= do_dual_op2;
 						else
 							-- we have any of the other ones expect MOV
 							cpu_state <= do_read;
 							cpu_state_next <= do_dual_op2;
-							test_out <= x"DD10";
+							-- test_out <= x"DD10";
 						end if;
 					when do_dual_op2 =>
 						-- perform the actual operation
-						test_out <= x"DD02";
+						-- test_out <= x"DD02";
 						-- Handle processing of byte operations for rd_dat.
 						arg1 <= read_byte_aligner;
 						arg2 <= reg_t2;
@@ -550,36 +550,36 @@ begin
 						-- Store the result except with compare instruction.
 						if ir(15 downto 13) = "100" then
 							cpu_state <= do_fetch;	-- compare, we are already done
-							test_out <= x"DD03";
+							-- test_out <= x"DD03";
 						else
 							-- writeback result
-							test_out <= x"DD13";
+							-- test_out <= x"DD13";
 							if operand_word then
 								wr_dat <= alu_result;
 							else
 								-- simulation debug start
-								write(my_line, STRING'("do_dual_op3 byte arg1 "));
-								hwrite(my_line, arg1);
-								write(my_line, STRING'(" arg2 "));
-								hwrite(my_line, arg2);
-								write(my_line, STRING'(" alu_result "));
-								hwrite(my_line, alu_result);
-								write(my_line, STRING'(" rd_dat "));
-								hwrite(my_line, rd_dat);
+--								write(my_line, STRING'("do_dual_op3 byte arg1 "));
+--								hwrite(my_line, arg1);
+--								write(my_line, STRING'(" arg2 "));
+--								hwrite(my_line, arg2);
+--								write(my_line, STRING'(" alu_result "));
+--								hwrite(my_line, alu_result);
+--								write(my_line, STRING'(" rd_dat "));
+--								hwrite(my_line, rd_dat);
 
 								-- simulation debug end
 								-- Byte operation.
 								if operand_mode(5 downto 4) = "00" or ea(0)='0' then
 									-- Register operation or write to high byte. Always impacts high byte.
 									wr_dat <= alu_result(15 downto 8) & rd_dat(7 downto 0);
-									write(my_line, STRING'(" HIGH "));
+--									write(my_line, STRING'(" HIGH "));
 								else
 									-- Memory operation going to low byte. High byte not impacted.
 									wr_dat <= rd_dat(15 downto 8) & alu_result(15 downto 8); 
-									write(my_line, STRING'(" LOW "));
+--									write(my_line, STRING'(" LOW "));
 								end if;
 								
-								writeline(OUTPUT, my_line);	-- simulation
+--								writeline(OUTPUT, my_line);	-- simulation
 							end if;
 							cpu_state_next <= do_fetch;
 							cpu_state <= do_write;
@@ -617,14 +617,14 @@ begin
 								arg1 <= x"FFFF";
 								ope <= alu_xor;
 							when "0100" => -- NEG instruction
-								test_out <= x"EEFF";
+								-- test_out <= x"EEFF";
 								ea <= alu_result;	-- save address SA
 								cpu_state_next <= do_single_op_read;
 								cpu_state <= do_read;
 								arg1 <= x"0000";
 								ope <= alu_sub;
 							when "1101" => -- ABS instruction
-								test_out <= x"AABB";
+								-- test_out <= x"AABB";
 								ea <= alu_result;	-- save address SA
 								cpu_state_next <= do_single_op_read;
 								cpu_state <= do_read;
@@ -1142,9 +1142,9 @@ begin
 						ope <= alu_add;	-- calculate workspace address
 						cpu_state <= do_alu_read;	-- read from addr of ALU output
 						cpu_state_next <= do_read_operand1;
-						test_out <= x"EE00";
+						-- test_out <= x"EE00";
 					when do_read_operand1 =>
-						test_out <= x"EE01";
+						-- test_out <= x"EE01";
 						case operand_mode(5 downto 4) is
 						when "00" =>
 							-- workspace register, we are done.
@@ -1177,7 +1177,7 @@ begin
 						end case;
 					when do_read_operand2 =>
 						-- indirect or indexed mode here
-						test_out <= x"EE02";
+						-- test_out <= x"EE02";
 						if operand_mode(3 downto 0) = "0000" then
 							-- symbolic, read from rd_dat
 							ea <= rd_dat;
@@ -1194,7 +1194,7 @@ begin
 							cpu_state <= do_read_operand5;
 						end if;
 					when do_read_operand3 =>
-						test_out <= x"EE03";
+						-- test_out <= x"EE03";
 						-- write back our result to the register
 						wr_dat <= alu_result;
 						cpu_state <= do_write;
@@ -1213,7 +1213,7 @@ begin
 					-- subprogram to do operand writing, data to write in wr_dat
 					when do_write_operand0 =>
 						-- read workspace register. Goes to waste if symbolic mode.
-						test_out <= x"AA00";
+						-- test_out <= x"AA00";
 						arg1 <= w;
 						arg2 <= x"00" & "000" & operand_mode(3 downto 0) & '0';
 						ope <= alu_add;	-- calculate workspace address
@@ -1227,7 +1227,7 @@ begin
 							cpu_state_next <= do_write_operand1;
 						end if;
 					when do_write_operand1 =>
-						test_out <= x"AA01";
+						-- test_out <= x"AA01";
 						case operand_mode(5 downto 4) is
 						when "01" =>
 							-- workspace register indirect
@@ -1253,14 +1253,14 @@ begin
 						-- indirect or indexed mode here
 						if operand_mode(3 downto 0) = "0000" then
 							-- symbolic, write to address rd_dat
-							test_out <= x"AA02";
+							-- test_out <= x"AA02";
 							ea <= rd_dat;
 							cpu_state <= do_write;
 							-- return after write
 							cpu_state_next <= cpu_state_operand_return;
 						else
 							-- indexed, need to compute the address
-							test_out <= x"AA12";
+							-- test_out <= x"AA12";
 							arg1 <= rd_dat;
 							arg2 <= reg_t;
 							ope <= alu_add;
@@ -1270,7 +1270,7 @@ begin
 						end if;
 					when do_write_operand3 =>
 						-- need to autoincrement our register. rd_dat contains still our read data.
-						test_out <= x"AA03";
+						-- test_out <= x"AA03";
 						arg1 <= reg_t;		-- register value
 						if operand_word then
 							arg2 <= x"0002";	-- word operation, inc by 2
@@ -1282,7 +1282,7 @@ begin
 						cpu_state <= do_write_operand4;
 					when do_write_operand4 =>
 						-- writeback of autoincremented register
-						test_out <= x"AA04";
+						-- test_out <= x"AA04";
 						wr_dat <= alu_result;
 						cpu_state <= do_write;
 						cpu_state_next <= cpu_state_operand_return;

@@ -65,7 +65,8 @@ entity ep994a is
 			  SWITCH		: in std_logic;
 			  
 			  -- I/O interfaces
-			  INDATA		: inout std_logic_vector(15 downto 0);	-- TMS99105 multiplexed A/D bus
+--			  INDATA		: inout std_logic_vector(15 downto 0);	-- TMS99105 multiplexed A/D bus
+
 			  --------------------------------------
 			  -- The connection information below is the Pepino FPGA buffer board.
 			  -- There were two iterations in my circuit: 
@@ -99,7 +100,7 @@ entity ep994a is
 			  ----------------------------------------------
 			  -- Signals for the PCB
 			  ALATCH    : in std_logic;	-- CPU address latch input
-			  RD_n      : in std_logic;	-- CPU read signal
+--			  RD_n      : in std_logic;	-- CPU read signal
 			  BUS_OE_n  : out std_logic;	-- when low, 16-bit bus drivers active
 			  BUSDIR 	: out std_logic;	-- direction of 16-bit bus. High=TMS99105 driving the bus
 			  CTRL_RD_n : out std_logic;	-- when IO1N..IO8N contains bus control signals from CPU
@@ -198,7 +199,7 @@ architecture Behavioral of ep994a is
 	-- TMS99105 control signals
 	signal cpu_addr			: std_logic_vector(15 downto 0);
 	signal cpu_data_out		: std_logic_vector(15 downto 0);	-- data to CPU
---	signal cpu_data_in		: std_logic_vector(15 downto 0);	-- data from CPU
+	signal cpu_data_in		: std_logic_vector(15 downto 0);	-- data from CPU
 	signal alatch_sampler	: std_logic_vector(15 downto 0);
 	signal wr_sampler			: std_logic_vector(3 downto 0);
 	signal rd_sampler			: std_logic_vector(3 downto 0);
@@ -283,6 +284,44 @@ architecture Behavioral of ep994a is
 	-- counter of alatch pulses to produce a sign of life of the CPU
 	signal alatch_counter : std_logic_vector(19 downto 0);
 
+-------------------------------------------------------------------------------	
+-- Signals from FPGA CPU
+-------------------------------------------------------------------------------	
+	signal RD_n   : std_logic;
+	signal cpu_rd : std_logic;
+	signal cpu_wr : std_logic;	
+	signal cpu_ready : std_logic;
+	signal cpu_iaq : std_logic;
+	signal cpu_as : std_logic;
+	
+	signal cpu_cruin : std_logic;
+	signal cpu_cruout : std_logic;
+	signal cpu_cruclk : std_logic;
+	signal cpu_stuck : std_logic;
+-------------------------------------------------------------------------------	
+    COMPONENT tms9900
+    PORT(
+         clk : IN  std_logic;
+         reset : IN  std_logic;
+         addr : OUT  std_logic_vector(15 downto 0);
+         data_in : IN  std_logic_vector(15 downto 0);
+         data_out : OUT  std_logic_vector(15 downto 0);
+         rd : OUT  std_logic;
+         wr : OUT  std_logic;
+         ready : IN  std_logic;
+         iaq : OUT  std_logic;
+         as : OUT  std_logic;
+--			test_out : OUT  std_logic_vector(15 downto 0);
+--			alu_debug_out : OUT  std_logic_vector(15 downto 0);
+--			alu_debug_oper : out STD_LOGIC_VECTOR(3 downto 0);
+--			alu_debug_arg1 : OUT  std_logic_vector(15 downto 0);
+--			alu_debug_arg2 : OUT  std_logic_vector(15 downto 0);
+			cruin		: in STD_LOGIC;
+			cruout   : out STD_LOGIC;
+			cruclk   : out STD_LOGIC;
+         stuck : OUT  std_logic
+        );
+    END COMPONENT;
 -------------------------------------------------------------------------------	
 	component pager612
 		port (  clk 			: in  STD_LOGIC;
@@ -374,7 +413,7 @@ begin
 	SRAM_DAT		<= -- broadcast on all byte lanes when memory controller is writing
 						mem_data_out & mem_data_out & mem_data_out & mem_data_out when cpu_access='0' and mem_drive_bus='1' else
 						-- broadcast on 16-bit wide lanes when CPU is writing
-						indata & indata when cpu_access='1' and MEM_n='0' and WE_n = '0' else
+						cpu_data_in & cpu_data_in when cpu_access='1' and MEM_n='0' and WE_n = '0' else
 						(others => 'Z');
 						
 	sram_16bit_read_bus <= SRAM_DAT(15 downto 0) when sram_addr_bus(0)='0' else SRAM_DAT(31 downto 16);
@@ -644,7 +683,7 @@ begin
 				alatch_sampler <= alatch_sampler(alatch_sampler'length-2 downto 0) & ALATCH;
 				-- if alatch_sampler(1 downto 0) = "01" then
 				if alatch_sampler(2 downto 0) = "011" then
-					cpu_addr <= indata;		-- latch CPU address bus on ALATCH going high
+--					cpu_addr <= indata;		-- latch CPU address bus on ALATCH going high
 					alatch_counter <= std_logic_vector(to_unsigned(1+to_integer(unsigned(alatch_counter)), alatch_counter'length));
 				end if;
 				wr_sampler <= wr_sampler(wr_sampler'length-2 downto 0) & WE_n;
@@ -657,7 +696,7 @@ begin
 				if sams_regs(6)='0' then	-- if sams_regs(6) is set I/O is out and paged RAM is there instead
 					if go_write = '1' and MEM_n='0' then
 						if cpu_addr(15 downto 8) = x"80" then
-							outreg <= indata;			-- write to >80XX is sampled in the output register
+							outreg <= cpu_data_in;			-- write to >80XX is sampled in the output register
 						elsif cpu_addr(15 downto 8) = x"8C" then
 							vdp_wr <= '1';
 						elsif cpu_addr(15 downto 8) = x"9C" then
@@ -684,21 +723,21 @@ begin
 
 					if cru9901(0) = '1' and cpu_addr(5)='0' and cpu_addr(4 downto 1) /= "0000" then
 						-- write to timer bits (not bit 0)
-						cru9901_timer(to_integer(unsigned(cpu_addr(4 downto 1)))) <= indata(0);
+						cru9901_timer(to_integer(unsigned(cpu_addr(4 downto 1)))) <= cpu_cruout;
 					else
 						-- write to main register
-						cru9901(to_integer(unsigned(cpu_addr(5 downto 1)))) <= indata(0);
+						cru9901(to_integer(unsigned(cpu_addr(5 downto 1)))) <= cpu_cruout;
 					end if;
 
 				end if;
 				
 				-- CRU write cycle to disk control system
 				if MEM_n='1' and cpu_addr(15 downto 1)= x"110" & "000" and go_write = '1' then
-					cru1100 <= indata(0);
+					cru1100 <= cpu_cruout;
 				end if;
 				-- SAMS register writes
 				if MEM_n='1' and cpu_addr(15 downto 4) = x"1E0" and go_write = '1' then
-					sams_regs(to_integer(unsigned(cpu_addr(3 downto 1)))) <= indata(0);
+					sams_regs(to_integer(unsigned(cpu_addr(3 downto 1)))) <= cpu_cruout;
 				end if;				
 				
 				-- Precompute cru_read_bit in case this cycle is a CRU read 
@@ -762,12 +801,12 @@ begin
 	CTRL_RD_n <= not bus_oe_n_internal;	-- Control bits readable when addr/data buffers are off
 	CTRL_CP <= '1' when alatch_sampler(4) = '1' and alatch_sampler(6) = '0' else '0';	-- issue clock pulse	
 	-- FPGA drivers follow RD_n except during control signal operations (CTRL_RD_n = '0')
-	INDATA <= "ZZZZZZZZ" & conl_led1 & conl_led2 & conl_app_n & conl_ready & conl_hold & conl_nmi & conl_int & conl_reset when bus_oe_n_internal='1'
-		else "ZZZZZZZZZZZZZZZZ" when RD_n = '1'
-		else cpu_data_out;
+--	INDATA <= "ZZZZZZZZ" & conl_led1 & conl_led2 & conl_app_n & conl_ready & conl_hold & conl_nmi & conl_int & conl_reset when bus_oe_n_internal='1'
+--		else "ZZZZZZZZZZZZZZZZ" when RD_n = '1'
+--		else cpu_data_out;
 		
 	DEBUG1 <= go_write;
-	WE_n <= WE_n_ext;
+--	WE_n <= WE_n_ext;
 	
 	go_write <= '1' when wr_sampler = "1000" else '0';
 
@@ -783,10 +822,10 @@ begin
 
 			if alatch_sampler(4 downto 3) = "01" then 
 				-- WE_n 	<= indata(8); -- need to be sampled externally for good timing
-				MEM_n <= indata(9);
-				BST1  <= indata(13);
-				BST2  <= indata(14);
-				BST3  <= indata(15);
+--				MEM_n <= indata(9);
+--				BST1  <= indata(13);
+--				BST2  <= indata(14);
+--				BST3  <= indata(15);
 			end if;
 		end if;
 	end process;
@@ -828,7 +867,7 @@ begin
 		reset 	=> real_reset_n,	
 		mode 		=> cpu_addr(1),
 		addr		=> cpu_addr(8 downto 1),
-		data_in 	=> indata(15 downto 8),
+		data_in 	=> cpu_data_out(15 downto 8),
 		data_out => vdp_data_out,
 		wr 		=> vdp_wr,	
 		rd 		=> vdp_rd,
@@ -848,7 +887,7 @@ begin
 	-- GROM implementation - GROM's are mapped to external RAM
 	extbasgrom : entity work.gromext port map (
 			clk 		=> clk,
-			din 		=> indata(15 downto 8),
+			din 		=> cpu_data_out(15 downto 8),
 			dout		=> grom_data_out,
 			we 		=> grom_we,
 			rd 		=> grom_rd,
@@ -862,7 +901,7 @@ begin
 	TMS9919_CHIP: entity work.tms9919 port map (
 			clk 		=> clk,
 			reset		=> real_reset_n,
-			data_in 	=> indata(15 downto 8),
+			data_in 	=> cpu_data_out(15 downto 8),
 			we			=> tms9919_we,
 			dac_out	=> dac_data
 		);
@@ -885,7 +924,7 @@ begin
 	paging_registers <= '1' when paging_regs_visible = '1' and MEM_n = '0' and cpu_addr(15 downto 13) = "010" else '0';
 	page_reg_read <= '1' when paging_registers = '1' and RD_n='0' else '0';	
 
-	pager_data_in <= x"00" & indata(15 downto 8);	-- my own extended mode not supported here
+	pager_data_in <= x"00" & cpu_data_out(15 downto 8);	-- my own extended mode not supported here
 
 	pager : pager612 port map (
 		clk		 => clk,
@@ -899,6 +938,33 @@ begin
 		translated_addr => translated_addr,		-- ok
 		access_regs     => paging_registers		-- ok
 		);	
+		
+	MEM_n <= not (cpu_rd or cpu_wr);
+	WE_n <= not cpu_wr;
+	RD_n <= not cpu_rd;
+	cpu_cruin <= cru_read_bit;
+		
+	cpu : tms9900 PORT MAP (
+          clk => clk,
+          reset => real_reset_n,
+          addr => cpu_addr,
+          data_in => cpu_data_out,
+          data_out => cpu_data_in,
+          rd => cpu_rd,
+          wr => cpu_wr,
+          ready => cpu_ready,
+          iaq => cpu_iaq,
+          as => cpu_as,
+--			 test_out => test_out,
+--			 alu_debug_out => alu_debug_out,
+--			 alu_debug_oper => alu_debug_oper,
+--			 alu_debug_arg1 => alu_debug_arg1,
+--			 alu_debug_arg2 => alu_debug_arg2,
+			 cruin => cpu_cruin,
+			 cruout => cpu_cruout,
+			 cruclk => cpu_cruclk,
+          stuck => cpu_stuck
+        );
 		
 end Behavioral;
 

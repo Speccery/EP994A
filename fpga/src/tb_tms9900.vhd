@@ -53,11 +53,11 @@ ARCHITECTURE behavior OF tb_tms9900 IS
          ready : IN  std_logic;
          iaq : OUT  std_logic;
          as : OUT  std_logic;
-			test_out : OUT  std_logic_vector(15 downto 0);
-			alu_debug_out : OUT  std_logic_vector(15 downto 0);
-			alu_debug_oper : out STD_LOGIC_VECTOR(3 downto 0);
-			alu_debug_arg1 : OUT  std_logic_vector(15 downto 0);
-			alu_debug_arg2 : OUT  std_logic_vector(15 downto 0);
+--			test_out : OUT  std_logic_vector(15 downto 0);
+--			alu_debug_out : OUT  std_logic_vector(15 downto 0);
+--			alu_debug_oper : out STD_LOGIC_VECTOR(3 downto 0);
+--			alu_debug_arg1 : OUT  std_logic_vector(15 downto 0);
+--			alu_debug_arg2 : OUT  std_logic_vector(15 downto 0);
 			cruin		: in STD_LOGIC;
 			cruout   : out STD_LOGIC;
 			cruclk   : out STD_LOGIC;
@@ -87,11 +87,11 @@ ARCHITECTURE behavior OF tb_tms9900 IS
    signal wr : std_logic;
    signal iaq : std_logic;
    signal as : std_logic;
-	signal test_out : STD_LOGIC_VECTOR (15 downto 0);
-	signal alu_debug_out : STD_LOGIC_VECTOR (15 downto 0);
-	signal alu_debug_oper : STD_LOGIC_VECTOR (3 downto 0);
-	signal alu_debug_arg1 : STD_LOGIC_VECTOR (15 downto 0);
-	signal alu_debug_arg2 : STD_LOGIC_VECTOR (15 downto 0);
+--	signal test_out : STD_LOGIC_VECTOR (15 downto 0);
+--	signal alu_debug_out : STD_LOGIC_VECTOR (15 downto 0);
+--	signal alu_debug_oper : STD_LOGIC_VECTOR (3 downto 0);
+--	signal alu_debug_arg1 : STD_LOGIC_VECTOR (15 downto 0);
+--	signal alu_debug_arg2 : STD_LOGIC_VECTOR (15 downto 0);
 	signal cruout : std_logic;
 	signal cruclk : std_logic;
    signal stuck : std_logic;
@@ -123,11 +123,11 @@ BEGIN
           ready => ready,
           iaq => iaq,
           as => as,
-			 test_out => test_out,
-			 alu_debug_out => alu_debug_out,
-			 alu_debug_oper => alu_debug_oper,
-			 alu_debug_arg1 => alu_debug_arg1,
-			 alu_debug_arg2 => alu_debug_arg2,
+--			 test_out => test_out,
+--			 alu_debug_out => alu_debug_out,
+--			 alu_debug_oper => alu_debug_oper,
+--			 alu_debug_arg1 => alu_debug_arg1,
+--			 alu_debug_arg2 => alu_debug_arg2,
 			 cruin => cruin,
 			 cruout => cruout,
 			 cruclk => cruclk,

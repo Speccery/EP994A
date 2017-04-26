@@ -84,7 +84,7 @@ NET "SRAM_DAT[31]" LOC = "P2" | IOSTANDARD=LVCMOS33;
 NET "ALATCH" 	 IOSTANDARD = LVCMOS33 | PULLDOWN  | LOC=A14;
 NET "BUS_OE_n"  IOSTANDARD = LVCMOS33 | PULLDOWN  | LOC=D8;
 NET "CTRL_RD_n" IOSTANDARD = LVCMOS33 | PULLDOWN | LOC=F9;
-NET "RD_n" 		 IOSTANDARD = LVCMOS33 | PULLDOWN  | LOC=C10;
+#NET "RD_n" 		 IOSTANDARD = LVCMOS33 | PULLDOWN  | LOC=C10;
 NET "CTRL_CP" 	 IOSTANDARD = LVCMOS33 | PULLDOWN  | LOC=D9;
 NET "BUSDIR" 	 IOSTANDARD = LVCMOS33 | PULLDOWN  | LOC=C8;
 
@@ -103,70 +103,70 @@ NET "BUSDIR" 	 IOSTANDARD = LVCMOS33 | PULLDOWN  | LOC=C8;
 #NET "ch2_en" LOC = F9 | IOSTANDARD = LVCMOS33 | SLEW = FAST | DRIVE = 8;
 
 # indata[0-15]
-NET "indata[0]" IOSTANDARD = LVCMOS33 | PULLDOWN;
-NET "indata[0]" SLEW = FAST;
-NET "indata[0]" DRIVE = 8;
-NET "indata[0]" LOC = N5; # IO1P
-NET "indata[1]" IOSTANDARD = LVCMOS33 | PULLDOWN;
-NET "indata[1]" SLEW = FAST;
-NET "indata[1]" DRIVE = 8;
-NET "indata[1]" LOC = M6; # IO2P
-NET "indata[2]" IOSTANDARD = LVCMOS33 | PULLDOWN;
-NET "indata[2]" SLEW = FAST;
-NET "indata[2]" DRIVE = 8;
-NET "indata[2]" LOC = P7; # IO3P
-NET "indata[3]" IOSTANDARD = LVCMOS33 | PULLDOWN;
-NET "indata[3]" SLEW = FAST;
-NET "indata[3]" DRIVE = 8;
-NET "indata[3]" LOC = P8;
-NET "indata[4]" IOSTANDARD = LVCMOS33 | PULLDOWN;
-NET "indata[4]" SLEW = FAST;
-NET "indata[4]" DRIVE = 8;
-NET "indata[4]" LOC = R9;
-NET "indata[5]" IOSTANDARD = LVCMOS33 | PULLDOWN;
-NET "indata[5]" SLEW = FAST;
-NET "indata[5]" DRIVE = 8;
-NET "indata[5]" LOC = M9;
-NET "indata[6]" IOSTANDARD = LVCMOS33 | PULLDOWN;
-NET "indata[6]" SLEW = FAST;
-NET "indata[6]" DRIVE = 8;
-NET "indata[6]" LOC = L10;
-NET "indata[7]" IOSTANDARD = LVCMOS33 | PULLDOWN;
-NET "indata[7]" SLEW = FAST;
-NET "indata[7]" DRIVE = 8;
-NET "indata[7]" LOC = R14;
-NET "indata[8]" IOSTANDARD = LVCMOS33 | PULLDOWN;
-NET "indata[8]" SLEW = FAST;
-NET "indata[8]" DRIVE = 8;
-NET "indata[8]" LOC = P5; # IO1N
-NET "indata[9]" IOSTANDARD = LVCMOS33 | PULLDOWN;
-NET "indata[9]" SLEW = FAST;
-NET "indata[9]" DRIVE = 8;
-NET "indata[9]" LOC = N6; # IO2N
-NET "indata[10]" IOSTANDARD = LVCMOS33 | PULLDOWN;
-NET "indata[10]" SLEW = FAST;
-NET "indata[10]" DRIVE = 8;
-NET "indata[10]" LOC = M7;
-NET "indata[11]" IOSTANDARD = LVCMOS33 | PULLDOWN;
-NET "indata[11]" SLEW = FAST;
-NET "indata[11]" DRIVE = 8;
-NET "indata[11]" LOC = T8;
-NET "indata[12]" IOSTANDARD = LVCMOS33 | PULLDOWN;
-NET "indata[12]" SLEW = FAST;
-NET "indata[12]" DRIVE = 8;
-NET "indata[12]" LOC = T9;
-NET "indata[13]" IOSTANDARD = LVCMOS33 | PULLDOWN;
-NET "indata[13]" SLEW = FAST;
-NET "indata[13]" DRIVE = 8;
-NET "indata[13]" LOC = N8;
-NET "indata[14]" IOSTANDARD = LVCMOS33 | PULLDOWN;
-NET "indata[14]" SLEW = FAST;
-NET "indata[14]" DRIVE = 8;
-NET "indata[14]" LOC = M10;
-NET "indata[15]" IOSTANDARD = LVCMOS33 | PULLDOWN;
-NET "indata[15]" SLEW = FAST;
-NET "indata[15]" DRIVE = 8;
-NET "indata[15]" LOC = T15;
+# NET "indata[0]" IOSTANDARD = LVCMOS33 | PULLDOWN;
+# NET "indata[0]" SLEW = FAST;
+# NET "indata[0]" DRIVE = 8;
+# NET "indata[0]" LOC = N5; # IO1P
+# NET "indata[1]" IOSTANDARD = LVCMOS33 | PULLDOWN;
+# NET "indata[1]" SLEW = FAST;
+# NET "indata[1]" DRIVE = 8;
+# NET "indata[1]" LOC = M6; # IO2P
+# NET "indata[2]" IOSTANDARD = LVCMOS33 | PULLDOWN;
+# NET "indata[2]" SLEW = FAST;
+# NET "indata[2]" DRIVE = 8;
+# NET "indata[2]" LOC = P7; # IO3P
+# NET "indata[3]" IOSTANDARD = LVCMOS33 | PULLDOWN;
+# NET "indata[3]" SLEW = FAST;
+# NET "indata[3]" DRIVE = 8;
+#NET "indata[3]" LOC = P8;
+#NET "indata[4]" IOSTANDARD = LVCMOS33 | PULLDOWN;
+#NET "indata[4]" SLEW = FAST;
+#NET "indata[4]" DRIVE = 8;
+#NET "indata[4]" LOC = R9;
+#NET "indata[5]" IOSTANDARD = LVCMOS33 | PULLDOWN;
+#NET "indata[5]" SLEW = FAST;
+#NET "indata[5]" DRIVE = 8;
+#NET "indata[5]" LOC = M9;
+#NET "indata[6]" IOSTANDARD = LVCMOS33 | PULLDOWN;
+#NET "indata[6]" SLEW = FAST;
+#NET "indata[6]" DRIVE = 8;
+#NET "indata[6]" LOC = L10;
+#NET "indata[7]" IOSTANDARD = LVCMOS33 | PULLDOWN;
+#NET "indata[7]" SLEW = FAST;
+#NET "indata[7]" DRIVE = 8;
+#NET "indata[7]" LOC = R14;
+#NET "indata[8]" IOSTANDARD = LVCMOS33 | PULLDOWN;
+#NET "indata[8]" SLEW = FAST;
+#NET "indata[8]" DRIVE = 8;
+#NET "indata[8]" LOC = P5; # IO1N
+#NET "indata[9]" IOSTANDARD = LVCMOS33 | PULLDOWN;
+#NET "indata[9]" SLEW = FAST;
+#NET "indata[9]" DRIVE = 8;
+#NET "indata[9]" LOC = N6; # IO2N
+#NET "indata[10]" IOSTANDARD = LVCMOS33 | PULLDOWN;
+#NET "indata[10]" SLEW = FAST;
+#NET "indata[10]" DRIVE = 8;
+#NET "indata[10]" LOC = M7;
+#NET "indata[11]" IOSTANDARD = LVCMOS33 | PULLDOWN;
+#NET "indata[11]" SLEW = FAST;
+#NET "indata[11]" DRIVE = 8;
+#NET "indata[11]" LOC = T8;
+#NET "indata[12]" IOSTANDARD = LVCMOS33 | PULLDOWN;
+#NET "indata[12]" SLEW = FAST;
+#NET "indata[12]" DRIVE = 8;
+#NET "indata[12]" LOC = T9;
+#NET "indata[13]" IOSTANDARD = LVCMOS33 | PULLDOWN;
+#NET "indata[13]" SLEW = FAST;
+#NET "indata[13]" DRIVE = 8;
+#NET "indata[13]" LOC = N8;
+#NET "indata[14]" IOSTANDARD = LVCMOS33 | PULLDOWN;
+#NET "indata[14]" SLEW = FAST;
+#NET "indata[14]" DRIVE = 8;
+#NET "indata[14]" LOC = M10;
+#NET "indata[15]" IOSTANDARD = LVCMOS33 | PULLDOWN;
+#NET "indata[15]" SLEW = FAST;
+#NET "indata[15]" DRIVE = 8;
+#NET "indata[15]" LOC = T15;
 
 # === VGA port ===
 NET "VGA_HSYNC"    LOC = D11 | IOSTANDARD = LVCMOS33;
