@@ -106,6 +106,8 @@ ARCHITECTURE behavior OF tb_tms9900 IS
 	signal scratchpad : ramArray;
 	signal ramIndex : integer range 0 to 15 := 0;
 	signal write_detect : std_logic_vector(1 downto 0);
+	
+	constant cru_test_data : std_logic_vector(15 downto 0) := x"A079";
  
 BEGIN
  
@@ -151,6 +153,7 @@ BEGIN
    stim_proc: process
 	variable addr_int : integer range 0 to 32767 := 0;
 	variable my_line : line;	-- from textio
+	variable myindex : natural range 0 to 15;	
    begin		
       -- hold reset state for 100 ns.
 		reset <= '1';
@@ -201,6 +204,10 @@ BEGIN
 					writeline(OUTPUT, my_line);
 				end if;
 			end if;
+			
+			-- Support CRU interface somehow
+			myindex := to_integer(unsigned(addr(4 downto 1)));
+			cruin <= cru_test_data(myindex);
 			
 			if stuck='1' then
 				write(my_line, STRING'("CPU GOT STUCK"));

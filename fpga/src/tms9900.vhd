@@ -68,6 +68,7 @@ architecture Behavioral of tms9900 is
 	signal wr_dat : std_logic_vector(15 downto 0);	-- data written to memory
 	signal reg_t : std_logic_vector(15 downto 0);	-- temporary register
 	signal reg_t2 : std_logic_vector(15 downto 0); -- storage of source operand
+	signal reg_stcr : std_logic_vector(15 downto 0); -- specific storage for STCR instruction - BUGBUG
 	signal read_byte_aligner : std_logic_vector(15 downto 0); -- align bytes to words for reads
 		
 	type cpu_state_type is (
@@ -94,7 +95,8 @@ architecture Behavioral of tms9900 is
 		do_ext_instructions, do_store_instructions, 
 		do_coc_czc_etc0, do_coc_czc_etc1, do_coc_czc_etc2, do_coc_czc_etc3,
 		do_xop,
-		do_ldcr0, do_ldcr1, do_ldcr2, do_ldcr3, do_ldcr4, do_ldcr5 
+		do_ldcr0, do_ldcr1, do_ldcr2, do_ldcr3, do_ldcr4, do_ldcr5,
+		do_stcr0, do_stcr6, do_stcr7
 	);
 	signal cpu_state : cpu_state_type;
 	signal cpu_state_next : cpu_state_type;
@@ -120,7 +122,6 @@ architecture Behavioral of tms9900 is
 	signal alu_flag_carry    : std_logic;
 	
 	signal i_am_xop			 : boolean := False;
-	signal dec_shift_count   : boolean := False;
 	
 	-- operand_mode controls fetching of operands, i.e. addressing modes
 	-- operand_mode(5:4) is the mode R, *R, @ADDR, @ADDR(R), *R+
@@ -227,6 +228,7 @@ begin
 	process(clk, reset) is
 	variable offset : std_logic_vector(15 downto 0);
 	variable take_branch : boolean;
+	variable dec_shift_count   : boolean := False;
 	-- simulation begin
 	variable my_line : line;	-- from textio
 	-- simulation end
@@ -238,7 +240,6 @@ begin
 			rd <= '0';
 			wr <= '0';
 			cruclk <= '0';
-			dec_shift_count <= False;
 			-- Prepare for BLWP from 0
 			i_am_xop <= False;
 			arg2 <= x"0000";				-- pass pointer to WP via ALU as our EA
@@ -247,10 +248,7 @@ begin
 		else
 			if rising_edge(clk) then
 			
-				if dec_shift_count then
-					shift_count <= std_logic_vector(unsigned(shift_count) - to_unsigned(1, 5));
-					dec_shift_count <= False;
-				end if;
+				dec_shift_count := False;
 			
 				-- CPU state changes
 				case cpu_state is
@@ -380,14 +378,19 @@ begin
 								cpu_state <= do_read_operand0;
 								cpu_state_operand_return <= do_coc_czc_etc0;
 							end if;
-						elsif rd_dat(15 downto 10) = "001100" then -- LDCR
+						elsif rd_dat(15 downto 11) = "00110" then -- LDCR, STCR
 							-- set operand_word to byte mode if count of bits is 1..8
 							if rd_dat(9 downto 6) = "1000" or (rd_dat(9) = '0' and rd_dat(8 downto 6) /= "000") then
 								operand_word <= False;
 							end if;
 							operand_mode <= rd_dat(5 downto 0);
-							cpu_state <= do_read_operand0;
-							cpu_state_operand_return <= do_ldcr0;
+							if rd_dat(10) = '0' then
+								cpu_state <= do_read_operand0;
+								cpu_state_operand_return <= do_ldcr0;	-- LDCR
+							else
+								cpu_state <= do_source_address0;
+								cpu_state_operand_return <= do_stcr0;	-- STCR
+							end if;
 						elsif rd_dat(15 downto 4) = x"020" or rd_dat(15 downto 4) = x"022" or   -- LI, AI
 									rd_dat(15 downto 4) = x"024" or rd_dat(15 downto 4) = x"026" or 	-- ANDI, ORI
 									rd_dat(15 downto 4) = x"028"													-- CI
@@ -833,7 +836,7 @@ begin
 						if ir(9 downto 8) = "10" then
 							st(11) <= alu_flag_overflow;
 						end if;
-						dec_shift_count <= True;
+						dec_shift_count := True;
 						if shift_count = "00001" then 
 							ope <= alu_load2;				-- pass through the previous result
 							cpu_state <= do_shifts4;	-- done with shifting altogether
@@ -964,11 +967,24 @@ begin
 						i_am_xop <= True;
 
 					-------------------------------------------------------------
-					-- LDCR
+					-- LDCR and STCR
 					-------------------------------------------------------------
-					when do_ldcr0 =>
-						-- now rd_dat is source operand
-						reg_t <= read_byte_aligner;
+					when do_ldcr0 =>	
+						-- LDCR, now rd_dat is source operand
+						reg_t <= read_byte_aligner;	-- LDCR
+						operand_mode <= "001100";	-- Reg 12 in direct addressing mode
+						cpu_state <= do_read_operand0;
+						cpu_state_operand_return <= do_ldcr1;
+					when do_stcr0 =>
+						-- STCR, here alu_result is the address of our operand.
+						-- reg_t will contain the operand for OR
+						if operand_word then
+							reg_t <= x"0001";
+						else
+							reg_t <= x"0100";
+						end if;
+						reg_stcr <= x"0000";
+						reg_t2 <= alu_result;		-- Store the destination effective address
 						operand_mode <= "001100";	-- Reg 12 in direct addressing mode
 						cpu_state <= do_read_operand0;
 						cpu_state_operand_return <= do_ldcr1;
@@ -983,32 +999,71 @@ begin
 						cpu_state <= do_ldcr2;
 					when do_ldcr2 =>
 						arg2 <= reg_t;
-						ope <= alu_srl;
+						if ir(10) = '0' then
+							ope <= alu_srl;	-- for LDCR,shift right	
+						else	
+							ope <= alu_sla;	-- for STCR, shift left
+						end if;
+						addr <= "000" & ea(12 downto 1) & '0'; -- "000" & alu_result(12 downto 1) & '0';
 						cpu_state <= do_ldcr3;
 					when do_ldcr3 =>
-						if operand_word then
-							cruout <= alu_flag_carry;
+						if ir(10) = '0' then	-- LDCR
+							cpu_state <= do_ldcr4;
+							if operand_word then
+								cruout <= alu_flag_carry;
+							else
+								cruout <= alu_result(7);	-- Byte operand
+							end if;
 						else
-							cruout <= alu_result(7);	-- Byte operand
+							-- STCR or in the data we get; done outside the ALU just here
+							if cruin = '1' then
+								reg_stcr <= reg_stcr or reg_t;	
+							end if;
+							cpu_state <= do_ldcr5;	-- skip creation of CLKOUT pulse
 						end if;
 						reg_t <= alu_result;				-- store right shifted operand
-						addr <= "000" & ea(12 downto 1) & '0'; -- "000" & alu_result(12 downto 1) & '0';
 						arg1 <= x"0002";
 						arg2 <= ea;
 						ope <= alu_add;
-						cpu_state <= do_ldcr4;
 					when do_ldcr4 =>
 						cruclk <= '1';
 						cpu_state <= do_ldcr5;
 					when do_ldcr5 =>
 						ea <= alu_result;
 						cruclk <= '0';
-						dec_shift_count <= True;
+						dec_shift_count := True;
 						if shift_count = "00001" then
-							cpu_state <= do_fetch;
+							if ir(10) = '0' then
+								cpu_state <= do_fetch;		-- LDCR, we are done
+							else
+								cpu_state <= do_stcr6;		-- STCR, we need to store the result
+							end if;
 						else
 							cpu_state <= do_ldcr2;
 						end if;
+					when do_stcr6 =>
+						-- Writeback the result in reg_stcr. 
+						-- For byte operation support, we need to read the destination before writing
+						-- to it. reg_t2 has the destination address.
+						ea <= reg_t2;
+						cpu_state <= do_read;
+						cpu_state_next <= do_stcr7;
+					when do_stcr7 =>
+						-- Ok now rd_dat has destination data from memory. 
+						-- Let's merge our data from reg_stcr and write the bloody thing back.
+						if operand_word then
+							wr_dat <= reg_stcr;
+						else
+							-- Byte operation.
+							if ea(0)='0' then -- high byte impacted
+								wr_dat <= reg_stcr(15 downto 8) & rd_dat(7 downto 0);
+							else	-- low byte impacted
+								wr_dat <= rd_dat(15 downto 8) & reg_stcr(15 downto 8); 
+							end if;
+						end if;
+						cpu_state_next <= do_fetch;
+						cpu_state <= do_write;
+						
 
 					-------------------------------------------------------------
 					-- subprogram to calculate source operand address SA
@@ -1236,6 +1291,11 @@ begin
 					when do_stuck =>
 						stuck <= '1';
 				end case;
+
+				-- decrement shift count if necessary
+				if dec_shift_count then
+					shift_count <= std_logic_vector(unsigned(shift_count) - to_unsigned(1, 5));
+				end if;
 				
 			
 			end if; -- rising_edge

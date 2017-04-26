@@ -39,10 +39,14 @@ BOOT
   SBZ 1
   SBO 2
   SBZ -1
-  TB  5
-  JNE GOODO
+  TB  0
+  JEQ GOODO1
   DATA >0381    ** RTWP but illegal on TMS9995, will get stuck
-GOODO
+GOODO1
+  TB  1
+  JNE GOODO2
+  DATA >0381    ** RTWP but illegal on TMS9995, will get stuck
+GOODO2:
   LI  R0,>3333
   XOP @>BEEF,0
   LI  R0,>5555
@@ -52,9 +56,20 @@ GOODO
   LI  R3,>0055
   LDCR R3,0
   LDCR R3,9
-  LDCR R3,3  
-  
-
+  LI   R3,6
+  SLA  R3,8
+  LDCR R3,3
+  CLR R12
+  LI   R8,>12   * Low byte to 12
+  STCR R8,8
+  STCR R9,0
+  CI   R8,>7912
+  JEQ  !
+  DATA >0381    ** RTWP but illegal on TMS9995, will get stuck  
+! CI   R9,>A079
+  JEQ  !
+  DATA >0381    ** RTWP but illegal on TMS9995, will get stuck  
+!  
   LI  R3,>8340    ** write to 8306 data 8340 1000001101000000
   LI  R7,>8350
   LI  R1,>0123
