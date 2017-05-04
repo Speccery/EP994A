@@ -52,6 +52,8 @@ entity tms9900 is Port (
 	cruin		: in STD_LOGIC;
 	cruout   : out STD_LOGIC;
 	cruclk   : out STD_LOGIC;
+	hold     : in STD_LOGIC;		-- DMA request, active high
+	holda    : out STD_LOGIC;     -- DMA ack, active high
 	stuck	 	: out  STD_LOGIC		-- when high the CPU is stuck
 	);
 end tms9900;
@@ -107,6 +109,7 @@ architecture Behavioral of tms9900 is
 	signal alu_out : std_logic_vector(16 downto 0);
 	signal alu_result :  std_logic_vector(15 downto 0);
 	signal shift_count : std_logic_vector(4 downto 0);
+	signal delay_count : std_logic_vector(3 downto 0);
 	
 	type alu_operation_type is (
 		alu_load2, alu_add, alu_or, alu_and, alu_sub, alu_and_not, alu_xor, 
@@ -128,6 +131,8 @@ architecture Behavioral of tms9900 is
 	-- operand_mode(3:0) is the register number
 	signal operand_mode		 : std_logic_vector(5 downto 0);
 	signal operand_word		 : boolean;	-- if false, we have a byte (matters for autoinc)
+	
+	constant cru_delay_clocks		: std_logic_vector(3 downto 0) := "0101";
 
 begin
 	
@@ -245,6 +250,8 @@ begin
 			arg2 <= x"0000";				-- pass pointer to WP via ALU as our EA
 			ope <= alu_load2;
 			cpu_state <= do_blwp00;		-- do blwp from zero
+			delay_count <= "0000";
+			holda <= hold;					-- during reset hold is respected
 		else
 			if rising_edge(clk) then
 			
@@ -305,10 +312,15 @@ begin
 					-- operations --
 					----------------
 					when do_fetch =>		-- instruction opcode fetch
-						i_am_xop <= False;
-						iaq <= '1';
-						cpu_state <= do_pc_read;
-						cpu_state_next <= do_decode;
+						if hold='1' then
+							holda <= '1';	-- honor DMA requests here - stay in do_fetch state
+						else
+							holda <= '0';
+							i_am_xop <= False;
+							iaq <= '1';
+							cpu_state <= do_pc_read;
+							cpu_state_next <= do_decode;
+						end if;
 --						test_out <= x"0000";
 					-------------------------------------------------------------------------------
 					-- do_decode
@@ -700,13 +712,19 @@ begin
 					-- R13 -> old_WP, R14 -> old_PC, R15 -> ST
 					-------------------------------------------------------------					
 					when do_blwp00 =>
-						-- alu_result points to new WP
-						ea <= alu_result;
-						arg1 <= x"0002";			-- calculate address of PC
-						arg2 <= alu_result;
-						ope <= alu_add;
-						cpu_state <= do_read;	-- read new WP
-						cpu_state_next <= do_blwp0;					
+						-- since we come here from reset, continue to respect hold
+						if hold='1' then
+							holda <= '1';
+						else
+							-- alu_result points to new WP
+							holda <= '0';
+							ea <= alu_result;
+							arg1 <= x"0002";			-- calculate address of PC
+							arg2 <= alu_result;
+							ope <= alu_add;
+							cpu_state <= do_read;	-- read new WP
+							cpu_state_next <= do_blwp0;					
+						end if;
 					when do_blwp0 =>
 						-- here rd_dat is our new WP, alu_result is addr of new PC
 						ea 	<= alu_result;
@@ -862,15 +880,14 @@ begin
 						addr <= "000" & alu_result(12 downto 1) & '0';
 						cruout <= ir(8);	-- in case of output, drive to CRUOUT the bit (SBZ, SBO)
 						cpu_state <= do_single_bit_cru2;
-						shift_count <= "00101";	-- 5 clock cycles, used as delay counter
+						delay_count <= cru_delay_clocks;
 					when do_single_bit_cru2 =>
 						-- stay in this state until delay over. For writes drive CRUCLK high.
 						if ir(15 downto 8) /= x"1F" then	-- Not TB
 							-- SBO or SBZ - or external instructions
 							cruclk <= '1';
 						end if;
-						shift_count <= std_logic_vector(unsigned(shift_count) - to_unsigned(1, 5));
-						if shift_count = "00001" then
+						if delay_count = "0000" then
 							cpu_state <= do_fetch;
 							cruclk <= '0';		-- drive low, regardless of write or read. For reads (TB) this was zero to begin with.
 							if ir(15 downto 8) = x"1F" then -- Check if we have SBZ instruction
@@ -1025,21 +1042,24 @@ begin
 						arg1 <= x"0002";
 						arg2 <= ea;
 						ope <= alu_add;
+						delay_count <= cru_delay_clocks;
 					when do_ldcr4 =>
 						cruclk <= '1';
 						cpu_state <= do_ldcr5;
 					when do_ldcr5 =>
-						ea <= alu_result;
-						cruclk <= '0';
-						dec_shift_count := True;
-						if shift_count = "00001" then
-							if ir(10) = '0' then
-								cpu_state <= do_fetch;		-- LDCR, we are done
+						if delay_count = "0000" then
+							ea <= alu_result;
+							cruclk <= '0';
+							dec_shift_count := True;
+							if shift_count = "00001" then
+								if ir(10) = '0' then
+									cpu_state <= do_fetch;		-- LDCR, we are done
+								else
+									cpu_state <= do_stcr6;		-- STCR, we need to store the result
+								end if;
 							else
-								cpu_state <= do_stcr6;		-- STCR, we need to store the result
+								cpu_state <= do_ldcr2;
 							end if;
-						else
-							cpu_state <= do_ldcr2;
 						end if;
 					when do_stcr6 =>
 						-- Writeback the result in reg_stcr. 
@@ -1295,6 +1315,10 @@ begin
 				-- decrement shift count if necessary
 				if dec_shift_count then
 					shift_count <= std_logic_vector(unsigned(shift_count) - to_unsigned(1, 5));
+				end if;
+				
+				if delay_count /= "0000" then
+					delay_count <= std_logic_vector(unsigned(delay_count) - to_unsigned(1, 4));
 				end if;
 				
 			

@@ -61,6 +61,8 @@ ARCHITECTURE behavior OF tb_tms9900 IS
 			cruin		: in STD_LOGIC;
 			cruout   : out STD_LOGIC;
 			cruclk   : out STD_LOGIC;
+			hold     : in STD_LOGIC;		-- DMA request, active high
+			holda    : out STD_LOGIC;     -- DMA ack, active high
          stuck : OUT  std_logic
         );
     END COMPONENT;
@@ -95,6 +97,8 @@ ARCHITECTURE behavior OF tb_tms9900 IS
 	signal cruout : std_logic;
 	signal cruclk : std_logic;
    signal stuck : std_logic;
+	signal hold : std_logic := '0';
+	signal holda : std_logic;
 
    -- Clock period definitions
    constant clk_period : time := 10 ns;
@@ -131,6 +135,8 @@ BEGIN
 			 cruin => cruin,
 			 cruout => cruout,
 			 cruclk => cruclk,
+			 hold => hold,
+			 holda => holda,
           stuck => stuck
         );
 		  
@@ -164,6 +170,13 @@ BEGIN
 		
 		for i in 0 to 29999 loop
 			wait for clk_period/2;
+			
+			-- Test hold logic
+			if i = 2000 then 
+				hold <= '1';
+			elsif i = 2200 then
+				hold <= '0';
+			end if;
 			
 			if rd='1' then
 				addr_int := to_integer( unsigned( addr(15 downto 1) ));	-- word address
