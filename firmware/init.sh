@@ -13,7 +13,7 @@ export CART_ROM=90000
 export CART_ROM2=92000
 export CONSOLE_ROM=BA000
 export DSR_ROM=B0000
-export PORT=-6
+export PORT=-5
 
 
 ../memloader/memloader $PORT 100008 cpu_reset_on.bin
@@ -39,9 +39,9 @@ export PORT=-6
 # ../memloader/memloader $PORT $CART_GROM ../memloader/TIEAG.BIN
 
 # RXB
-../memloader/memloader $PORT $CART_ROM ../memloader/RXBC.Bin
-../memloader/memloader $PORT $CART_ROM2 ../memloader/RXBD.Bin
-../memloader/memloader $PORT $CART_GROM ../memloader/RXBG.Bin
+# ../memloader/memloader $PORT $CART_ROM ../memloader/RXBC.Bin
+# ../memloader/memloader $PORT $CART_ROM2 ../memloader/RXBD.Bin
+# ../memloader/memloader $PORT $CART_GROM ../memloader/RXBG.Bin
 
 # TI Invaders
 # ../memloader/memloader $PORT $CART_ROM ../memloader/TI-InvaC.bin

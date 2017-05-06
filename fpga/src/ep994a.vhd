@@ -99,15 +99,12 @@ entity ep994a is
 
 			  ----------------------------------------------
 			  -- Signals for the PCB
-			  ALATCH    : in std_logic;	-- CPU address latch input
+--			  ALATCH    : in std_logic;	-- CPU address latch input
 --			  RD_n      : in std_logic;	-- CPU read signal
-			  BUS_OE_n  : out std_logic;	-- when low, 16-bit bus drivers active
-			  BUSDIR 	: out std_logic;	-- direction of 16-bit bus. High=TMS99105 driving the bus
-			  CTRL_RD_n : out std_logic;	-- when IO1N..IO8N contains bus control signals from CPU
-			  CTRL_CP   : out std_logic;  -- rising edge clocks IO1P..IO8P to control latch
-
-			  
-
+--			  BUS_OE_n  : out std_logic;	-- when low, 16-bit bus drivers active
+--			  BUSDIR 	: out std_logic;	-- direction of 16-bit bus. High=TMS99105 driving the bus
+--			  CTRL_RD_n : out std_logic;	-- when IO1N..IO8N contains bus control signals from CPU
+--			  CTRL_CP   : out std_logic;  -- rising edge clocks IO1P..IO8P to control latch
 			  
 			  -- VGA output
 			  VGA_HSYNC	: out std_logic;
@@ -200,9 +197,10 @@ architecture Behavioral of ep994a is
 	signal cpu_addr			: std_logic_vector(15 downto 0);
 	signal cpu_data_out		: std_logic_vector(15 downto 0);	-- data to CPU
 	signal cpu_data_in		: std_logic_vector(15 downto 0);	-- data from CPU
-	signal alatch_sampler	: std_logic_vector(15 downto 0);
+--	signal alatch_sampler	: std_logic_vector(15 downto 0);
 	signal wr_sampler			: std_logic_vector(3 downto 0);
 	signal rd_sampler			: std_logic_vector(3 downto 0);
+	signal cruclk_sampler   : std_logic_vector(3 downto 0);
 	signal cpu_access			: std_logic;		-- when '1' CPU owns the SRAM memory bus	
 	signal outreg				: std_logic_vector(15 downto 0);
 	signal mem_to_cpu   		: std_logic_vector(15 downto 0);
@@ -277,12 +275,19 @@ architecture Behavioral of ep994a is
 	signal BST1			: std_logic;	-- IO6N - indata[13]
 	signal BST2			: std_logic;	-- IO7N - indata[14]
 	signal BST3			: std_logic;	-- IO8N - indata[15]
-	signal bus_oe_n_internal : std_logic;
+--	signal bus_oe_n_internal : std_logic;
 	-- when to write to places
 	signal go_write   : std_logic;
 	signal cpu_mem_write_pending : std_logic;
 	-- counter of alatch pulses to produce a sign of life of the CPU
 	signal alatch_counter : std_logic_vector(19 downto 0);
+	
+	signal go_cruclk : std_logic;	-- CRUCLK write pulses from the soft TMS9900 core
+
+-------------------------------------------------------------------------------	
+-- SRAM debug signals with FPGA CPU
+	signal sram_debug : std_logic_vector(63 downto 0);
+	signal sram_capture : boolean := False;
 
 -------------------------------------------------------------------------------	
 -- Signals from FPGA CPU
@@ -298,6 +303,12 @@ architecture Behavioral of ep994a is
 	signal cpu_cruout : std_logic;
 	signal cpu_cruclk : std_logic;
 	signal cpu_stuck : std_logic;
+	
+	signal cpu_hold : std_logic;
+	signal cpu_holda : std_logic;
+	
+	signal cpu_reset : std_logic;
+	signal cpu_debug_out : STD_LOGIC_VECTOR (47 downto 0);
 -------------------------------------------------------------------------------	
     COMPONENT tms9900
     PORT(
@@ -316,9 +327,12 @@ architecture Behavioral of ep994a is
 --			alu_debug_oper : out STD_LOGIC_VECTOR(3 downto 0);
 --			alu_debug_arg1 : OUT  std_logic_vector(15 downto 0);
 --			alu_debug_arg2 : OUT  std_logic_vector(15 downto 0);
+			cpu_debug_out : out STD_LOGIC_VECTOR (47 downto 0);	
 			cruin		: in STD_LOGIC;
 			cruout   : out STD_LOGIC;
 			cruclk   : out STD_LOGIC;
+			hold     : in STD_LOGIC;
+			holda    : out STD_LOGIC;
          stuck : OUT  std_logic
         );
     END COMPONENT;
@@ -430,6 +444,8 @@ begin
 	-- CPU_RESET <= cpu_reset_ctrl(0) and real_reset;
 	conl_reset <= cpu_reset_ctrl(0) and real_reset;
 	
+	cpu_access <= not cpu_holda;	-- CPU owns the bus except when in hold
+	
 	-------------------------------------
 	-- vdp interrupt
 	-- INTERRUPT <=  not vdp_interrupt when cru9901(2)='1' else '1';	-- TMS9901 interrupt mask bit
@@ -470,6 +486,7 @@ begin
 				alatch_counter <= (others => '0');
 				
 				cpu_mem_write_pending <= '0';
+				sram_capture <= True;
 			else
 				-- processing of normal clocks here. We run at 100MHz.
 				---------------------------------------------------------
@@ -541,30 +558,30 @@ begin
 						debug_sram_oe <= '1';
 						mem_read_ack <= '0';
 						mem_write_ack <= '0';
-						cpu_access <= '1';		
+--						cpu_access <= '1';		
 						DEBUG2 <= '0';						
-						if mem_write_rq = '1' and mem_addr(20)='0' and alatch_sampler(1 downto 0) = "01" then
+						if mem_write_rq = '1' and mem_addr(20)='0' and cpu_holda='1' then
 							-- normal memory write
 							sram_addr_bus <= mem_addr(19 downto 1);	-- setup address
-							cpu_access <= '0';
+--							cpu_access <= '0';
 							mem_state <= wr0;
 							mem_drive_bus <= '1';	-- only writes drive the bus
-						elsif mem_read_rq = '1' and mem_addr(20)='0' and alatch_sampler(1 downto 0) = "01" then
+						elsif mem_read_rq = '1' and mem_addr(20)='0' and cpu_holda='1' then
 							sram_addr_bus <= mem_addr(19 downto 1);	-- setup address
-							cpu_access <= '0';
+--							cpu_access <= '0';
 							mem_state <= rd0;
 							mem_drive_bus <= '0';
 						elsif MEM_n = '0' and rd_sampler(1 downto 0) = "10" then
 							-- init CPU read cycle
-							cpu_access <= '1';	
+--							cpu_access <= '1';	
 							mem_state <= cpu_rd0;
 							debug_sram_ce0 <= '0';	-- init read cycle
 							debug_sram_oe <= '0';
 							mem_drive_bus <= '0';
 						elsif cpu_mem_write_pending = '1' then
 							-- init CPU write cycle
-							cpu_access <= '1';
-							mem_state <= cpu_wr1;	-- EPEP jump directly to stare 1!!!
+--							cpu_access <= '1';
+							mem_state <= cpu_wr1;	-- EPEP jump directly to state 1!!!
 							debug_sram_ce0 <= '0';	-- initiate write cycle
 							debug_sram_WE <= '0';	
 							mem_drive_bus <= '1';	-- only writes drive the bus
@@ -597,7 +614,7 @@ begin
 						end if;
 						debug_sram_ce0 <= '1';
 						debug_sram_oe <= '1';
-						mem_state <= grace;
+						mem_state <= grace;	
 						mem_read_ack <= '1';
 					when grace =>						-- one cycle grace period before going idle.
 						mem_state <= idle;			-- thus one cycle when mem_write_rq is not sampled after write.
@@ -609,6 +626,10 @@ begin
 					when cpu_rd1 => 
 						mem_state <= cpu_rd2;
 						mem_to_cpu <= sram_16bit_read_bus(15 downto 0);
+						if sram_capture then
+							sram_capture <= False;
+							sram_debug <= cpu_addr & "00000000000" & cpu_access & sram_addr_bus & '0' & sram_16bit_read_bus(15 downto 0);
+						end if;
 					when cpu_rd2 =>
 						debug_sram_ce0 <= '1';
 						debug_sram_oe <= '1';
@@ -630,7 +651,7 @@ begin
 				case ctrl_state is 
 					when idle =>
 						if mem_read_rq = '1' and mem_addr(20)='1' then
-							if mem_addr(3) = '0' then
+							if mem_addr(4 downto 3) = "00" then
 								-- read keyboard matrix (just for debugging)
 								ki := to_integer(unsigned(mem_addr(2 downto 0)));
 								mem_data_in(0) <= keyboard(ki, 0);
@@ -642,7 +663,25 @@ begin
 								mem_data_in(6) <= keyboard(ki, 6);
 								mem_data_in(7) <= keyboard(ki, 7);
 							else
-								mem_data_in <= cpu_reset_ctrl;
+								case mem_addr(4 downto 0) is
+									when "01000" => mem_data_in <= cpu_reset_ctrl;
+									when "10000" => mem_data_in <= cpu_debug_out(7 downto 0);
+									when "10001" => mem_data_in <= cpu_debug_out(15 downto 8);
+									when "10010" => mem_data_in <= cpu_debug_out(23 downto 16);
+									when "10011" => mem_data_in <= cpu_debug_out(31 downto 24);
+									when "10100" => mem_data_in <= cpu_debug_out(39 downto 32);
+									when "10101" => mem_data_in <= cpu_debug_out(47 downto 40);									
+									when "11000" => mem_data_in <= sram_debug(7 downto 0);
+									when "11001" => mem_data_in <= sram_debug(15 downto 8);
+									when "11010" => mem_data_in <= sram_debug(23 downto 16);
+									when "11011" => mem_data_in <= sram_debug(31 downto 24);
+									when "11100" => mem_data_in <= sram_debug(39 downto 32);
+									when "11101" => mem_data_in <= sram_debug(47 downto 40);									
+									when "11110" => mem_data_in <= sram_debug(55 downto 48);
+									when "11111" => mem_data_in <= sram_debug(63 downto 56);									
+									when others =>
+										mem_data_in <= x"AA";
+								end case;
 							end if;
 							ctrl_state <= control_read;
 						elsif mem_write_rq = '1' and mem_addr(20)='1' then 
@@ -680,14 +719,12 @@ begin
 				
 				
 				-- CPU signal samplers
-				alatch_sampler <= alatch_sampler(alatch_sampler'length-2 downto 0) & ALATCH;
-				-- if alatch_sampler(1 downto 0) = "01" then
-				if alatch_sampler(2 downto 0) = "011" then
---					cpu_addr <= indata;		-- latch CPU address bus on ALATCH going high
+				if cpu_as='1' then
 					alatch_counter <= std_logic_vector(to_unsigned(1+to_integer(unsigned(alatch_counter)), alatch_counter'length));
 				end if;
 				wr_sampler <= wr_sampler(wr_sampler'length-2 downto 0) & WE_n;
 				rd_sampler <= rd_sampler(rd_sampler'length-2 downto 0) & RD_n;
+				cruclk_sampler <= cruclk_sampler(cruclk_sampler'length-2 downto 0) & cpu_cruclk;
 				vdp_wr <= '0';
 				vdp_rd <= '0';
 				grom_we <= '0';
@@ -719,7 +756,7 @@ begin
 				end if;
 				
 				-- CRU cycle to TMS9901
-				if MEM_n='1' and cpu_addr(15 downto 8)=x"00" and go_write = '1' then
+				if MEM_n='1' and cpu_addr(15 downto 8)=x"00" and go_cruclk = '1' then
 
 					if cru9901(0) = '1' and cpu_addr(5)='0' and cpu_addr(4 downto 1) /= "0000" then
 						-- write to timer bits (not bit 0)
@@ -732,11 +769,11 @@ begin
 				end if;
 				
 				-- CRU write cycle to disk control system
-				if MEM_n='1' and cpu_addr(15 downto 1)= x"110" & "000" and go_write = '1' then
+				if MEM_n='1' and cpu_addr(15 downto 1)= x"110" & "000" and go_cruclk = '1' then
 					cru1100 <= cpu_cruout;
 				end if;
 				-- SAMS register writes
-				if MEM_n='1' and cpu_addr(15 downto 4) = x"1E0" and go_write = '1' then
+				if MEM_n='1' and cpu_addr(15 downto 4) = x"1E0" and go_cruclk = '1' then
 					sams_regs(to_integer(unsigned(cpu_addr(3 downto 1)))) <= cpu_cruout;
 				end if;				
 				
@@ -792,14 +829,25 @@ begin
 		mem_write_ack	=> mem_write_ack	
 		);
 		
-	led <= outreg(15 downto 8);
+	-- led <= outreg(15 downto 8);
+	led(0) <= cpu_reset;
+	led(1) <= cpu_hold;
+	led(2) <= cpu_holda;
+	led(3) <= cpu_rd;
+	led(4) <= cpu_stuck;
+	led(5) <= cpu_wr;
+	led(6) <= '1';
+	led(7) <= alatch_counter(19);
+	
+	
+	cpu_hold <= '1' when mem_read_rq='1' or mem_write_rq='1' else '0'; -- issue DMA request
 
 	-- TMS99105 CPU interface.
-	BUSDIR <= RD_n;	-- Bus buffers towards TMS99105 only during read cycle
-	bus_oe_n_internal <= '1' when alatch_sampler(2) = '1' and alatch_sampler(5) = '0' else '0'; -- only four clock cycles during which indata buffers are disabled
-	BUS_OE_n <= bus_oe_n_internal;
-	CTRL_RD_n <= not bus_oe_n_internal;	-- Control bits readable when addr/data buffers are off
-	CTRL_CP <= '1' when alatch_sampler(4) = '1' and alatch_sampler(6) = '0' else '0';	-- issue clock pulse	
+--	BUSDIR <= RD_n;	-- Bus buffers towards TMS99105 only during read cycle
+--	bus_oe_n_internal <= '1' when alatch_sampler(2) = '1' and alatch_sampler(5) = '0' else '0'; -- only four clock cycles during which indata buffers are disabled
+--	BUS_OE_n <= bus_oe_n_internal;
+--	CTRL_RD_n <= not bus_oe_n_internal;	-- Control bits readable when addr/data buffers are off
+--	CTRL_CP <= '1' when alatch_sampler(4) = '1' and alatch_sampler(6) = '0' else '0';	-- issue clock pulse	
 	-- FPGA drivers follow RD_n except during control signal operations (CTRL_RD_n = '0')
 --	INDATA <= "ZZZZZZZZ" & conl_led1 & conl_led2 & conl_app_n & conl_ready & conl_hold & conl_nmi & conl_int & conl_reset when bus_oe_n_internal='1'
 --		else "ZZZZZZZZZZZZZZZZ" when RD_n = '1'
@@ -808,28 +856,10 @@ begin
 	DEBUG1 <= go_write;
 --	WE_n <= WE_n_ext;
 	
-	go_write <= '1' when wr_sampler = "1000" else '0';
+	go_write <= '1' when wr_sampler = "1000" else '0'; -- wr_sampler = "1110" else '0';
+	go_cruclk <= '1' when cruclk_sampler(1 downto 0) = "01" else '0';
 
-	process(clk)
-	begin
-		if rising_edge(clk) then
-		
---			if alatch_sampler(8 downto 7) = "01" and WE_n = '0' then
---				go_write <= '1';
---			else
---				go_write <= '0';
---			end if;
 
-			if alatch_sampler(4 downto 3) = "01" then 
-				-- WE_n 	<= indata(8); -- need to be sampled externally for good timing
---				MEM_n <= indata(9);
---				BST1  <= indata(13);
---				BST2  <= indata(14);
---				BST3  <= indata(15);
-			end if;
-		end if;
-	end process;
-	
 	-- Here drive the two shield board LEDs to include a little status information:
 	-- LED1: Disk access
 	-- LED2: ALATCH counter indication (i.e. CPU is alive)
@@ -943,10 +973,11 @@ begin
 	WE_n <= not cpu_wr;
 	RD_n <= not cpu_rd;
 	cpu_cruin <= cru_read_bit;
-		
+	cpu_reset <= not (cpu_reset_ctrl(0) and real_reset);
+	
 	cpu : tms9900 PORT MAP (
           clk => clk,
-          reset => real_reset_n,
+          reset => cpu_reset,
           addr => cpu_addr,
           data_in => cpu_data_out,
           data_out => cpu_data_in,
@@ -960,9 +991,12 @@ begin
 --			 alu_debug_oper => alu_debug_oper,
 --			 alu_debug_arg1 => alu_debug_arg1,
 --			 alu_debug_arg2 => alu_debug_arg2,
+		    cpu_debug_out => cpu_debug_out,
 			 cruin => cpu_cruin,
 			 cruout => cpu_cruout,
 			 cruclk => cpu_cruclk,
+			 hold => cpu_hold,
+			 holda => cpu_holda,
           stuck => cpu_stuck
         );
 		

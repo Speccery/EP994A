@@ -49,6 +49,7 @@ entity tms9900 is Port (
 --	alu_debug_oper : out STD_LOGIC_VECTOR(3 downto 0);
 --	alu_debug_arg1 :  out STD_LOGIC_VECTOR (15 downto 0);
 --	alu_debug_arg2 :  out STD_LOGIC_VECTOR (15 downto 0);	
+	cpu_debug_out : out STD_LOGIC_VECTOR (47 downto 0);	
 	cruin		: in STD_LOGIC;
 	cruout   : out STD_LOGIC;
 	cruclk   : out STD_LOGIC;
@@ -72,6 +73,12 @@ architecture Behavioral of tms9900 is
 	signal reg_t2 : std_logic_vector(15 downto 0); -- storage of source operand
 	signal reg_stcr : std_logic_vector(15 downto 0); -- specific storage for STCR instruction - BUGBUG
 	signal read_byte_aligner : std_logic_vector(15 downto 0); -- align bytes to words for reads
+	
+	-- debug stuff begin
+	signal pc_ir : std_logic_vector(15 downto 0);	-- capture address when IR is loaded - debug BUGBUG
+	signal first_ir : std_logic_vector(15 downto 0);
+	signal capture_ir : boolean := false;
+	-- debug stuff end
 		
 	type cpu_state_type is (
 		do_pc_read, do_alu_read,
@@ -79,9 +86,9 @@ architecture Behavioral of tms9900 is
 		do_branch,
 		do_stuck,
 		do_read,
-		do_read0, do_read1, do_read2, do_read3,
+		do_read0, do_read1, do_read2, do_read3, do_read4,
 		do_write,
-		do_write0, do_write1, do_write2, do_write3,
+		do_write0, do_write1, do_write2, do_write3, do_write4,
 		do_ir_imm, do_lwpi_limi,
 		do_load_imm, do_load_imm2, do_load_imm3, do_load_imm4, do_load_imm5,
 		do_read_operand0, do_read_operand1, do_read_operand2, do_read_operand3, do_read_operand4, do_read_operand5,
@@ -135,6 +142,8 @@ architecture Behavioral of tms9900 is
 	constant cru_delay_clocks		: std_logic_vector(3 downto 0) := "0101";
 
 begin
+
+	cpu_debug_out <= first_ir & pc_ir & ir;
 	
 	process(arg1, arg2, ope)
 	variable t : std_logic_vector(15 downto 0);
@@ -252,6 +261,7 @@ begin
 			cpu_state <= do_blwp00;		-- do blwp from zero
 			delay_count <= "0000";
 			holda <= hold;					-- during reset hold is respected
+			capture_ir <= True;
 		else
 			if rising_edge(clk) then
 			
@@ -278,15 +288,30 @@ begin
 						rd <= '1';
 						addr <= alu_result;
 						cpu_state <= do_read0;
-					when do_read0 => cpu_state <= do_read1; as <= '0';
-					when do_read1 => cpu_state <= do_read2;
+					when do_read0 => 
+						cpu_state <= do_read1; 
+						as <= '0';
+						delay_count <= "0101";
+					when do_read1 => 
+						if delay_count = "0000" then 
+							cpu_state <= do_read2;
+						end if;
 					when do_read2 => cpu_state <= do_read3;
 					when do_read3 => 
 						-- if ready='1' then 
-							cpu_state <= cpu_state_next;
+							cpu_state <= do_read4; -- cpu_state_next;
 							rd <= '0';
 							rd_dat <= data_in;
 						-- end if;
+					when do_read4 =>	-- BUGBUG this state just is here to waste time, and make sure bus cycle are not too back to back
+						cpu_state <= cpu_state_next;
+						if capture_ir then
+							capture_ir <= False;
+							first_ir <= rd_dat;
+						end if;
+						
+						
+						
 					-- write cycles --
 					when do_write =>
 						as <= '1';
@@ -300,14 +325,22 @@ begin
 						addr <= alu_result;
 						data_out <= wr_dat;
 						cpu_state <= do_write0;
-					when do_write0 => cpu_state <= do_write1; as <= '0';
-					when do_write1 => cpu_state <= do_write2;
+					when do_write0 => 
+						cpu_state <= do_write1; 
+						as <= '0';
+						delay_count <= "0101";
+					when do_write1 => 
+						if delay_count = "0000" then
+							cpu_state <= do_write2;
+						end if;
 					when do_write2 => cpu_state <= do_write3;
 					when do_write3 => 
 						-- if ready='1' then
-							cpu_state <= cpu_state_next;
+							cpu_state <= do_write4; -- cpu_state_next;
 							wr <= '0';
 						-- end if;
+					when do_write4 => 	-- BUGBUG this state just is here to waste time, and make sure bus cycle are not too back to back
+						cpu_state <= cpu_state_next;
 					----------------
 					-- operations --
 					----------------
@@ -328,7 +361,12 @@ begin
 					when do_decode =>
 						operand_word <= True;			-- By default 16-bit operations.
 						ir <= rd_dat;						-- read done, store to instruction register
+						pc_ir <= pc;						-- store increment PC for debug purposes
 						iaq <= '0';
+--						if capture_ir then
+--							capture_ir <= False;
+--							first_ir <= rd_dat;
+--						end if;
 						-- Next analyze what we got
 						-- check for dual operand instructions with full addressing modes
 						if rd_dat(15 downto 13) = "101" or -- A, AB
@@ -1310,6 +1348,7 @@ begin
 						
 					when do_stuck =>
 						stuck <= '1';
+						holda <= hold;
 				end case;
 
 				-- decrement shift count if necessary
