@@ -119,7 +119,7 @@ architecture Behavioral of tms9900 is
 	signal delay_count : std_logic_vector(3 downto 0);
 	
 	type alu_operation_type is (
-		alu_load2, alu_add, alu_or, alu_and, alu_sub, alu_and_not, alu_xor, 
+		alu_load1, alu_load2, alu_add, alu_or, alu_and, alu_sub, alu_and_not, alu_xor, 
 		alu_coc, alu_czc,
 		alu_swpb2, alu_abs,
 		alu_sla, alu_sra, alu_src, alu_srl
@@ -150,6 +150,8 @@ begin
 	begin
 		-- arg1 is DA, arg2 is SA when ALU used for instruction execute
 		case ope is
+			when alu_load1 =>
+				alu_out <= '0' & arg1;
 			when alu_load2 =>
 				alu_out <= '0' & arg2;
 --				alu_debug_oper <= x"1";
@@ -163,8 +165,9 @@ begin
 				alu_out <= '0' & arg1 and '0' & arg2;
 --				alu_debug_oper <= x"4";
 			when alu_sub =>
-				t := std_logic_vector(unsigned(arg1) - unsigned(arg2));
-				alu_out <= t(15) & t;		-- BUGBUG I wonder if this is right for carry generation?
+				-- t := std_logic_vector(unsigned(arg1) - unsigned(arg2));
+				-- alu_out <= t(15) & t;		-- BUGBUG I wonder if this is right for carry generation?
+				alu_out <= std_logic_vector(unsigned('0' & arg1) - unsigned('0' & arg2));
 --				alu_debug_oper <= x"5";
 			when alu_and_not =>
 				alu_out <= '0' & arg1 and not ('0' & arg2);
@@ -211,9 +214,9 @@ begin
 	-- ST0 ST1 ST2 ST3 ST4 ST5
 	-- L>  A>  =   C   O   P
 	-- ST0
-	alu_logical_gt 	<= '1' when (arg1(15)='0' and arg2(15)='1') or (arg1(15)=arg2(15) and alu_result(15)= '1') else '0';
+	alu_logical_gt 	<= '1' when (arg1(15)='1' and arg2(15)='0') or (arg1(15)=arg2(15) and alu_result(15)= '1') else '0';
 	-- ST1
-	alu_arithmetic_gt <= '1' when (arg1(15)='1' and arg2(15)='0') or (arg1(15)=arg2(15) and alu_result(15)= '1') else '0';
+	alu_arithmetic_gt <= '1' when (arg1(15)='0' and arg2(15)='1') or (arg1(15)=arg2(15) and alu_result(15)= '1') else '0';
 	-- ST2
 	alu_flag_zero 		<= '1' when alu_result = x"0000" else '0';
 	-- ST3 carry
@@ -515,14 +518,16 @@ begin
 						cpu_state_next <= do_load_imm4;
 					when do_load_imm4 =>	-- do actual operation
 						-- test_out <= x"0004";
-						arg1 <= rd_dat;	-- contents of workspace register
-						arg2 <= reg_t;		-- temporary holds the immediate addess
+						-- The order below is abit funny, but that's due to CI instruction (sub).
+						-- CI RX,IMM is defined as IMM-RX, and not RX-IMM
+						arg1 <= reg_t;		-- temporary holds the immediate parameter
+						arg2 <= rd_dat;	-- contents of workspace register
 						case ir(7 downto 4) is
-							when x"0" => ope <= alu_load2;
-							when x"2" => ope <= alu_add;
-							when x"4" => ope <= alu_and;
-							when x"6" => ope <= alu_or;
-							when x"8" => ope <= alu_sub;
+							when x"0" => ope <= alu_load1; -- LI
+							when x"2" => ope <= alu_add;	 -- AI
+							when x"4" => ope <= alu_and;	 -- ANDI
+							when x"6" => ope <= alu_or;	 -- ORI
+							when x"8" => ope <= alu_sub;	 -- CI
 							when others => cpu_state <= do_stuck;
 						end case;
 						cpu_state <= do_load_imm5;
@@ -579,9 +584,9 @@ begin
 						arg2 <= reg_t2;
 						cpu_state <= do_dual_op3;
 						case ir(15 downto 13) is
-							when "101" => ope <= alu_add;
-							when "100" => ope <= alu_sub;
-							when "011" => ope <= alu_sub;
+							when "101" => ope <= alu_add; -- A add
+							when "100" => ope <= alu_sub;	-- C compare
+							when "011" => ope <= alu_sub; -- S substract
 							when "111" => ope <= alu_or;
 							when "010" => ope <= alu_and_not;
 							when "110" => ope <= alu_load2;

@@ -21,8 +21,106 @@ BLWPTEST
 
 COCTEST DATA >0040
 CZCTEST DATA >F000
+
+*---------------------------------------------
+* Macro: printNumber <arg>
+* (would be xop <arg>,10 for the TMS9995 BB)
+*---------------------------------------------
+      .defm printNumber
+*			MOV		#1,@PRTR1P		; Store HEX value to print
+*			BLWP	@PRINTR1			; Go print R1
+      .endm
+      
+*---------------------------------------------
+* Macro: printCrLf
+*---------------------------------------------
+      .defm printCrLf
+*	    BLWP	@PRINTS
+*  	  DATA	TXTCRLF
+      .endm
+
     
 BOOT
+  .printCrLf
+  .printCrLf
+  .printCrLf
+  .printCrLf
+  CLR  R0
+  A	   R0,R0        ; clear carry
+; Test immediate compare instruction - ; EP display top 4 bits of R1 in current VDP RAM location
+  LI    R1,>8000
+  SRL 	R1,4
+  ANDI 	R1,>0F00
+  AI		R1,>3000	; Convert to ASCII
+  CI		R1,>3A00
+  STST  R10       ; FPGA C000
+  .printCrLf
+  .printNumber R10
+  LI    R1,>B000
+  SRL 	R1,4
+  ANDI 	R1,>0F00
+  AI		R1,>3000	; Convert to ASCII
+  CI		R1,>3A00
+  STST  R10       ; FPGA 0000
+  .printCrLf
+  .printNumber R10
+; Test compare instruction
+  LI   R1,1
+  LI   R2,2
+  C    R1,R2		; classic99 - FPGA
+  STST R10			; 0000		  0000
+  .printCrLf
+  .printNumber R10
+  C    R2,R1
+  STST R10			; C000        C000
+  .printCrLf
+  .printNumber R10
+  C	   R1,R1
+  STST R10			; 2000        2000
+  .printCrLf
+  .printNumber R10
+  LI   R3,>8000
+  C    R1,R3		; 4000		  4000
+  STST R10
+  .printCrLf
+  .printNumber R10
+  SETO  R4
+  C    R4,R3
+  STST R10  		; C000        C000
+  .printCrLf
+  .printNumber R10
+  
+; test subtract instruction
+  .printCrLf
+  MOV  R2,R5
+  S    R1,R5		; classic99 - FPGA
+  STST R10			; D000		  0000
+  .printCrLf
+  .printNumber R10
+  MOV  R1,R5
+  S    R2,R5
+  STST R10			; 8000        D800
+  .printCrLf
+  .printNumber R10
+  MOV  R1,R5
+  S	   R1,R5
+  STST R10			; 3000        2000
+  .printCrLf
+  .printNumber R10
+  LI   R3,>8000
+  MOV  R3,R5
+  S    R1,R5		; D800		  4000
+  STST R10
+  .printCrLf
+  .printNumber R10
+  SETO  R4
+  MOV  R3,R5
+  S    R4,R5
+  STST R10  		; 8000        D000
+  .printCrLf
+  .printNumber R10 
+  
+  
   BLWP @BLWPTEST
   LI  R12,>0240
   SBO 0          * debug marker
