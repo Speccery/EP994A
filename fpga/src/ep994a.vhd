@@ -309,6 +309,11 @@ architecture Behavioral of ep994a is
 	
 	signal cpu_reset : std_logic;
 	signal cpu_debug_out : STD_LOGIC_VECTOR (47 downto 0);
+	
+	signal cpu_int_req : std_logic;
+	signal cpu_ic03    : std_logic_vector(3 downto 0) := "0001";
+	signal cpu_int_ack : std_logic;
+	
 -------------------------------------------------------------------------------	
     COMPONENT tms9900
     PORT(
@@ -327,6 +332,9 @@ architecture Behavioral of ep994a is
 --			alu_debug_oper : out STD_LOGIC_VECTOR(3 downto 0);
 --			alu_debug_arg1 : OUT  std_logic_vector(15 downto 0);
 --			alu_debug_arg2 : OUT  std_logic_vector(15 downto 0);
+			int_req	: in STD_LOGIC;		-- interrupt request, active high
+			ic03     : in STD_LOGIC_VECTOR(3 downto 0);	-- interrupt priority for the request, 0001 is the highest (0000 is reset)
+			int_ack	: out STD_LOGIC;		-- does not exist on the TMS9900, when high CPU vectors to interrupt
 			cpu_debug_out : out STD_LOGIC_VECTOR (47 downto 0);	
 			cruin		: in STD_LOGIC;
 			cruout   : out STD_LOGIC;
@@ -974,6 +982,7 @@ begin
 	RD_n <= not cpu_rd;
 	cpu_cruin <= cru_read_bit;
 	cpu_reset <= not (cpu_reset_ctrl(0) and real_reset);
+	cpu_int_req <= not conl_int;
 	
 	cpu : tms9900 PORT MAP (
           clk => clk,
@@ -991,6 +1000,9 @@ begin
 --			 alu_debug_oper => alu_debug_oper,
 --			 alu_debug_arg1 => alu_debug_arg1,
 --			 alu_debug_arg2 => alu_debug_arg2,
+			 int_req => cpu_int_req,
+			 ic03 => cpu_ic03,
+			 int_ack => cpu_int_ack,
 		    cpu_debug_out => cpu_debug_out,
 			 cruin => cpu_cruin,
 			 cruout => cpu_cruout,

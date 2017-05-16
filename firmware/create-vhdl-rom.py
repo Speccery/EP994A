@@ -29,7 +29,7 @@ use IEEE.NUMERIC_STD.ALL;
 
 entity testrom is
     Port ( clk : in  STD_LOGIC;
-           addr : in  STD_LOGIC_VECTOR (7 downto 0);
+           addr : in  STD_LOGIC_VECTOR (11 downto 0);
            data_out : out  STD_LOGIC_VECTOR (15 downto 0));
 end testrom;
 

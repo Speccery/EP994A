@@ -58,6 +58,9 @@ ARCHITECTURE behavior OF tb_tms9900 IS
 --			alu_debug_oper : out STD_LOGIC_VECTOR(3 downto 0);
 --			alu_debug_arg1 : OUT  std_logic_vector(15 downto 0);
 --			alu_debug_arg2 : OUT  std_logic_vector(15 downto 0);
+			int_req	: in STD_LOGIC;		-- interrupt request, active high
+			ic03     : in STD_LOGIC_VECTOR(3 downto 0);	-- interrupt priority for the request, 0001 is the highest (0000 is reset)
+			int_ack	: out STD_LOGIC;
 			cruin		: in STD_LOGIC;
 			cruout   : out STD_LOGIC;
 			cruclk   : out STD_LOGIC;
@@ -70,7 +73,7 @@ ARCHITECTURE behavior OF tb_tms9900 IS
 	 COMPONENT TESTROM
 	 PORT (
 		clk : IN  std_logic;
-      addr : in  STD_LOGIC_VECTOR (7 downto 0);
+      addr : in  STD_LOGIC_VECTOR (11 downto 0);
       data_out : out  STD_LOGIC_VECTOR (15 downto 0));
 	 END COMPONENT;
     
@@ -81,6 +84,9 @@ ARCHITECTURE behavior OF tb_tms9900 IS
    signal data_in : std_logic_vector(15 downto 0) := (others => '0');
    signal ready : std_logic := '0';
 	signal cruin : std_logic := '0';
+	signal int_req	: STD_LOGIC := '0';		-- interrupt request, active high
+	signal ic03    : STD_LOGIC_VECTOR(3 downto 0) := "0001";	-- interrupt priority for the request, 0001 is the highest (0000 is reset)
+	signal int_ack : STD_LOGIC;
 
  	--Outputs
    signal addr : std_logic_vector(15 downto 0);
@@ -132,6 +138,9 @@ BEGIN
 --			 alu_debug_oper => alu_debug_oper,
 --			 alu_debug_arg1 => alu_debug_arg1,
 --			 alu_debug_arg2 => alu_debug_arg2,
+			 int_req => int_req,
+			 ic03 => ic03,
+			 int_ack => int_ack,
 			 cruin => cruin,
 			 cruout => cruout,
 			 cruclk => cruclk,
@@ -142,7 +151,7 @@ BEGIN
 		  
 	ROM: TESTROM PORT MAP(
 		clk => clk,
-		addr => addr(8 downto 1),
+		addr => addr(12 downto 1),
 		data_out => rom_data
 		);
 
@@ -176,6 +185,13 @@ BEGIN
 				hold <= '1';
 			elsif i = 2200 then
 				hold <= '0';
+			end if;
+			
+			-- test interrupt behaviour
+			if i = 2400 then
+				int_req <= '1';
+			elsif i = 2500 then
+				int_req <= '0';
 			end if;
 			
 			if rd='1' then

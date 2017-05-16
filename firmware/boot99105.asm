@@ -206,7 +206,7 @@ GROM1
       SBO   2           ; Enable VDP interrupts
       LIMI  2           ; Enable interrupts
 
-      LI    R3,1000
+      LI    R3,5000
 !k    CLR   R0
       MOV   R0,@PRINTWS
 !    

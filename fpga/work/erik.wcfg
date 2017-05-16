@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wave_config>
+   <wave_state>
+   </wave_state>
+   <db_ref_list>
+      <db_ref path="C:/Users/Erik Piehl/Dropbox/Omat/trunk/EP994A/fpga/work/tb_tms9900_isim_beh.wdb" id="1" type="auto">
+         <top_modules>
+            <top_module name="numeric_std" />
+            <top_module name="std_logic_1164" />
+            <top_module name="std_logic_textio" />
+            <top_module name="tb_tms9900" />
+            <top_module name="textio" />
+            <top_module name="vcomponents" />
+         </top_modules>
+      </db_ref>
+   </db_ref_list>
+   <WVObjectSize size="19" />
+   <wvobject fp_name="/tb_tms9900/clk" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">clk</obj_property>
+      <obj_property name="ObjectShortName">clk</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_tms9900/reset" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">reset</obj_property>
+      <obj_property name="ObjectShortName">reset</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_tms9900/addr" type="array" db_ref_id="1">
+      <obj_property name="ElementShortName">addr[15:0]</obj_property>
+      <obj_property name="ObjectShortName">addr[15:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_tms9900/iaq" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">iaq</obj_property>
+      <obj_property name="ObjectShortName">iaq</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_tms9900/data_in" type="array" db_ref_id="1">
+      <obj_property name="ElementShortName">data_in[15:0]</obj_property>
+      <obj_property name="ObjectShortName">data_in[15:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_tms9900/ready" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">ready</obj_property>
+      <obj_property name="ObjectShortName">ready</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_tms9900/data_out" type="array" db_ref_id="1">
+      <obj_property name="ElementShortName">data_out[15:0]</obj_property>
+      <obj_property name="ObjectShortName">data_out[15:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_tms9900/rd" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">rd</obj_property>
+      <obj_property name="ObjectShortName">rd</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_tms9900/wr" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">wr</obj_property>
+      <obj_property name="ObjectShortName">wr</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_tms9900/as" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">as</obj_property>
+      <obj_property name="ObjectShortName">as</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_tms9900/cruout" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">cruout</obj_property>
+      <obj_property name="ObjectShortName">cruout</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_tms9900/cruclk" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">cruclk</obj_property>
+      <obj_property name="ObjectShortName">cruclk</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_tms9900/cruin" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">cruin</obj_property>
+      <obj_property name="ObjectShortName">cruin</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_tms9900/stuck" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">stuck</obj_property>
+      <obj_property name="ObjectShortName">stuck</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_tms9900/clk_period" type="other" db_ref_id="1">
+      <obj_property name="ElementShortName">clk_period</obj_property>
+      <obj_property name="ObjectShortName">clk_period</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_tms9900/hold" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">hold</obj_property>
+      <obj_property name="ObjectShortName">hold</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_tms9900/holda" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">holda</obj_property>
+      <obj_property name="ObjectShortName">holda</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_tms9900/int_req" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">int_req</obj_property>
+      <obj_property name="ObjectShortName">int_req</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_tms9900/int_ack" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">int_ack</obj_property>
+      <obj_property name="ObjectShortName">int_ack</obj_property>
+   </wvobject>
+</wave_config>

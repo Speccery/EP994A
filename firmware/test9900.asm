@@ -7,14 +7,16 @@
 	IDT 'TEST9900'
 WRKSP  EQU >8300
 WRKSP2 EQU >8320
+WRKSPI EQU >8380      * Interrupt workspace
     DATA WRKSP,BOOT   * RESET VECTOR
+    DATA WRKSPI,INTERRUPT
 BLWPTEST
     DATA WRKSP2,TEST2
     DATA >BEEF,>BEEF
     DATA 0,0
     DATA 0,0,0,0,0,0,0,0
     DATA 0,0,0,0,0,0,0,0
-    DATA 0,0,0,0,0,0,0,0
+    DATA 0,0,0,0,0,0
 * Here are the XOP vectors
     DATA WRKSP2,MYXOP0
     DATA WRKSP2,MYXOP1
@@ -41,7 +43,9 @@ CZCTEST DATA >F000
 
     
 BOOT
+  LIMI 2
   .printCrLf
+  IDLE            ; wait for interrupt
   .printCrLf
   .printCrLf
   .printCrLf
@@ -294,6 +298,11 @@ MYXOP1
   SBO 1
   RTWP
 
+INTERRUPT
+  LI  R0,>4455
+  LI  R1,>6677
+  STST R10
+  RTWP
   
 SLAST  END  BOOT
 

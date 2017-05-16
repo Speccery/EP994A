@@ -50,6 +50,9 @@ entity tms9900 is Port (
 --	alu_debug_arg1 :  out STD_LOGIC_VECTOR (15 downto 0);
 --	alu_debug_arg2 :  out STD_LOGIC_VECTOR (15 downto 0);	
 	cpu_debug_out : out STD_LOGIC_VECTOR (47 downto 0);	
+	int_req	: in STD_LOGIC;		-- interrupt request, active high
+	ic03     : in STD_LOGIC_VECTOR(3 downto 0);	-- interrupt priority for the request, 0001 is the highest (0000 is reset)
+	int_ack	: out STD_LOGIC;		-- does not exist on the TMS9900, when high CPU vectors to interrupt
 	cruin		: in STD_LOGIC;
 	cruout   : out STD_LOGIC;
 	cruclk   : out STD_LOGIC;
@@ -105,7 +108,8 @@ architecture Behavioral of tms9900 is
 		do_coc_czc_etc0, do_coc_czc_etc1, do_coc_czc_etc2, do_coc_czc_etc3,
 		do_xop,
 		do_ldcr0, do_ldcr1, do_ldcr2, do_ldcr3, do_ldcr4, do_ldcr5,
-		do_stcr0, do_stcr6, do_stcr7
+		do_stcr0, do_stcr6, do_stcr7,
+		do_idle_wait
 	);
 	signal cpu_state : cpu_state_type;
 	signal cpu_state_next : cpu_state_type;
@@ -132,6 +136,7 @@ architecture Behavioral of tms9900 is
 	signal alu_flag_carry    : std_logic;
 	
 	signal i_am_xop			 : boolean := False;
+	signal set_int_priority  : boolean := False;
 	
 	-- operand_mode controls fetching of operands, i.e. addressing modes
 	-- operand_mode(5:4) is the mode R, *R, @ADDR, @ADDR(R), *R+
@@ -265,6 +270,8 @@ begin
 			delay_count <= "0000";
 			holda <= hold;					-- during reset hold is respected
 			capture_ir <= True;
+			set_int_priority <= False;
+			int_ack <= '0';
 		else
 			if rising_edge(clk) then
 			
@@ -353,9 +360,19 @@ begin
 						else
 							holda <= '0';
 							i_am_xop <= False;
-							iaq <= '1';
-							cpu_state <= do_pc_read;
-							cpu_state_next <= do_decode;
+							-- check interrupt requests
+							if int_req = '1' and unsigned(ic03) <= unsigned(st(3 downto 0)) then
+								-- pass pointer to WP via ALU as our EA
+								set_int_priority <= True;
+								arg2 <= x"00" & "00" & ic03 & "00";	-- vector through interrupt priority
+								ope <= alu_load2;
+								cpu_state <= do_blwp00;		-- do blwp from interrupt vector
+								int_ack <= '1';
+							else
+								iaq <= '1';
+								cpu_state <= do_pc_read;
+								cpu_state_next <= do_decode;
+							end if;
 						end if;
 --						test_out <= x"0000";
 					-------------------------------------------------------------------------------
@@ -756,6 +773,7 @@ begin
 					-------------------------------------------------------------					
 					when do_blwp00 =>
 						-- since we come here from reset, continue to respect hold
+						-- or from interrupt processing
 						if hold='1' then
 							holda <= '1';
 						else
@@ -784,6 +802,7 @@ begin
 						end if;
 						ope 	<= alu_add;
 						cpu_state <= do_read;
+						int_ack <= '0';		-- if this was an interrupt vectoring event, clear the flag
 					when do_blwp_xop =>
 						-- ** This phase only exists for XOP **
 						-- Now rd_dat is new PC, reg_t new WP, alu_result addr of new R11
@@ -813,6 +832,12 @@ begin
 						arg2   <= alu_result;
 						cpu_state 		<= do_write; -- write old ST
 						cpu_state_next <= do_fetch;
+						-- For interrupts now set the interrupt priority. 
+						-- BUGBUG: the priority may have changed since it was sampled...
+						if set_int_priority then
+							st(3 downto 0) <= std_logic_vector(unsigned(ic03) - 1);
+							set_int_priority <= False;
+						end if;
 						-- now do the context switch
 						pc <= rd_dat;
 						w 	<= reg_t;
@@ -945,13 +970,27 @@ begin
 						-- external instructions IDLE, RSET, CKOF, CKON, LREX
 						-- These are all the same in that they issue a CRUCLK pulse.
 						-- But high bits of address bus indicate which instruction it is.
-						-- BUGBUG: IDLE does not wait for interrupt
 						if ir = x"0360" then 
 							st(3 downto 0) <= "0000";  -- RSET
 						end if;
 						addr(15 downto 13) <= rd_dat(7 downto 5);
-						shift_count <= "00101";	-- 5 clock cycles, used as delay counter
+						delay_count <= "0101";	-- 5 clock cycles, used as delay counter
 						cpu_state <= do_single_bit_cru2; -- issue CRUCLK pulse
+						if ir = x"0340" then
+							-- IDLE instruction, go to idle state instead of cru stuff
+							cpu_state <= do_idle_wait;
+						end if;
+						
+					when do_idle_wait =>
+						if delay_count /= "0000" then
+							cruclk <= '1';
+						else
+							cruclk <= '0';
+							-- see if we should escape idle state, i.e. we get an interrupt we need to serve
+							if int_req = '1' and unsigned(ic03) <= unsigned(st(3 downto 0)) then
+								cpu_state <= do_fetch;
+							end if;
+						end if;
 						
 					-------------------------------------------------------------
 					-- Store ST or W to workspace register
