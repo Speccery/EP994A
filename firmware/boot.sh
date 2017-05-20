@@ -6,7 +6,9 @@ export PORT=-5
 
 ../memloader/memloader $PORT 100008 cpu_reset_on.bin
 ../memloader/memloader $PORT $CONSOLE_ROM boot99105_0000.bin
+../memloader/memloader $PORT $CONSOLE_GROM 994aGROM.Bin
 ../memloader/memloader $PORT $CART_ROM Defender.C.bin
+# ../memloader/memloader $PORT $CART_ROM zeros8k.bin
 # CPU out of reset
 ../memloader/memloader $PORT 100008 cpu_reset_off.bin
 

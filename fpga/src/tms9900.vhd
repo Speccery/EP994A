@@ -50,6 +50,7 @@ entity tms9900 is Port (
 --	alu_debug_arg1 :  out STD_LOGIC_VECTOR (15 downto 0);
 --	alu_debug_arg2 :  out STD_LOGIC_VECTOR (15 downto 0);	
 	cpu_debug_out : out STD_LOGIC_VECTOR (47 downto 0);	
+	mult_debug_out : out STD_LOGIC_VECTOR (35 downto 0);	
 	int_req	: in STD_LOGIC;		-- interrupt request, active high
 	ic03     : in STD_LOGIC_VECTOR(3 downto 0);	-- interrupt priority for the request, 0001 is the highest (0000 is reset)
 	int_ack	: out STD_LOGIC;		-- does not exist on the TMS9900, when high CPU vectors to interrupt
@@ -109,7 +110,7 @@ architecture Behavioral of tms9900 is
 		do_xop,
 		do_ldcr0, do_ldcr1, do_ldcr2, do_ldcr3, do_ldcr4, do_ldcr5,
 		do_stcr0, do_stcr6, do_stcr7,
-		do_idle_wait
+		do_idle_wait, do_mul_store0, do_mul_store1, do_mul_store2
 	);
 	signal cpu_state : cpu_state_type;
 	signal cpu_state_next : cpu_state_type;
@@ -145,8 +146,28 @@ architecture Behavioral of tms9900 is
 	signal operand_word		 : boolean;	-- if false, we have a byte (matters for autoinc)
 	
 	constant cru_delay_clocks		: std_logic_vector(3 downto 0) := "0101";
+	
+	component multiplier IS
+	PORT (
+		clk : IN STD_LOGIC;
+		a : IN STD_LOGIC_VECTOR(17 DOWNTO 0);
+		b : IN STD_LOGIC_VECTOR(17 DOWNTO 0);
+		p : OUT STD_LOGIC_VECTOR(35 DOWNTO 0)
+	);
+	END component;
+	
+	signal mult_a : std_logic_vector(17 downto 0);
+	signal mult_b : std_logic_vector(17 downto 0);
+	signal mult_product : std_logic_vector(35 downto 0);
 
 begin
+
+	my_mult : multiplier port map (
+		clk => clk,
+		a => mult_a,
+		b => mult_b,
+		p => mult_product);
+	mult_debug_out <= mult_product;
 
 	cpu_debug_out <= first_ir & pc_ir & ir;
 	
@@ -218,10 +239,15 @@ begin
 	
 	-- ST0 ST1 ST2 ST3 ST4 ST5
 	-- L>  A>  =   C   O   P
+	-- BUGBUG below alu_sub should actually be compare
 	-- ST0
-	alu_logical_gt 	<= '1' when (arg1(15)='1' and arg2(15)='0') or (arg1(15)=arg2(15) and alu_result(15)= '1') else '0';
+	alu_logical_gt 	<= '1' when ope  = alu_sub and ((arg1(15)='1' and arg2(15)='0') or (arg1(15)=arg2(15) and alu_result(15)= '1')) else 
+								'1' when ope /= alu_sub and alu_result /= x"0000" else
+								'0';
 	-- ST1
-	alu_arithmetic_gt <= '1' when (arg1(15)='0' and arg2(15)='1') or (arg1(15)=arg2(15) and alu_result(15)= '1') else '0';
+	alu_arithmetic_gt <= '1' when ope  = alu_sub and ((arg1(15)='0' and arg2(15)='1') or (arg1(15)=arg2(15) and alu_result(15)= '1')) else 
+								'1' when ope /= alu_sub and alu_result(15)='0' and alu_result /= x"0000" else
+								'0';
 	-- ST2
 	alu_flag_zero 		<= '1' when alu_result = x"0000" else '0';
 	-- ST3 carry
@@ -606,7 +632,7 @@ begin
 							when "011" => ope <= alu_sub; -- S substract
 							when "111" => ope <= alu_or;
 							when "010" => ope <= alu_and_not;
-							when "110" => ope <= alu_load2;
+							when "110" => ope <= alu_load2;	-- MOV
 							when others =>	cpu_state <= do_stuck;
 						end case;
 					when do_dual_op3 =>
@@ -1031,8 +1057,12 @@ begin
 							when "010" => -- XOR
 								ope <= alu_xor;
 								cpu_state <= do_coc_czc_etc3;
+							when "110" => -- MPY		
+								mult_a <= "00" & reg_t;
+								mult_b <= "00" & rd_dat;
+								cpu_state <= do_mul_store0;
+								delay_count <= "0100";
 --                   The following are commented out and will stuck the CPU								
---							when "110" => -- MPY
 --							when "111" => -- DIV
 							when others =>
 						end case;
@@ -1051,6 +1081,22 @@ begin
 						else
 							cpu_state <= do_stuck;
 						end if;
+					when do_mul_store0 =>
+						if delay_count = "0000" then
+							cpu_state <= do_mul_store1;
+						end if;
+					when do_mul_store1 =>
+						cpu_state <= do_write;
+						cpu_state_next <= do_mul_store2;
+						wr_dat <= mult_product(31 downto 16);
+						arg1 <= x"0002";
+						arg2 <= ea;
+						ope <= alu_add;
+					when do_mul_store2 =>
+						ea <= alu_result;
+						cpu_state <= do_write;
+						cpu_state_next <= do_fetch;
+						wr_dat <= mult_product(15 downto 0);
 
 					-------------------------------------------------------------
 					-- XOP - processed like BLWP but with a few extra steps

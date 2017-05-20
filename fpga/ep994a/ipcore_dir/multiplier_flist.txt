@@ -1,0 +1,13 @@
+# Output products list for <multiplier>
+multiplier.asy
+multiplier.gise
+multiplier.ngc
+multiplier.vhd
+multiplier.vho
+multiplier.xco
+multiplier.xise
+multiplier\doc\mult_gen_ds255.pdf
+multiplier\doc\mult_gen_v11_2_readme.txt
+multiplier\doc\mult_gen_v11_2_vinfo.html
+multiplier_flist.txt
+multiplier_xmdf.tcl

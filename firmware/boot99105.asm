@@ -233,6 +233,12 @@ GROM1
       STCR  R1,0       ; Read 16 bits (count of 0 means 16)
       .printNumber R1
       .printCrLf
+      LI R5,100
+      LI R6,7
+      MPY R6,R5
+      .printNumber R5
+      .printNumber R6
+      .printCrLf
       DEC   R3
       JNE   -!k
       

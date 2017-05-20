@@ -58,6 +58,7 @@ ARCHITECTURE behavior OF tb_tms9900 IS
 --			alu_debug_oper : out STD_LOGIC_VECTOR(3 downto 0);
 --			alu_debug_arg1 : OUT  std_logic_vector(15 downto 0);
 --			alu_debug_arg2 : OUT  std_logic_vector(15 downto 0);
+			mult_debug_out : out STD_LOGIC_VECTOR (35 downto 0);	
 			int_req	: in STD_LOGIC;		-- interrupt request, active high
 			ic03     : in STD_LOGIC_VECTOR(3 downto 0);	-- interrupt priority for the request, 0001 is the highest (0000 is reset)
 			int_ack	: out STD_LOGIC;
@@ -100,6 +101,7 @@ ARCHITECTURE behavior OF tb_tms9900 IS
 --	signal alu_debug_oper : STD_LOGIC_VECTOR (3 downto 0);
 --	signal alu_debug_arg1 : STD_LOGIC_VECTOR (15 downto 0);
 --	signal alu_debug_arg2 : STD_LOGIC_VECTOR (15 downto 0);
+	signal mult_debug_out : STD_LOGIC_VECTOR (35 downto 0);
 	signal cruout : std_logic;
 	signal cruclk : std_logic;
    signal stuck : std_logic;
@@ -138,6 +140,7 @@ BEGIN
 --			 alu_debug_oper => alu_debug_oper,
 --			 alu_debug_arg1 => alu_debug_arg1,
 --			 alu_debug_arg2 => alu_debug_arg2,
+			 mult_debug_out => mult_debug_out,
 			 int_req => int_req,
 			 ic03 => ic03,
 			 int_ack => int_ack,

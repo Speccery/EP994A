@@ -51,6 +51,28 @@ BOOT
   .printCrLf
   CLR  R0
   A	   R0,R0        ; clear carry
+; Test a few instructions used by ROM
+  SETO @>8340
+  SZCB @TEST1,@>8340
+; Test arithmetic greater than flag  
+  MOVB @TEST1+2,R9
+  JLT  NAKS
+  LI   R2,1
+  JMP  !
+NAKS  
+  DATA >0381    ** RTWP but illegal on TMS9995, will get stuck
+!
+  MOVB @TEST1+4,R9
+  JLT  !
+  JMP NAKS
+! LI   R2,>11
+; Test multiplication
+  LI   R3,1
+  LI   R4,2
+  MPY  R3,R4
+  LI   R3,>300
+  LI   R4,>5000
+  MPY  R3,R4
 ; Test immediate compare instruction - ; EP display top 4 bits of R1 in current VDP RAM location
   LI    R1,>8000
   SRL 	R1,4
@@ -303,7 +325,11 @@ INTERRUPT
   LI  R1,>6677
   STST R10
   RTWP
-  
+
+TEST1
+  DATA >2080
+  DATA >4000
+  DATA >A000
 SLAST  END  BOOT
 
 
