@@ -234,6 +234,7 @@ architecture Behavioral of ep994a is
 	
 	-- Reset control
 	signal cpu_reset_ctrl	: std_logic_vector(7 downto 0);	-- 8 control signals, bit 0 = reset
+	signal cpu_single_step  : std_logic_vector(7 downto 0) := x"00";	-- single stepping. bit 0=1 single step mode, bit 1=1 advance one instruction	
 	
 	-- Module port banking
 	signal basic_rom_bank : std_logic_vector(3 downto 1) := "000";	-- latch ROM selection, 64K ROM support
@@ -308,7 +309,7 @@ architecture Behavioral of ep994a is
 	signal cpu_holda : std_logic;
 	
 	signal cpu_reset : std_logic;
-	signal cpu_debug_out : STD_LOGIC_VECTOR (47 downto 0);
+	signal cpu_debug_out : STD_LOGIC_VECTOR (63 downto 0);
 	
 	signal cpu_int_req : std_logic;
 	signal cpu_ic03    : std_logic_vector(3 downto 0) := "0001";
@@ -335,7 +336,7 @@ architecture Behavioral of ep994a is
 			int_req	: in STD_LOGIC;		-- interrupt request, active high
 			ic03     : in STD_LOGIC_VECTOR(3 downto 0);	-- interrupt priority for the request, 0001 is the highest (0000 is reset)
 			int_ack	: out STD_LOGIC;		-- does not exist on the TMS9900, when high CPU vectors to interrupt
-			cpu_debug_out : out STD_LOGIC_VECTOR (47 downto 0);	
+			cpu_debug_out : out STD_LOGIC_VECTOR (63 downto 0);	
 			cruin		: in STD_LOGIC;
 			cruout   : out STD_LOGIC;
 			cruclk   : out STD_LOGIC;
@@ -495,6 +496,8 @@ begin
 				
 				cpu_mem_write_pending <= '0';
 				sram_capture <= True;
+				
+				cpu_single_step <= x"00";
 			else
 				-- processing of normal clocks here. We run at 100MHz.
 				---------------------------------------------------------
@@ -555,6 +558,13 @@ begin
 					and cartridge_cs='0' 							-- writes to cartridge region do not go to RAM
 					then
 						cpu_mem_write_pending <= '1';
+				end if;
+				
+				if cpu_single_step(1 downto 0)="11" and cpu_holda = '0' then
+					-- CPU single step is desired, and CPU is out of hold despite cpu_singe_step(0) being '1'.
+					-- This must mean that the CPU is started to execute an instruction, so zero out bit 1
+					-- which controls the stepping.
+					cpu_single_step(1) <= '0';	
 				end if;
 
 				-- memory controller state machine
@@ -673,12 +683,15 @@ begin
 							else
 								case mem_addr(4 downto 0) is
 									when "01000" => mem_data_in <= cpu_reset_ctrl;
+									when "01001" => mem_data_in <= cpu_single_step;
 									when "10000" => mem_data_in <= cpu_debug_out(7 downto 0);
 									when "10001" => mem_data_in <= cpu_debug_out(15 downto 8);
 									when "10010" => mem_data_in <= cpu_debug_out(23 downto 16);
 									when "10011" => mem_data_in <= cpu_debug_out(31 downto 24);
 									when "10100" => mem_data_in <= cpu_debug_out(39 downto 32);
 									when "10101" => mem_data_in <= cpu_debug_out(47 downto 40);									
+									when "10110" => mem_data_in <= cpu_debug_out(55 downto 48);
+									when "10111" => mem_data_in <= cpu_debug_out(63 downto 56);
 									when "11000" => mem_data_in <= sram_debug(7 downto 0);
 									when "11001" => mem_data_in <= sram_debug(15 downto 8);
 									when "11010" => mem_data_in <= sram_debug(23 downto 16);
@@ -715,7 +728,11 @@ begin
 							keyboard(ki, 7) <= mem_data_out(7);
 						else
 							-- CPU reset control register
-							cpu_reset_ctrl <= mem_data_out;
+							if mem_addr(2 downto 0) = "000" then 
+								cpu_reset_ctrl <= mem_data_out;
+							elsif mem_addr(2 downto 0) = "001" then 
+								cpu_single_step <= mem_data_out;
+							end if;
 						end if;
 						mem_write_ack <= '1';
 						ctrl_state <= ack_end;
@@ -848,7 +865,7 @@ begin
 	led(7) <= alatch_counter(19);
 	
 	
-	cpu_hold <= '1' when mem_read_rq='1' or mem_write_rq='1' else '0'; -- issue DMA request
+	cpu_hold <= '1' when mem_read_rq='1' or mem_write_rq='1' or (cpu_single_step(0)='1' and cpu_single_step(1)='0') else '0'; -- issue DMA request
 
 	-- TMS99105 CPU interface.
 --	BUSDIR <= RD_n;	-- Bus buffers towards TMS99105 only during read cycle

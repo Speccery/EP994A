@@ -49,7 +49,7 @@ entity tms9900 is Port (
 --	alu_debug_oper : out STD_LOGIC_VECTOR(3 downto 0);
 --	alu_debug_arg1 :  out STD_LOGIC_VECTOR (15 downto 0);
 --	alu_debug_arg2 :  out STD_LOGIC_VECTOR (15 downto 0);	
-	cpu_debug_out : out STD_LOGIC_VECTOR (47 downto 0);	
+	cpu_debug_out : out STD_LOGIC_VECTOR (63 downto 0);	
 	mult_debug_out : out STD_LOGIC_VECTOR (35 downto 0);	
 	int_req	: in STD_LOGIC;		-- interrupt request, active high
 	ic03     : in STD_LOGIC_VECTOR(3 downto 0);	-- interrupt priority for the request, 0001 is the highest (0000 is reset)
@@ -169,7 +169,7 @@ begin
 		p => mult_product);
 	mult_debug_out <= mult_product;
 
-	cpu_debug_out <= first_ir & pc_ir & ir;
+	cpu_debug_out <= st & pc & pc_ir & ir;
 	
 	process(arg1, arg2, ope)
 	variable t : std_logic_vector(15 downto 0);
@@ -759,6 +759,7 @@ begin
 								arg1 <= x"FFFE";	-- add -2 to create DEC
 								ope <= alu_add;
 							when "0010" => -- X instruction...
+								ea <= alu_result;
 								cpu_state_next <= do_single_op_read;
 								cpu_state <= do_read;
 							when "0000" => -- BLWP instruction

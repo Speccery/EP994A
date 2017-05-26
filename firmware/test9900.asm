@@ -44,6 +44,18 @@ CZCTEST DATA >F000
     
 BOOT
   LIMI 2
+; Test the X instruction
+  LI R12,>0400    ; CRU TEST address
+  CLR R9          ; ROM >05D2
+  CLR R2          ; ROM >05EE
+  MOVB @TEST1+6,R2  ; ROM >05F0 kind of
+  SLA R2,4
+  SOC R2,R9
+  SRC R9,6
+  ORI 9,>3012
+  LI  R2,TEST1+8
+  X   9
+;  
   .printCrLf
   IDLE            ; wait for interrupt
   .printCrLf
@@ -330,6 +342,8 @@ TEST1
   DATA >2080
   DATA >4000
   DATA >A000
+  DATA >0800
+  DATA >0C00
 SLAST  END  BOOT
 
 

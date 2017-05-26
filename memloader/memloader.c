@@ -769,6 +769,39 @@ int cmd_keys()
   return 0;
 }
 
+int cmd_singlestep(int k, int argc, char *argv[]) {
+  // write to 0x100009 the value of 3 to single step.
+  // read from 0x100010 8 bytes of cpu_debug_out bus.
+  char step = 3;
+  struct {
+    unsigned short ir;
+    unsigned short pc_ir;
+    unsigned short pc;
+    unsigned short st;
+  } cpu_debug_bus;
+  OpenSerialPort();
+  ClearSerialPortBuffers();
+  int count = 1;
+  sscanf(argv[k], "%d", &count);
+  int i;
+  FILE *f = fopen("cputrace.txt", "wt");
+  if (f)
+    fprintf(f, "line:pc  :st\n");
+  for (i = 0; i < count; i++) {
+    WriteMemoryBlock(&step, 0x100009, 1);
+    ReadMemoryBlock(&cpu_debug_bus, 0x100010, 8);
+    printf("IR=%04X PC=%04X ST=%04X\n", cpu_debug_bus.ir, cpu_debug_bus.pc, cpu_debug_bus.st);
+    if (f)
+      fprintf(f, "%4d:%04X:%04X\n", i, cpu_debug_bus.pc, cpu_debug_bus.st);
+  }
+  CloseSerialPort();
+  if (f) {
+    fclose(f);
+    f = NULL;
+  }
+  return 0;
+}
+
 int cmd_regs() {
   int ok;
   ////////////////////////////////////////////////////////////////////
@@ -1082,13 +1115,14 @@ int main(int argc, char *argv[])
     printf("       memloader [opts] -s     Show current register status.\n");
     printf("       memloader [opts] -t     Run hardware test.\n");
     printf("       memloader [opts] -k     Keyboard polling mode.\n");
+    printf("       memloader [opts] -S <count>  Single step, show registers.\n");
     printf("Options (opts) are:\n");
     printf("\t-v verbose mode\n");
     printf("\t-1 Set com port 1 (number can be between 1 and 9)\n");
     return 0;
   }
 
-  enum { c_write, c_read, c_regs, c_test, c_keys, c_fileunittest } cmd;
+  enum { c_write, c_read, c_regs, c_test, c_keys, c_fileunittest, c_singlestep } cmd;
   cmd = c_write;
 
   int i;
@@ -1110,9 +1144,12 @@ int main(int argc, char *argv[])
       case 'k':
         cmd = c_keys;
         break;
-	  case 'u':
-		  cmd = c_fileunittest;
-		  break;
+	    case 'u':
+		    cmd = c_fileunittest;
+		    break;
+      case 'S':
+        cmd = c_singlestep;
+        break;
       case '1': case '2': case '3': case '4': case '5': 
       case '6': case '7': case '8': case '9': 
         serial_port[3] = argv[i][1];
@@ -1145,6 +1182,9 @@ int main(int argc, char *argv[])
   case c_write:
     cmd_write(i, argc, argv);
     break;  // return from below
+  case c_singlestep:
+    cmd_singlestep(i, argc, argv);
+    break;
   case c_fileunittest:
 	  {
 		int h = open_tifile("DSK1/SCORE", 123, NULL, 0);
