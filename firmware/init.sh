@@ -63,9 +63,10 @@ export PORT=-5
 # ../memloader/memloader $CART_GROM ALPINERG.BIN
 
 # Prepare for singlestepping
+# Clear scartchpad
+../memloader/memloader $PORT B8300 zeros256.bin
 #echo Preparing CPU for single stepping before taking out reset
-#../memloader/memloader $PORT 100009 single_step_hold.bin
-
+../memloader/memloader $PORT 100009 single_step_hold.bin
 # CPU out of reset
 ../memloader/memloader $PORT 100008 cpu_reset_off.bin
 

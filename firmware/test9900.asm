@@ -44,6 +44,29 @@ CZCTEST DATA >F000
     
 BOOT
   LIMI 2
+; Test byte operations with flags
+  CLR R0
+  CLR  R1
+  SETO R2
+;  BL   @BYTECHECK ; classic99: 2000
+;  LI  R0,>7F00
+;  BL   @BYTECHECK ; classic99: C400
+;  LI  R0,>8100
+;  BL   @BYTECHECK ; classic99: 8000
+  
+  LI   R6,>0020
+  MOVB R6,@>8304
+  STST  R10   
+  .printCrLf
+  .printNumber R10
+  MOVB @>830D,@>8305
+  STST  R10   
+  .printCrLf
+  .printNumber R10
+  MOV @>8304,R7
+  .printNumber R7
+  
+
 ; Test the X instruction
   LI R12,>0400    ; CRU TEST address
   CLR R9          ; ROM >05D2
@@ -338,6 +361,19 @@ INTERRUPT
   STST R10
   RTWP
 
+BYTECHECK:  
+  MOVB R0,R1
+  STST  R10      ; classic99: C400
+  .printCrLf
+  .printNumber R10
+  .printNumber R1  
+  MOVB R0,R2
+  STST  R10       ; classic99: C400
+  .printCrLf
+  .printNumber R10
+  .printNumber R2  
+  RT  
+  
 TEST1
   DATA >2080
   DATA >4000

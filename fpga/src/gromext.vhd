@@ -76,6 +76,7 @@ begin
 		if reset = '1' then
 			grom_sel <= "000";
 			read_addr_refresh <= '0';
+			offset <= (others => '0');
 		elsif rising_edge(clk) then
 			-- we handle only two scenarios:
 			-- 	write to GROM address counter

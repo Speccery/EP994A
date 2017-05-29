@@ -261,7 +261,7 @@ begin
 		-- We have a byte operation. If the data came from register,
 		-- we don't need to do anything. If it came from memory,
 		-- we will zero extend and possibly shift.
-		if operand_word or operand_mode(5 downto 4) = "00" then
+		if operand_word then
 			read_byte_aligner <= rd_dat;
 		else
 			-- Not register operand. Need to check that EA is still valid.
@@ -623,7 +623,11 @@ begin
 						-- perform the actual operation
 						-- test_out <= x"DD02";
 						-- Handle processing of byte operations for rd_dat.
-						arg1 <= read_byte_aligner;
+						if ir(15 downto 13) = "110" then 
+							arg1 <= (others => '0');	-- For proper flag behavior drive zero for MOV to arg1 
+						else
+							arg1 <= read_byte_aligner;
+						end if;
 						arg2 <= reg_t2;
 						cpu_state <= do_dual_op3;
 						case ir(15 downto 13) is
@@ -664,8 +668,8 @@ begin
 --								hwrite(my_line, alu_result);
 --								write(my_line, STRING'(" rd_dat "));
 --								hwrite(my_line, rd_dat);
-
 								-- simulation debug end
+								
 								-- Byte operation.
 								if operand_mode(5 downto 4) = "00" or ea(0)='0' then
 									-- Register operation or write to high byte. Always impacts high byte.
