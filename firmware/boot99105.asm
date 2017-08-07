@@ -14,6 +14,7 @@ WRKSP   EQU   >8300
 PRINTWS EQU   >8320
 PRTR1P	EQU	  >8322		; Input for PRINTR1
 DELAYWS EQU		>8340
+TESTLOC EQU   >8360
 TMPBUF  EQU   >A040
 INTWS   EQU   >A000   ; interrupt workspace
 
@@ -136,6 +137,10 @@ VLP
       MOVB  R2,@VDPWD
       DEC   R1
       JNE   -!
+	  
+	  CLR   @PRINTWS
+	  .printString HELLO
+	  .printCrLf
       
       JMP		GROM1
       
@@ -204,7 +209,7 @@ GROM1
       CLR   R12         ; CRU pointer
       SBZ   0           ; Make sure we are not in timer mode
       SBO   2           ; Enable VDP interrupts
-      LIMI  2           ; Enable interrupts
+      LIMI  2           ; Enable interrupts 
 
       LI    R3,5000
 !k    CLR   R0
@@ -239,8 +244,28 @@ GROM1
       .printNumber R5
       .printNumber R6
       .printCrLf
+; EP 2017-08-01 What the heck?	  
+; TI ROM seems to use also ODD addressed INCT and DECT instructions	 
+; For example: 0848: DECT @>8373
+; I wonder what that does with a real CPU and with the VHDL CPU...
+; We need to check.
+		LI R5,>0000
+		MOV R5,@TESTLOC
+		MOV @TESTLOC,R1
+		.printNumber R1
+		DECT @TESTLOC+1
+		MOV @TESTLOC,R1
+		.printNumber R1
+		INCT @TESTLOC+1
+		MOV @TESTLOC,R1
+		.printNumber R1
+		.printCrLf
+	  
+	  
       DEC   R3
       JNE   -!k
+	  
+
       
 ; Check if we have defender loaded. If we have let's go!
       MOV   @>6000,R1
@@ -673,6 +698,10 @@ GROMTESTS
       TEXT 'GROM READ TEST:1234>'
       BYTE  0
       EVEN
+HELLO
+	  TEXT '      SOFTCPU RUNNING'
+	  BYTE 0
+	  EVEN
 
 SLAST  END  BOOT
 

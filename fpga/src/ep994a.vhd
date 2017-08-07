@@ -309,7 +309,7 @@ architecture Behavioral of ep994a is
 	signal cpu_holda : std_logic;
 	
 	signal cpu_reset : std_logic;
-	signal cpu_debug_out : STD_LOGIC_VECTOR (63 downto 0);
+	signal cpu_debug_out : STD_LOGIC_VECTOR (95 downto 0);
 	
 	signal cpu_int_req : std_logic;
 	signal cpu_ic03    : std_logic_vector(3 downto 0) := "0001";
@@ -320,8 +320,8 @@ architecture Behavioral of ep994a is
     PORT(
          clk : IN  std_logic;
          reset : IN  std_logic;
-         addr : OUT  std_logic_vector(15 downto 0);
-         data_in : IN  std_logic_vector(15 downto 0);
+         addr_out : OUT  std_logic_vector(15 downto 0);
+         data_in  : IN  std_logic_vector(15 downto 0);
          data_out : OUT  std_logic_vector(15 downto 0);
          rd : OUT  std_logic;
          wr : OUT  std_logic;
@@ -336,7 +336,7 @@ architecture Behavioral of ep994a is
 			int_req	: in STD_LOGIC;		-- interrupt request, active high
 			ic03     : in STD_LOGIC_VECTOR(3 downto 0);	-- interrupt priority for the request, 0001 is the highest (0000 is reset)
 			int_ack	: out STD_LOGIC;		-- does not exist on the TMS9900, when high CPU vectors to interrupt
-			cpu_debug_out : out STD_LOGIC_VECTOR (63 downto 0);	
+			cpu_debug_out : out STD_LOGIC_VECTOR (95 downto 0);	
 			cruin		: in STD_LOGIC;
 			cruout   : out STD_LOGIC;
 			cruclk   : out STD_LOGIC;
@@ -692,10 +692,10 @@ begin
 									when "10101" => mem_data_in <= cpu_debug_out(47 downto 40);									
 									when "10110" => mem_data_in <= cpu_debug_out(55 downto 48);
 									when "10111" => mem_data_in <= cpu_debug_out(63 downto 56);
-									when "11000" => mem_data_in <= sram_debug(7 downto 0);
-									when "11001" => mem_data_in <= sram_debug(15 downto 8);
-									when "11010" => mem_data_in <= sram_debug(23 downto 16);
-									when "11011" => mem_data_in <= sram_debug(31 downto 24);
+									when "11000" => mem_data_in <= cpu_debug_out(71 downto 64); -- sram_debug(7 downto 0);
+									when "11001" => mem_data_in <= cpu_debug_out(79 downto 72); -- sram_debug(15 downto 8);
+									when "11010" => mem_data_in <= cpu_debug_out(87 downto 80); -- sram_debug(23 downto 16);
+									when "11011" => mem_data_in <= cpu_debug_out(95 downto 88); -- sram_debug(31 downto 24);
 									when "11100" => mem_data_in <= sram_debug(39 downto 32);
 									when "11101" => mem_data_in <= sram_debug(47 downto 40);									
 									when "11110" => mem_data_in <= sram_debug(55 downto 48);
@@ -1004,7 +1004,7 @@ begin
 	cpu : tms9900 PORT MAP (
           clk => clk,
           reset => cpu_reset,
-          addr => cpu_addr,
+          addr_out => cpu_addr,
           data_in => cpu_data_out,
           data_out => cpu_data_in,
           rd => cpu_rd,

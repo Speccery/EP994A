@@ -36,7 +36,7 @@ use UNISIM.VComponents.all;
 entity tms9900 is Port ( 
 	clk 		: in  STD_LOGIC;		-- input clock
 	reset 	: in  STD_LOGIC;		-- reset, active high
-	addr 		: out  STD_LOGIC_VECTOR (15 downto 0);
+	addr_out	: out  STD_LOGIC_VECTOR (15 downto 0);
 	data_in 	: in  STD_LOGIC_VECTOR (15 downto 0);
 	data_out : out  STD_LOGIC_VECTOR (15 downto 0);
 	rd 		: out  STD_LOGIC;		
@@ -49,7 +49,7 @@ entity tms9900 is Port (
 --	alu_debug_oper : out STD_LOGIC_VECTOR(3 downto 0);
 --	alu_debug_arg1 :  out STD_LOGIC_VECTOR (15 downto 0);
 --	alu_debug_arg2 :  out STD_LOGIC_VECTOR (15 downto 0);	
-	cpu_debug_out : out STD_LOGIC_VECTOR (63 downto 0);	
+	cpu_debug_out : out STD_LOGIC_VECTOR (95 downto 0);	
 	mult_debug_out : out STD_LOGIC_VECTOR (35 downto 0);	
 	int_req	: in STD_LOGIC;		-- interrupt request, active high
 	ic03     : in STD_LOGIC_VECTOR(3 downto 0);	-- interrupt priority for the request, 0001 is the highest (0000 is reset)
@@ -64,6 +64,8 @@ entity tms9900 is Port (
 end tms9900;
 
 architecture Behavioral of tms9900 is
+	signal addr : std_logic_vector(15 downto 0);	-- address bus
+
 	-- CPU architecture registers
 	signal pc : std_logic_vector(15 downto 0);
 	signal w  : std_logic_vector(15 downto 0);
@@ -146,6 +148,8 @@ architecture Behavioral of tms9900 is
 	signal operand_word		 : boolean;	-- if false, we have a byte (matters for autoinc)
 	
 	constant cru_delay_clocks		: std_logic_vector(3 downto 0) := "0101";
+
+	signal debug_wr_data, debug_wr_addr : std_logic_vector(15 downto 0);
 	
 	component multiplier IS
 	PORT (
@@ -162,6 +166,8 @@ architecture Behavioral of tms9900 is
 
 begin
 
+	addr_out <= addr;
+
 	my_mult : multiplier port map (
 		clk => clk,
 		a => mult_a,
@@ -169,7 +175,7 @@ begin
 		p => mult_product);
 	mult_debug_out <= mult_product;
 
-	cpu_debug_out <= st & pc & pc_ir & ir;
+	cpu_debug_out <= debug_wr_data & debug_wr_addr & st & pc & pc_ir & ir;
 	
 	process(arg1, arg2, ope)
 	variable t : std_logic_vector(15 downto 0);
@@ -365,6 +371,8 @@ begin
 						cpu_state <= do_write1; 
 						as <= '0';
 						delay_count <= "0101";
+						debug_wr_data <= wr_dat;
+						debug_wr_addr <= addr;
 					when do_write1 => 
 						if delay_count = "0000" then
 							cpu_state <= do_write2;
