@@ -233,7 +233,7 @@ architecture Behavioral of ep994a is
 	signal cru_read_bit		: std_logic;
 	
 	-- Reset control
-	signal cpu_reset_ctrl	: std_logic_vector(7 downto 0);	-- 8 control signals, bit 0 = reset
+	signal cpu_reset_ctrl	: std_logic_vector(7 downto 0);	-- 8 control signals, bit 0 = reset, bit 1=rom bank reset, bit 2=mask interrupts when cleared
 	signal cpu_single_step  : std_logic_vector(7 downto 0) := x"00";	-- single stepping. bit 0=1 single step mode, bit 1=1 advance one instruction	
 	
 	-- Module port banking
@@ -310,6 +310,8 @@ architecture Behavioral of ep994a is
 	
 	signal cpu_reset : std_logic;
 	signal cpu_debug_out : STD_LOGIC_VECTOR (95 downto 0);
+	signal alu_debug_arg1 : STD_LOGIC_VECTOR (15 downto 0);
+	signal alu_debug_arg2 : STD_LOGIC_VECTOR (15 downto 0);
 	
 	signal cpu_int_req : std_logic;
 	signal cpu_ic03    : std_logic_vector(3 downto 0) := "0001";
@@ -331,8 +333,8 @@ architecture Behavioral of ep994a is
 --			test_out : OUT  std_logic_vector(15 downto 0);
 --			alu_debug_out : OUT  std_logic_vector(15 downto 0);
 --			alu_debug_oper : out STD_LOGIC_VECTOR(3 downto 0);
---			alu_debug_arg1 : OUT  std_logic_vector(15 downto 0);
---			alu_debug_arg2 : OUT  std_logic_vector(15 downto 0);
+			alu_debug_arg1 : OUT  std_logic_vector(15 downto 0);
+			alu_debug_arg2 : OUT  std_logic_vector(15 downto 0);
 			int_req	: in STD_LOGIC;		-- interrupt request, active high
 			ic03     : in STD_LOGIC_VECTOR(3 downto 0);	-- interrupt priority for the request, 0001 is the highest (0000 is reset)
 			int_ack	: out STD_LOGIC;		-- does not exist on the TMS9900, when high CPU vectors to interrupt
@@ -503,7 +505,7 @@ begin
 				---------------------------------------------------------
 				-- SRAM map (1 mega byte, 0..FFFFF, 20 bit address space)
 				---------------------------------------------------------
-				--	00000..7FFFF - SAMS RAM 512K
+				-- 00000..7FFFF - SAMS RAM 512K
 				-- 80000..8FFFF - GROM mapped to this area, 64K (was at 30000)
 				-- 90000..AFFFF - Cartridge module port, paged, 64K (was at 70000)
 				-- B0000..B7FFF - DSR area, 32K reserved	(was at 60000)
@@ -696,10 +698,10 @@ begin
 									when "11001" => mem_data_in <= cpu_debug_out(79 downto 72); -- sram_debug(15 downto 8);
 									when "11010" => mem_data_in <= cpu_debug_out(87 downto 80); -- sram_debug(23 downto 16);
 									when "11011" => mem_data_in <= cpu_debug_out(95 downto 88); -- sram_debug(31 downto 24);
-									when "11100" => mem_data_in <= sram_debug(39 downto 32);
-									when "11101" => mem_data_in <= sram_debug(47 downto 40);									
-									when "11110" => mem_data_in <= sram_debug(55 downto 48);
-									when "11111" => mem_data_in <= sram_debug(63 downto 56);									
+									when "11100" => mem_data_in <= alu_debug_arg1(7 downto 0); -- sram_debug(39 downto 32);
+									when "11101" => mem_data_in <= alu_debug_arg1(15 downto 8);-- sram_debug(47 downto 40);									
+									when "11110" => mem_data_in <= alu_debug_arg2(7 downto 0);-- sram_debug(55 downto 48);
+									when "11111" => mem_data_in <= alu_debug_arg2(15 downto 8);-- sram_debug(63 downto 56);									
 									when others =>
 										mem_data_in <= x"AA";
 								end case;
@@ -999,7 +1001,7 @@ begin
 	RD_n <= not cpu_rd;
 	cpu_cruin <= cru_read_bit;
 	cpu_reset <= not (cpu_reset_ctrl(0) and real_reset);
-	cpu_int_req <= not conl_int;
+	cpu_int_req <= not conl_int and cpu_reset_ctrl(2);	-- cpu_reset_ctrl(2), when cleared, allows us to mask interrupts
 	
 	cpu : tms9900 PORT MAP (
           clk => clk,
@@ -1015,8 +1017,8 @@ begin
 --			 test_out => test_out,
 --			 alu_debug_out => alu_debug_out,
 --			 alu_debug_oper => alu_debug_oper,
---			 alu_debug_arg1 => alu_debug_arg1,
---			 alu_debug_arg2 => alu_debug_arg2,
+			 alu_debug_arg1 => alu_debug_arg1,
+			 alu_debug_arg2 => alu_debug_arg2,
 			 int_req => cpu_int_req,
 			 ic03 => cpu_ic03,
 			 int_ack => cpu_int_ack,

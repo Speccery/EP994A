@@ -45,7 +45,7 @@ ARCHITECTURE behavior OF tb_tms9900 IS
     PORT(
          clk : IN  std_logic;
          reset : IN  std_logic;
-         addr : OUT  std_logic_vector(15 downto 0);
+         addr_out : OUT  std_logic_vector(15 downto 0);
          data_in : IN  std_logic_vector(15 downto 0);
          data_out : OUT  std_logic_vector(15 downto 0);
          rd : OUT  std_logic;
@@ -53,11 +53,12 @@ ARCHITECTURE behavior OF tb_tms9900 IS
          ready : IN  std_logic;
          iaq : OUT  std_logic;
          as : OUT  std_logic;
+			cpu_debug_out : out STD_LOGIC_VECTOR (95 downto 0);
 --			test_out : OUT  std_logic_vector(15 downto 0);
---			alu_debug_out : OUT  std_logic_vector(15 downto 0);
+			alu_debug_out : OUT  std_logic_vector(15 downto 0);
 --			alu_debug_oper : out STD_LOGIC_VECTOR(3 downto 0);
---			alu_debug_arg1 : OUT  std_logic_vector(15 downto 0);
---			alu_debug_arg2 : OUT  std_logic_vector(15 downto 0);
+			alu_debug_arg1 : OUT  std_logic_vector(15 downto 0);
+			alu_debug_arg2 : OUT  std_logic_vector(15 downto 0);
 			mult_debug_out : out STD_LOGIC_VECTOR (35 downto 0);	
 			int_req	: in STD_LOGIC;		-- interrupt request, active high
 			ic03     : in STD_LOGIC_VECTOR(3 downto 0);	-- interrupt priority for the request, 0001 is the highest (0000 is reset)
@@ -96,17 +97,20 @@ ARCHITECTURE behavior OF tb_tms9900 IS
    signal wr : std_logic;
    signal iaq : std_logic;
    signal as : std_logic;
+	signal cpu_debug_out : STD_LOGIC_VECTOR (95 downto 0);
 --	signal test_out : STD_LOGIC_VECTOR (15 downto 0);
---	signal alu_debug_out : STD_LOGIC_VECTOR (15 downto 0);
+	signal alu_debug_out : STD_LOGIC_VECTOR (15 downto 0);
 --	signal alu_debug_oper : STD_LOGIC_VECTOR (3 downto 0);
---	signal alu_debug_arg1 : STD_LOGIC_VECTOR (15 downto 0);
---	signal alu_debug_arg2 : STD_LOGIC_VECTOR (15 downto 0);
+	signal alu_debug_arg1 : STD_LOGIC_VECTOR (15 downto 0);
+	signal alu_debug_arg2 : STD_LOGIC_VECTOR (15 downto 0);
 	signal mult_debug_out : STD_LOGIC_VECTOR (35 downto 0);
 	signal cruout : std_logic;
 	signal cruclk : std_logic;
    signal stuck : std_logic;
 	signal hold : std_logic := '0';
 	signal holda : std_logic;
+	
+	signal cpu_st : std_logic_vector(15 downto 0);
 
    -- Clock period definitions
    constant clk_period : time := 10 ns;
@@ -127,7 +131,7 @@ BEGIN
    uut: tms9900 PORT MAP (
           clk => clk,
           reset => reset,
-          addr => addr,
+          addr_out => addr,
           data_in => data_in,
           data_out => data_out,
           rd => rd,
@@ -136,11 +140,12 @@ BEGIN
           iaq => iaq,
           as => as,
 --			 test_out => test_out,
---			 alu_debug_out => alu_debug_out,
+			 alu_debug_out => alu_debug_out,
 --			 alu_debug_oper => alu_debug_oper,
---			 alu_debug_arg1 => alu_debug_arg1,
---			 alu_debug_arg2 => alu_debug_arg2,
+			 alu_debug_arg1 => alu_debug_arg1,
+			 alu_debug_arg2 => alu_debug_arg2,
 			 mult_debug_out => mult_debug_out,
+			 cpu_debug_out => cpu_debug_out,
 			 int_req => int_req,
 			 ic03 => ic03,
 			 int_ack => int_ack,
@@ -196,6 +201,9 @@ BEGIN
 			elsif i = 2500 then
 				int_req <= '0';
 			end if;
+			
+			-- read CPU status
+			cpu_st <= cpu_debug_out(63 downto 48);
 			
 			if rd='1' then
 				addr_int := to_integer( unsigned( addr(15 downto 1) ));	-- word address

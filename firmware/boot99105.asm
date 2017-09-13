@@ -103,6 +103,13 @@ BOOT
       LWPI  WRKSP
       CLR   @INTWS      ; Zero INTWS.R0, the interrupt counter.
       
+; Test CB instruction with flag setting
+  LI  R5,>7A9B
+  CB  R5,@TESTK+1
+  JLE GOGOGO
+  NOP
+GOGOGO      
+      
       MOVB  R3,@VDPWD   ; Dummy write to data, to reset latch
 ; Write initial values to VDP registers
       LI    R1,VDPSEQ
@@ -113,6 +120,8 @@ VLP
       AI    R2,>0100    ; next register
       CI    R2,>8800
       JNE   VLP
+      
+      JMP SKIP_CLEAR
       
 ; Clear VDP RAM 
       CLR   R0
@@ -125,8 +134,15 @@ VLP
       MOVB  R0,@VDPWD
       DEC   R1
       JNE   -!
-      
+SKIP_CLEAR:      
       BL    @COPYFONTS
+      CLR   R12         ; CRU pointer
+      SBZ   0           ; Make sure we are not in timer mode
+      SBO   2           ; Enable VDP interrupts
+      LIMI  0           ; Don't enable interrupts (BUGBUG)
+;;;      LIMI  2           ; Enable interrupts       
+      B   @GODEFENDER
+
       
 ; Initialize color table with >17 times 32
       LI    R0,>0380    ; address of color table
@@ -266,7 +282,7 @@ GROM1
       JNE   -!k
 	  
 
-      
+GODEFENDER      
 ; Check if we have defender loaded. If we have let's go!
       MOV   @>6000,R1
       CI     R1,>AA01
@@ -679,6 +695,10 @@ TXTCRLF
 		BYTE >0D,>0A
 		BYTE >00
     EVEN
+    
+TESTK
+  DATA >8090
+    
       
 GROM0 BCOPY "GROMSMAL.BIN"
     EVEN

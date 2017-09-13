@@ -3,7 +3,7 @@
    <wave_state>
    </wave_state>
    <db_ref_list>
-      <db_ref path="C:/Users/Erik Piehl/Dropbox/Omat/trunk/EP994A/fpga/work/tb_tms9900_isim_beh.wdb" id="1" type="auto">
+      <db_ref path="C:/Users/Erik Piehl/Dropbox/Omat/trunk/EP994A/fpga/work/tb_tms9900_isim_beh1.wdb" id="1" type="auto">
          <top_modules>
             <top_module name="bip_utils_pkg_v2_0" />
             <top_module name="mult_gen_pkg_v11_2" />
@@ -19,7 +19,7 @@
          </top_modules>
       </db_ref>
    </db_ref_list>
-   <WVObjectSize size="20" />
+   <WVObjectSize size="24" />
    <wvobject fp_name="/tb_tms9900/clk" type="logic" db_ref_id="1">
       <obj_property name="ElementShortName">clk</obj_property>
       <obj_property name="ObjectShortName">clk</obj_property>
@@ -102,6 +102,26 @@
    <wvobject fp_name="/tb_tms9900/mult_debug_out" type="array" db_ref_id="1">
       <obj_property name="ElementShortName">mult_debug_out[35:0]</obj_property>
       <obj_property name="ObjectShortName">mult_debug_out[35:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_tms9900/cpu_st" type="array" db_ref_id="1">
+      <obj_property name="ElementShortName">cpu_st[15:0]</obj_property>
+      <obj_property name="ObjectShortName">cpu_st[15:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_tms9900/alu_debug_out" type="array" db_ref_id="1">
+      <obj_property name="ElementShortName">alu_debug_out[15:0]</obj_property>
+      <obj_property name="ObjectShortName">alu_debug_out[15:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_tms9900/alu_debug_arg1" type="array" db_ref_id="1">
+      <obj_property name="ElementShortName">alu_debug_arg1[15:0]</obj_property>
+      <obj_property name="ObjectShortName">alu_debug_arg1[15:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_tms9900/alu_debug_arg2" type="array" db_ref_id="1">
+      <obj_property name="ElementShortName">alu_debug_arg2[15:0]</obj_property>
+      <obj_property name="ObjectShortName">alu_debug_arg2[15:0]</obj_property>
       <obj_property name="Radix">HEXRADIX</obj_property>
    </wvobject>
 </wave_config>

@@ -47,8 +47,8 @@ entity tms9900 is Port (
 --	test_out : out STD_LOGIC_VECTOR (15 downto 0);
 --	alu_debug_out  : out STD_LOGIC_VECTOR (15 downto 0); -- ALU debug bus
 --	alu_debug_oper : out STD_LOGIC_VECTOR(3 downto 0);
---	alu_debug_arg1 :  out STD_LOGIC_VECTOR (15 downto 0);
---	alu_debug_arg2 :  out STD_LOGIC_VECTOR (15 downto 0);	
+	alu_debug_arg1 :  out STD_LOGIC_VECTOR (15 downto 0);
+	alu_debug_arg2 :  out STD_LOGIC_VECTOR (15 downto 0);	
 	cpu_debug_out : out STD_LOGIC_VECTOR (95 downto 0);	
 	mult_debug_out : out STD_LOGIC_VECTOR (35 downto 0);	
 	int_req	: in STD_LOGIC;		-- interrupt request, active high
@@ -84,6 +84,8 @@ architecture Behavioral of tms9900 is
 	signal pc_ir : std_logic_vector(15 downto 0);	-- capture address when IR is loaded - debug BUGBUG
 	signal first_ir : std_logic_vector(15 downto 0);
 	signal capture_ir : boolean := false;
+	signal alu_debug_src_arg : std_logic_vector(15 downto 0);
+	signal alu_debug_dst_arg : std_logic_vector(15 downto 0);
 	-- debug stuff end
 		
 	type cpu_state_type is (
@@ -126,7 +128,8 @@ architecture Behavioral of tms9900 is
 	signal delay_count : std_logic_vector(3 downto 0);
 	
 	type alu_operation_type is (
-		alu_load1, alu_load2, alu_add, alu_or, alu_and, alu_sub, alu_and_not, alu_xor, 
+		alu_load1, alu_load2, alu_add, alu_or, alu_and, alu_sub, alu_compare,
+		alu_and_not, alu_xor, 
 		alu_coc, alu_czc,
 		alu_swpb2, alu_abs,
 		alu_sla, alu_sra, alu_src, alu_srl
@@ -137,6 +140,7 @@ architecture Behavioral of tms9900 is
 	signal alu_logical_gt 	 : std_logic;
 	signal alu_arithmetic_gt : std_logic;
 	signal alu_flag_carry    : std_logic;
+	signal alu_flag_parity   : std_logic;
 	
 	signal i_am_xop			 : boolean := False;
 	signal set_int_priority  : boolean := False;
@@ -201,6 +205,9 @@ begin
 				-- alu_out <= t(15) & t;		-- BUGBUG I wonder if this is right for carry generation?
 				alu_out <= std_logic_vector(unsigned('0' & arg1) - unsigned('0' & arg2));
 --				alu_debug_oper <= x"5";
+			when alu_compare =>
+				-- this is just the same code as for subtract
+				alu_out <= std_logic_vector(unsigned('0' & arg1) - unsigned('0' & arg2));
 			when alu_and_not =>
 				alu_out <= '0' & arg1 and not ('0' & arg2);
 --				alu_debug_oper <= x"6";
@@ -242,24 +249,30 @@ begin
 --	alu_debug_out <= alu_out(15 downto 0);
 --	alu_debug_arg1 <= arg1;
 --	alu_debug_arg2 <= arg2;
+	alu_debug_arg1 <= alu_debug_dst_arg;
+	alu_debug_arg2 <= alu_debug_src_arg;
 	
 	-- ST0 ST1 ST2 ST3 ST4 ST5
 	-- L>  A>  =   C   O   P
-	-- BUGBUG below alu_sub should actually be compare
-	-- ST0
-	alu_logical_gt 	<= '1' when ope  = alu_sub and ((arg1(15)='1' and arg2(15)='0') or (arg1(15)=arg2(15) and alu_result(15)= '1')) else 
-								'1' when ope /= alu_sub and alu_result /= x"0000" else
+	-- ST0 - when looking at data sheet arg1 is (DA) and arg2 is (SA), sub is (DA)-(SA). 
+	alu_logical_gt 	<= '1' when ope  = alu_compare and ((arg2(15)='1' and arg1(15)='0') or (arg1(15)=arg2(15) and alu_result(15)= '1')) else 
+								'1' when ope /= alu_compare and alu_result /= x"0000" else
 								'0';
 	-- ST1
-	alu_arithmetic_gt <= '1' when ope  = alu_sub and ((arg1(15)='0' and arg2(15)='1') or (arg1(15)=arg2(15) and alu_result(15)= '1')) else 
-								'1' when ope /= alu_sub and alu_result(15)='0' and alu_result /= x"0000" else
+	alu_arithmetic_gt <= '1' when ope  = alu_compare and ((arg2(15)='0' and arg1(15)='1') or (arg1(15)=arg2(15) and alu_result(15)= '1')) else 
+								'1' when ope /= alu_compare and alu_result(15)='0' and alu_result /= x"0000" else
 								'0';
 	-- ST2
 	alu_flag_zero 		<= '1' when alu_result = x"0000" else '0';
 	-- ST3 carry
-	alu_flag_carry    <= alu_out(16);
+	alu_flag_carry    <= alu_out(16) when ope /= alu_sub else not alu_out(16);	-- for sub carry out is inverted
 	-- ST4 overflow
-	alu_flag_overflow <= '1' when arg1(15)=arg2(15) and alu_result(15) /= arg1(15) else '0';
+	alu_flag_overflow <= '1' when ope /= alu_sla and arg1(15)=arg2(15) and alu_result(15) /= arg1(15) else 
+		'1' when ope = alu_sla and alu_result(15) /= arg2(15) else -- sla condition: if MSB changes during shift
+		'0';
+	-- ST5 parity
+	alu_flag_parity <= alu_result(15) xor alu_result(14) xor alu_result(13) xor alu_result(12) xor 
+				       alu_result(11) xor alu_result(10) xor alu_result(9)  xor alu_result(8);
 
 	-- Byte aligner
 	process(ea, rd_dat, operand_mode, operand_word)
@@ -578,7 +591,7 @@ begin
 							when x"2" => ope <= alu_add;	 -- AI
 							when x"4" => ope <= alu_and;	 -- ANDI
 							when x"6" => ope <= alu_or;	 -- ORI
-							when x"8" => ope <= alu_sub;	 -- CI
+							when x"8" => ope <= alu_compare; -- CI
 							when others => cpu_state <= do_stuck;
 						end case;
 						cpu_state <= do_load_imm5;
@@ -593,7 +606,7 @@ begin
 							st(11) <= alu_flag_overflow;
 						end if;
 						
-						if ope /= alu_sub then
+						if ope /= alu_compare then
 							wr_dat <= alu_result;	
 							cpu_state <= do_write;
 							cpu_state_next <= do_fetch;
@@ -633,14 +646,17 @@ begin
 						-- Handle processing of byte operations for rd_dat.
 						if ir(15 downto 13) = "110" then 
 							arg1 <= (others => '0');	-- For proper flag behavior drive zero for MOV to arg1 
+							alu_debug_dst_arg <= (others => '0'); -- Store argument for debug information
 						else
 							arg1 <= read_byte_aligner;
+							alu_debug_dst_arg <= read_byte_aligner;
 						end if;
 						arg2 <= reg_t2;
+						alu_debug_src_arg <= reg_t2; -- Store argument for debug information
 						cpu_state <= do_dual_op3;
 						case ir(15 downto 13) is
 							when "101" => ope <= alu_add; -- A add
-							when "100" => ope <= alu_sub;	-- C compare
+							when "100" => ope <= alu_compare;	-- C compare
 							when "011" => ope <= alu_sub; -- S substract
 							when "111" => ope <= alu_or;
 							when "010" => ope <= alu_and_not;
@@ -656,7 +672,11 @@ begin
 							-- add and sub set two more flags
 							st(12) <= alu_flag_carry;
 							st(11) <= alu_flag_overflow;
-						end if;						
+						end if;	
+						-- Byte operations set parity
+						if not operand_word then
+							st(10) <= alu_flag_parity;
+						end if;					
 						-- Store the result except with compare instruction.
 						if ir(15 downto 13) = "100" then
 							cpu_state <= do_fetch;	-- compare, we are already done
@@ -1309,6 +1329,7 @@ begin
 						case operand_mode(5 downto 4) is
 						when "00" =>
 							-- workspace register, we are done.
+							ea <= alu_result; -- effective address must be stored for byte selection to work
 							cpu_state <= cpu_state_operand_return;
 						when "01" =>
 							-- workspace register indirect

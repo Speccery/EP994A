@@ -780,6 +780,8 @@ int cmd_singlestep(int k, int argc, char *argv[]) {
     unsigned short st;
     unsigned short wr_addr;
     unsigned short wr_data;
+    unsigned short alu_arg_dst;
+    unsigned short alu_arg_src;
   } cpu_debug_bus;
   OpenSerialPort();
   ClearSerialPortBuffers();
@@ -788,13 +790,16 @@ int cmd_singlestep(int k, int argc, char *argv[]) {
   int i;
   FILE *f = fopen("cputrace.txt", "wt");
   if (f)
-    fprintf(f, "line:pc  :addr:data:st\n");
+    fprintf(f, "line:pc  :addr:data:st  :ir  :adst:asrc\n");
   for (i = 0; i < count; i++) {
     WriteMemoryBlock(&step, 0x100009, 1);
-    ReadMemoryBlock(&cpu_debug_bus, 0x100010, 12);
-    printf("IR=%04X PC=%04X ST=%04X WA=%04X WD=%04X\n", cpu_debug_bus.ir, cpu_debug_bus.pc, cpu_debug_bus.st, cpu_debug_bus.wr_addr, cpu_debug_bus.wr_data);
+    ReadMemoryBlock(&cpu_debug_bus, 0x100010, 16);
+    printf("IR=%04X PC=%04X ST=%04X WA=%04X WD=%04X ALU_DST=%04X ALU_SRC=%04X\n", cpu_debug_bus.ir, cpu_debug_bus.pc, cpu_debug_bus.st, 
+      cpu_debug_bus.wr_addr, cpu_debug_bus.wr_data, cpu_debug_bus.alu_arg_dst, cpu_debug_bus.alu_arg_src);
     if (f)
-      fprintf(f, "%4d:%04X:%04X:%04X:%04X\n", i, cpu_debug_bus.pc, cpu_debug_bus.wr_addr, cpu_debug_bus.wr_data, cpu_debug_bus.st );
+      fprintf(f, "%4d:%04X:%04X:%04X:%04X:%04X:%04X:%04X\n",
+        i, cpu_debug_bus.pc, cpu_debug_bus.wr_addr, cpu_debug_bus.wr_data, cpu_debug_bus.st,
+        cpu_debug_bus.ir, cpu_debug_bus.alu_arg_dst, cpu_debug_bus.alu_arg_src);
   }
   CloseSerialPort();
   if (f) {

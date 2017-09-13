@@ -1,3 +1,4 @@
+@echo off
 REM  init.cmd
 REM  EP (C) 2016 Oct - Nov
 REM  EP 2016-11-16 remapped certain addresses
@@ -23,8 +24,8 @@ set PORT=-4
 :continue
 
 memloader %PORT% 100008 cpu_reset_on.bin
-memloader %PORT% %CONSOLE_ROM% boot99105_0000.bin
-REM memloader %PORT% %CONSOLE_ROM% 994aROM.Bin
+REM memloader %PORT% %CONSOLE_ROM% boot99105_0000.bin
+memloader %PORT% %CONSOLE_ROM% 994aROM.Bin
 memloader %PORT% %CONSOLE_GROM% 994aGROM.Bin
 REM memloader %PORT% 100000 keyinit.bin
 
@@ -59,7 +60,7 @@ REM  cp ../../../ticart/ASCART.bin .
 REM  memloader %CART_ROM% ASCART.bin
 
 REM  Defender
-REM memloader %PORT% %CART_ROM% Defender.C.bin
+memloader %PORT% %CART_ROM% Defender.C.bin
 
 REM  TI Parsec
 REM memloader %PORT% %CART_ROM% PARSECC.bin
