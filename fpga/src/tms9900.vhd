@@ -114,7 +114,8 @@ architecture Behavioral of tms9900 is
 		do_xop,
 		do_ldcr0, do_ldcr1, do_ldcr2, do_ldcr3, do_ldcr4, do_ldcr5,
 		do_stcr0, do_stcr6, do_stcr7,
-		do_idle_wait, do_mul_store0, do_mul_store1, do_mul_store2
+		do_idle_wait, do_mul_store0, do_mul_store1, do_mul_store2,
+		do_div0, do_div1, do_div2, do_div3, do_div4, do_div5
 	);
 	signal cpu_state : cpu_state_type;
 	signal cpu_state_next : cpu_state_type;
@@ -167,6 +168,7 @@ architecture Behavioral of tms9900 is
 	signal mult_a : std_logic_vector(17 downto 0);
 	signal mult_b : std_logic_vector(17 downto 0);
 	signal mult_product : std_logic_vector(35 downto 0);
+	signal dividend : std_logic_vector(31 downto 0);	-- for the divide instruction
 
 begin
 
@@ -246,7 +248,7 @@ begin
 		end case;			
 	end process;
 	alu_result <= alu_out(15 downto 0);
---	alu_debug_out <= alu_out(15 downto 0);
+-- alu_debug_out <= alu_out(15 downto 0);
 --	alu_debug_arg1 <= arg1;
 --	alu_debug_arg2 <= arg2;
 	alu_debug_arg1 <= alu_debug_dst_arg;
@@ -1095,8 +1097,13 @@ begin
 								mult_b <= "00" & rd_dat;
 								cpu_state <= do_mul_store0;
 								delay_count <= "0100";
+							when "111" => -- DIV
+								-- we need here dest - source operation
+								arg1 <= rd_dat;
+								arg2 <= reg_t;
+								ope <= alu_sub;		-- do initial comparison
+								cpu_state <= do_div0;
 --                   The following are commented out and will stuck the CPU								
---							when "111" => -- DIV
 							when others =>
 						end case;
 					when do_coc_czc_etc3 =>
@@ -1130,7 +1137,62 @@ begin
 						cpu_state <= do_write;
 						cpu_state_next <= do_fetch;
 						wr_dat <= mult_product(15 downto 0);
-
+						
+					when do_div0 => -- division, now alu_result is arg1-arg2 i.e. dest-source
+						-- reg_t = source, rd_dat = destination
+						-- First check for overflow condition (ST4) i.e. st(11)
+						st(11) <= '0'; -- by default no overflow
+						if (reg_t(15)='0' and rd_dat(15)='1') or (reg_t(15)=rd_dat(15) and alu_result(15)='0') then
+							st(11) <= '1';	 -- overflow
+							cpu_state <= do_fetch;	-- done
+						else
+							-- fetch the 2nd word of the dividend, first calculate it's address
+							dividend(31 downto 16) <= rd_dat;	-- store the high word
+							arg1 <= x"0002";
+							arg2 <= ea;
+							ope <= alu_add;							
+							cpu_state <= do_alu_read;
+							cpu_state_next <= do_div1;
+						end if;
+					when do_div1 =>
+						dividend(15 downto 0) <= rd_dat; -- store the low word
+						shift_count <= "10000"; -- 16
+						cpu_state <= do_div2;
+					when do_div2 =>
+						dividend(31 downto 0) <= dividend(30 downto 0) & '0'; -- shift left
+						arg1 <= dividend(30 downto 15);	-- shifted data to ALU too
+						arg2 <= reg_t;
+						ope <= alu_sub;		
+						dec_shift_count := True;	-- decrement count				
+						cpu_state <= do_div3;
+					when do_div3 =>
+						if alu_result(15)='0' then	
+							-- successful subtract
+							dividend(31 downto 16) <= alu_result;
+							dividend(0) <= '1';
+						end if;
+						if shift_count /= "00000" then
+							cpu_state <= do_div2; -- loop back
+						else
+							cpu_state <= do_div4;
+						end if;
+					when do_div4 =>
+						-- done with the division.
+						wr_dat <= dividend(15 downto 0);	-- store quotient. This operation cannot be merged with the above or we do not capture the LSB.
+						-- prepare in ALU the next address 
+						arg1 <= x"0002";
+						arg2 <= ea;
+						ope <= alu_add;
+						-- write
+						cpu_state <= do_write;
+						cpu_state_next <= do_div5; 
+					when do_div5 =>
+						-- write remainder to memory, continue with next instruction
+						wr_dat <= dividend(31 downto 16);
+						ea <= alu_result;
+						cpu_state <= do_write;
+						cpu_state_next <= do_fetch;
+					
 					-------------------------------------------------------------
 					-- XOP - processed like BLWP but with a few extra steps
 					-------------------------------------------------------------

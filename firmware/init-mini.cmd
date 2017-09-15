@@ -29,6 +29,7 @@ memloader %PORT% %CONSOLE_GROM% 994aGROM.Bin
 REM memloader %PORT% 100000 keyinit.bin
 REM  Defender
 memloader %PORT% %CART_ROM% Defender.C.bin
+REM memloader %PORT% %CART_ROM% zeros8k.bin
 
 REM clear scratchpad memory
 memloader %PORT% B8300 zeros256.bin

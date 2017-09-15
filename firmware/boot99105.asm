@@ -121,7 +121,7 @@ VLP
       CI    R2,>8800
       JNE   VLP
       
-      JMP SKIP_CLEAR
+;;;      JMP SKIP_CLEAR
       
 ; Clear VDP RAM 
       CLR   R0
@@ -139,9 +139,9 @@ SKIP_CLEAR:
       CLR   R12         ; CRU pointer
       SBZ   0           ; Make sure we are not in timer mode
       SBO   2           ; Enable VDP interrupts
-      LIMI  0           ; Don't enable interrupts (BUGBUG)
+;;;      LIMI  0           ; Don't enable interrupts (BUGBUG)
 ;;;      LIMI  2           ; Enable interrupts       
-      B   @GODEFENDER
+;;;      B   @GODEFENDER
 
       
 ; Initialize color table with >17 times 32

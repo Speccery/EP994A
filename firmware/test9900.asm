@@ -50,6 +50,18 @@ BOOT
   SETO R2
   LI  R5,>7A9B
   CB  R5,@TESTK+1
+  
+  LI  R4,15
+  LI  R5,0
+  LI  R6,62000
+  DIV R4,R5
+  
+  LI  R4,10
+  LI  R5,0
+  LI  R6,100
+  DIV R4,R5
+
+  
 ;  BL   @BYTECHECK ; classic99: 2000
 ;  LI  R0,>7F00
 ;  BL   @BYTECHECK ; classic99: C400
