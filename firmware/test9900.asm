@@ -44,6 +44,14 @@ CZCTEST DATA >F000
     
 BOOT
   LIMI 2
+; Test LDCR
+  LI  R12,>550
+  LI  R3,>8155
+  LDCR R3,8
+  STCR R3,8
+  LI  R3,>0655
+  LDCR R3,3
+  
 ; Test byte operations with flags
   CLR R0
   CLR  R1
@@ -99,7 +107,6 @@ BOOT
   .printCrLf
   .printCrLf
   CLR  R0
-  A	   R0,R0        ; clear carry
 ; Test a few instructions used by ROM
   SETO @>8340
   SZCB @TEST1,@>8340

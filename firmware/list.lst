@@ -299,8 +299,8 @@ XAS99 CROSS-ASSEMBLER   VERSION 1.5.3
 0228 018C 0300  24       LIMI  2           ; Enable interrupts
      018E 0002 
 0229               
-0230 0190 0203  20       LI    R3,5000
-     0192 1388 
+0230 0190 0203  20       LI    R3,25000
+     0192 61A8 
 0231 0194 04C0  14 !k    CLR   R0
 0232 0196 C800  38       MOV   R0,@PRINTWS
      0198 8320 

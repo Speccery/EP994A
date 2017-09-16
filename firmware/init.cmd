@@ -44,7 +44,7 @@ REM  Memory extension test
 REM  memloader %PORT% %CART_ROM% AMSTEST4-8.BIN
 
 REM  Editor/Assembler
-memloader %PORT% %CART_GROM% TIEAG.BIN
+rem memloader %PORT% %CART_GROM% TIEAG.BIN
 
 REM  RXB
 REM memloader %PORT% %CART_ROM% RXBC.Bin
@@ -52,23 +52,23 @@ REM memloader %PORT% %CART_ROM2% RXBD.Bin
 REM memloader %PORT% %CART_GROM% RXBG.Bin
 
 REM  TI Invaders
-REM memloader %PORT% %CART_ROM% TI-InvaC.bin
-REM memloader %PORT% %CART_GROM% TI-InvaG.bin
+rem memloader %PORT% %CART_ROM% TI-InvaC.bin
+rem memloader %PORT% %CART_GROM% TI-InvaG.bin
 
 REM  ERIK test ROM
 REM  cp ../../../ticart/ASCART.bin .
 REM  memloader %CART_ROM% ASCART.bin
 
 REM  Defender
-memloader %PORT% %CART_ROM% Defender.C.bin
+rem memloader %PORT% %CART_ROM% Defender.C.bin
 
 REM  TI Parsec
-REM memloader %PORT% %CART_ROM% PARSECC.bin
-REM memloader %PORT% %CART_GROM% PARSECG.bin
+rem memloader %PORT% %CART_ROM% PARSECC.bin
+rem memloader %PORT% %CART_GROM% PARSECG.bin
 
 REM  Alpiner
-REM  memloader %CART_ROM% ALPINERC.BIN
-REM  memloader %CART_GROM% ALPINERG.BIN
+memloader %PORT% %CART_ROM% ALPINERC.BIN
+memloader %PORT% %CART_GROM% ALPINERG.BIN
 
 REM  CPU out of reset
 memloader %PORT% 100008 cpu_reset_off.bin

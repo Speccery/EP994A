@@ -55,7 +55,7 @@ ARCHITECTURE behavior OF tb_tms9900 IS
          as : OUT  std_logic;
 			cpu_debug_out : out STD_LOGIC_VECTOR (95 downto 0);
 --			test_out : OUT  std_logic_vector(15 downto 0);
-			alu_debug_out : OUT  std_logic_vector(15 downto 0);
+--			alu_debug_out : OUT  std_logic_vector(15 downto 0);
 --			alu_debug_oper : out STD_LOGIC_VECTOR(3 downto 0);
 			alu_debug_arg1 : OUT  std_logic_vector(15 downto 0);
 			alu_debug_arg2 : OUT  std_logic_vector(15 downto 0);
@@ -99,7 +99,7 @@ ARCHITECTURE behavior OF tb_tms9900 IS
    signal as : std_logic;
 	signal cpu_debug_out : STD_LOGIC_VECTOR (95 downto 0);
 --	signal test_out : STD_LOGIC_VECTOR (15 downto 0);
-	signal alu_debug_out : STD_LOGIC_VECTOR (15 downto 0);
+--	signal alu_debug_out : STD_LOGIC_VECTOR (15 downto 0);
 --	signal alu_debug_oper : STD_LOGIC_VECTOR (3 downto 0);
 	signal alu_debug_arg1 : STD_LOGIC_VECTOR (15 downto 0);
 	signal alu_debug_arg2 : STD_LOGIC_VECTOR (15 downto 0);
@@ -123,7 +123,10 @@ ARCHITECTURE behavior OF tb_tms9900 IS
 	signal ramIndex : integer range 0 to 15 := 0;
 	signal write_detect : std_logic_vector(1 downto 0);
 	
-	constant cru_test_data : std_logic_vector(15 downto 0) := x"A079";
+	signal prev_cruclk : std_logic;
+	
+--	constant cru_test_data : std_logic_vector(15 downto 0) := x"A379";
+	signal cru_test_data : std_logic_vector(15 downto 0) := x"A379";
  
 BEGIN
  
@@ -140,7 +143,7 @@ BEGIN
           iaq => iaq,
           as => as,
 --			 test_out => test_out,
-			 alu_debug_out => alu_debug_out,
+--			 alu_debug_out => alu_debug_out,
 --			 alu_debug_oper => alu_debug_oper,
 			 alu_debug_arg1 => alu_debug_arg1,
 			 alu_debug_arg2 => alu_debug_arg2,
@@ -248,6 +251,12 @@ BEGIN
 			-- Support CRU interface somehow
 			myindex := to_integer(unsigned(addr(4 downto 1)));
 			cruin <= cru_test_data(myindex);
+			
+			prev_cruclk <= cruclk;
+			if prev_cruclk='0' and cruclk='1' then 
+				-- rising edge
+				cru_test_data(myindex) <= cruout;
+			end if;
 			
 			if stuck='1' then
 				write(my_line, STRING'("CPU GOT STUCK"));

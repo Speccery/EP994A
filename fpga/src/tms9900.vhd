@@ -114,6 +114,7 @@ architecture Behavioral of tms9900 is
 		do_xop,
 		do_ldcr0, do_ldcr1, do_ldcr2, do_ldcr3, do_ldcr4, do_ldcr5,
 		do_stcr0, do_stcr6, do_stcr7,
+		do_stcr_delay0, do_stcr_delay1,
 		do_idle_wait, do_mul_store0, do_mul_store1, do_mul_store2,
 		do_div0, do_div1, do_div2, do_div3, do_div4, do_div5
 	);
@@ -1241,10 +1242,15 @@ begin
 						arg2 <= reg_t;
 						if ir(10) = '0' then
 							ope <= alu_srl;	-- for LDCR,shift right	
+							cpu_state <= do_ldcr3;							
 						else	
 							ope <= alu_sla;	-- for STCR, shift left
+							cpu_state <= do_stcr_delay0; -- a few cycles delay from address
 						end if;
 						addr <= "000" & ea(12 downto 1) & '0'; -- "000" & alu_result(12 downto 1) & '0';
+					when do_stcr_delay0 =>
+						cpu_state <= do_stcr_delay1;
+					when do_stcr_delay1 =>
 						cpu_state <= do_ldcr3;
 					when do_ldcr3 =>
 						if ir(10) = '0' then	-- LDCR
