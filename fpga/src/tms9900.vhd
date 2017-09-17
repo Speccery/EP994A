@@ -349,15 +349,16 @@ begin
 					when do_read0 => 
 						cpu_state <= do_read1; 
 						as <= '0';
-						delay_count <= "0101";
+						-- delay_count <= "0001"; -- "0101";
 					when do_read1 => 
-						if delay_count = "0000" then 
-							cpu_state <= do_read2;
-						end if;
+--						if delay_count = "0000" then 
+--							cpu_state <= do_read2;
+--						end if;
+						cpu_state <= do_read2;
 					when do_read2 => cpu_state <= do_read3;
 					when do_read3 => 
 						-- if ready='1' then 
-							cpu_state <= do_read4; -- cpu_state_next;
+							cpu_state <= cpu_state_next; -- do_read4; -- cpu_state_next;
 							rd <= '0';
 							rd_dat <= data_in;
 						-- end if;
@@ -386,7 +387,7 @@ begin
 					when do_write0 => 
 						cpu_state <= do_write1; 
 						as <= '0';
-						delay_count <= "0101";
+						delay_count <= "0010"; -- "0101";
 						debug_wr_data <= wr_dat;
 						debug_wr_addr <= addr;
 					when do_write1 => 
@@ -396,7 +397,7 @@ begin
 					when do_write2 => cpu_state <= do_write3;
 					when do_write3 => 
 						-- if ready='1' then
-							cpu_state <= do_write4; -- cpu_state_next;
+							cpu_state <= cpu_state_next; -- do_write4; -- cpu_state_next;
 							wr <= '0';
 						-- end if;
 					when do_write4 => 	-- BUGBUG this state just is here to waste time, and make sure bus cycle are not too back to back

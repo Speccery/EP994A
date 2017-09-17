@@ -26,7 +26,7 @@ set PORT=-4
 memloader %PORT% 100008 cpu_reset_on.bin
 REM memloader %PORT% %CONSOLE_ROM% boot99105_0000.bin
 memloader %PORT% %CONSOLE_ROM% 994aROM.Bin
-memloader %PORT% %CONSOLE_GROM% 994aGROM.Bin
+memloader %PORT% %CONSOLE_GROM% 994aGROM-EP.Bin
 REM memloader %PORT% 100000 keyinit.bin
 
 REM  DSR for disk support
@@ -47,9 +47,9 @@ REM  Editor/Assembler
 rem memloader %PORT% %CART_GROM% TIEAG.BIN
 
 REM  RXB
-REM memloader %PORT% %CART_ROM% RXBC.Bin
-REM memloader %PORT% %CART_ROM2% RXBD.Bin
-REM memloader %PORT% %CART_GROM% RXBG.Bin
+rem memloader %PORT% %CART_ROM% RXBC.Bin
+rem memloader %PORT% %CART_ROM2% RXBD.Bin
+rem memloader %PORT% %CART_GROM% RXBG.Bin
 
 REM  TI Invaders
 rem memloader %PORT% %CART_ROM% TI-InvaC.bin
@@ -63,12 +63,12 @@ REM  Defender
 rem memloader %PORT% %CART_ROM% Defender.C.bin
 
 REM  TI Parsec
-rem memloader %PORT% %CART_ROM% PARSECC.bin
-rem memloader %PORT% %CART_GROM% PARSECG.bin
+memloader %PORT% %CART_ROM% PARSECC.bin
+memloader %PORT% %CART_GROM% PARSECG.bin
 
 REM  Alpiner
-memloader %PORT% %CART_ROM% ALPINERC.BIN
-memloader %PORT% %CART_GROM% ALPINERG.BIN
+rem memloader %PORT% %CART_ROM% ALPINERC.BIN
+rem memloader %PORT% %CART_GROM% ALPINERG.BIN
 
 REM  CPU out of reset
 memloader %PORT% 100008 cpu_reset_off.bin
