@@ -204,3 +204,12 @@ NET "AUDIO_R"      LOC = "K16"| IOSTANDARD = LVCMOS33;
 ## Add jitter uncertainy to clock...
 SYSTEM_JITTER = 0.2 ns;
 
+#DIP switch
+NET "SWI[0]"       LOC = "G14" | PULLDOWN | IOSTANDARD = LVCMOS33; # right-most switch marked 8
+NET "SWI[1]"       LOC = "G16" | PULLDOWN | IOSTANDARD = LVCMOS33;
+NET "SWI[2]"       LOC = "F15" | PULLDOWN | IOSTANDARD = LVCMOS33;
+NET "SWI[3]"       LOC = "F16" | PULLDOWN | IOSTANDARD = LVCMOS33;
+NET "SWI[4]"       LOC = "E15" | PULLDOWN | IOSTANDARD = LVCMOS33;
+NET "SWI[5]"       LOC = "E16" | PULLDOWN | IOSTANDARD = LVCMOS33;
+NET "SWI[6]"       LOC = "D14" | PULLDOWN | IOSTANDARD = LVCMOS33;
+NET "SWI[7]"       LOC = "D16" | PULLDOWN | IOSTANDARD = LVCMOS33; # left-most switch marked 1

@@ -33,9 +33,9 @@ REM  DSR for disk support
 memloader %PORT% %DSR_ROM% diskdsr_4000.bin
 
 REM  Extended Basic
-REM  memloader %PORT% %CART_ROM% TIExtC.Bin
-REM  memloader %PORT% %CART_ROM2% TIExtD.Bin
-REM  memloader %PORT% %CART_GROM% TIExtG.Bin
+rem memloader %PORT% %CART_ROM% TIExtC.Bin
+rem memloader %PORT% %CART_ROM2% TIExtD.Bin
+rem memloader %PORT% %CART_GROM% TIExtG.Bin
 
 REM  Erik Test Cartridge
 REM  memloader %PORT% %CART_ROM% ERIK1.bin
@@ -60,7 +60,10 @@ REM  cp ../../../ticart/ASCART.bin .
 REM  memloader %CART_ROM% ASCART.bin
 
 REM  Defender
-rem memloader %PORT% %CART_ROM% Defender.C.bin
+REM memloader %PORT% %CART_ROM% Defender.C.bin
+
+REM Diagnostic module
+rem memloader %PORT% %CART_GROM% DiagnosG.bin
 
 REM  TI Parsec
 memloader %PORT% %CART_ROM% PARSECC.bin

@@ -39,9 +39,9 @@ entity tms9900 is Port (
 	addr_out	: out  STD_LOGIC_VECTOR (15 downto 0);
 	data_in 	: in  STD_LOGIC_VECTOR (15 downto 0);
 	data_out : out  STD_LOGIC_VECTOR (15 downto 0);
-	rd 		: out  STD_LOGIC;		
-	wr 		: out  STD_LOGIC;
-	ready 	: in  STD_LOGIC;		-- memory read input, a high terminates a memory cycle
+	rd 		: out  STD_LOGIC;		-- workin read with Pepino 40ns
+	wr 		: out  STD_LOGIC;		-- working write with Pepino 60ns
+	ready 	: in  STD_LOGIC;		-- NOT USED: memory read input, a high terminates a memory cycle 
 	iaq 		: out  STD_LOGIC;
 	as 		: out  STD_LOGIC;		-- address strobe, when high new address is valid, starts a memory cycle
 --	test_out : out STD_LOGIC_VECTOR (15 downto 0);
@@ -59,6 +59,7 @@ entity tms9900 is Port (
 	cruclk   : out STD_LOGIC;
 	hold     : in STD_LOGIC;		-- DMA request, active high
 	holda    : out STD_LOGIC;     -- DMA ack, active high
+	waits    : in STD_LOGIC_VECTOR(5 downto 0);	-- number of wait states per memory cycles
 	stuck	 	: out  STD_LOGIC		-- when high the CPU is stuck
 	);
 end tms9900;
@@ -94,9 +95,9 @@ architecture Behavioral of tms9900 is
 		do_branch,
 		do_stuck,
 		do_read,
-		do_read0, do_read1, do_read2, do_read3, do_read4,
+		do_read0, do_read1, do_read2, do_read3, 
 		do_write,
-		do_write0, do_write1, do_write2, do_write3, do_write4,
+		do_write0, do_write1, do_write2, do_write3, 
 		do_ir_imm, do_lwpi_limi,
 		do_load_imm, do_load_imm2, do_load_imm3, do_load_imm4, do_load_imm5,
 		do_read_operand0, do_read_operand1, do_read_operand2, do_read_operand3, do_read_operand4, do_read_operand5,
@@ -127,7 +128,7 @@ architecture Behavioral of tms9900 is
 	signal alu_out : std_logic_vector(16 downto 0);
 	signal alu_result :  std_logic_vector(15 downto 0);
 	signal shift_count : std_logic_vector(4 downto 0);
-	signal delay_count : std_logic_vector(3 downto 0);
+	signal delay_count : std_logic_vector(5 downto 0);
 	
 	type alu_operation_type is (
 		alu_load1, alu_load2, alu_add, alu_or, alu_and, alu_sub, alu_compare,
@@ -153,7 +154,7 @@ architecture Behavioral of tms9900 is
 	signal operand_mode		 : std_logic_vector(5 downto 0);
 	signal operand_word		 : boolean;	-- if false, we have a byte (matters for autoinc)
 	
-	constant cru_delay_clocks		: std_logic_vector(3 downto 0) := "0101";
+	constant cru_delay_clocks		: std_logic_vector(5 downto 0) := "000101";
 
 	signal debug_wr_data, debug_wr_addr : std_logic_vector(15 downto 0);
 	
@@ -315,7 +316,7 @@ begin
 			arg2 <= x"0000";				-- pass pointer to WP via ALU as our EA
 			ope <= alu_load2;
 			cpu_state <= do_blwp00;		-- do blwp from zero
-			delay_count <= "0000";
+			delay_count <= "000000";
 			holda <= hold;					-- during reset hold is respected
 			capture_ir <= True;
 			set_int_priority <= False;
@@ -349,12 +350,11 @@ begin
 					when do_read0 => 
 						cpu_state <= do_read1; 
 						as <= '0';
-						-- delay_count <= "0001"; -- "0101";
+						delay_count <= waits;	-- used to be zero (i.e. not assigned)
 					when do_read1 => 
---						if delay_count = "0000" then 
---							cpu_state <= do_read2;
---						end if;
-						cpu_state <= do_read2;
+						if delay_count = "000000" then 
+							cpu_state <= do_read2;
+						end if;
 					when do_read2 => cpu_state <= do_read3;
 					when do_read3 => 
 						-- if ready='1' then 
@@ -362,14 +362,6 @@ begin
 							rd <= '0';
 							rd_dat <= data_in;
 						-- end if;
-					when do_read4 =>	-- BUGBUG this state just is here to waste time, and make sure bus cycle are not too back to back
-						cpu_state <= cpu_state_next;
-						if capture_ir then
-							capture_ir <= False;
-							first_ir <= rd_dat;
-						end if;
-						
-						
 						
 					-- write cycles --
 					when do_write =>
@@ -387,11 +379,15 @@ begin
 					when do_write0 => 
 						cpu_state <= do_write1; 
 						as <= '0';
-						delay_count <= "0010"; -- "0101";
+						if waits(5 downto 1) = "00000" then
+							delay_count <= "000010"; -- minimum value
+						else
+							delay_count <= waits;
+						end if;
 						debug_wr_data <= wr_dat;
 						debug_wr_addr <= addr;
 					when do_write1 => 
-						if delay_count = "0000" then
+						if delay_count = "000000" then
 							cpu_state <= do_write2;
 						end if;
 					when do_write2 => cpu_state <= do_write3;
@@ -400,8 +396,6 @@ begin
 							cpu_state <= cpu_state_next; -- do_write4; -- cpu_state_next;
 							wr <= '0';
 						-- end if;
-					when do_write4 => 	-- BUGBUG this state just is here to waste time, and make sure bus cycle are not too back to back
-						cpu_state <= cpu_state_next;
 					----------------
 					-- operations --
 					----------------
@@ -1018,7 +1012,7 @@ begin
 							-- SBO or SBZ - or external instructions
 							cruclk <= '1';
 						end if;
-						if delay_count = "0000" then
+						if delay_count = "000000" then
 							cpu_state <= do_fetch;
 							cruclk <= '0';		-- drive low, regardless of write or read. For reads (TB) this was zero to begin with.
 							if ir(15 downto 8) = x"1F" then -- Check if we have SBZ instruction
@@ -1037,7 +1031,7 @@ begin
 							st(3 downto 0) <= "0000";  -- RSET
 						end if;
 						addr(15 downto 13) <= rd_dat(7 downto 5);
-						delay_count <= "0101";	-- 5 clock cycles, used as delay counter
+						delay_count <= "000101";	-- 5 clock cycles, used as delay counter
 						cpu_state <= do_single_bit_cru2; -- issue CRUCLK pulse
 						if ir = x"0340" then
 							-- IDLE instruction, go to idle state instead of cru stuff
@@ -1045,7 +1039,7 @@ begin
 						end if;
 						
 					when do_idle_wait =>
-						if delay_count /= "0000" then
+						if delay_count /= "000000" then
 							cruclk <= '1';
 						else
 							cruclk <= '0';
@@ -1098,7 +1092,7 @@ begin
 								mult_a <= "00" & reg_t;
 								mult_b <= "00" & rd_dat;
 								cpu_state <= do_mul_store0;
-								delay_count <= "0100";
+								delay_count <= "000100";
 							when "111" => -- DIV
 								-- we need here dest - source operation
 								arg1 <= rd_dat;
@@ -1124,7 +1118,7 @@ begin
 							cpu_state <= do_stuck;
 						end if;
 					when do_mul_store0 =>
-						if delay_count = "0000" then
+						if delay_count = "000000" then
 							cpu_state <= do_mul_store1;
 						end if;
 					when do_mul_store1 =>
@@ -1277,7 +1271,7 @@ begin
 						cruclk <= '1';
 						cpu_state <= do_ldcr5;
 					when do_ldcr5 =>
-						if delay_count = "0000" then
+						if delay_count = "000000" then
 							ea <= alu_result;
 							cruclk <= '0';
 							dec_shift_count := True;
@@ -1549,8 +1543,8 @@ begin
 					shift_count <= std_logic_vector(unsigned(shift_count) - to_unsigned(1, 5));
 				end if;
 				
-				if delay_count /= "0000" then
-					delay_count <= std_logic_vector(unsigned(delay_count) - to_unsigned(1, 4));
+				if delay_count /= "000000" then
+					delay_count <= std_logic_vector(unsigned(delay_count) - to_unsigned(1, 6));
 				end if;
 				
 			

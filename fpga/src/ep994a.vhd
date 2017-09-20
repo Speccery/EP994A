@@ -118,6 +118,9 @@ entity ep994a is
 			  DEBUG2		: out std_logic;
 --			  INTERRUPT	: out std_logic;	-- interrupt to the CPU
 --			  CPU_RESET		: out std_logic;
+
+			  -- SWITCHES (in reverse order compared to the markings)
+			  SWI       : in std_logic_vector(7 downto 0);
 			  
 			  -- AUDIO
 			  AUDIO_L	: out std_logic;
@@ -317,6 +320,8 @@ architecture Behavioral of ep994a is
 	signal cpu_ic03    : std_logic_vector(3 downto 0) := "0001";
 	signal cpu_int_ack : std_logic;
 	
+	signal waits : std_logic_vector(5 downto 0);
+	
 -------------------------------------------------------------------------------	
     COMPONENT tms9900
     PORT(
@@ -344,6 +349,7 @@ architecture Behavioral of ep994a is
 			cruclk   : out STD_LOGIC;
 			hold     : in STD_LOGIC;
 			holda    : out STD_LOGIC;
+			waits    : in STD_LOGIC_VECTOR(5 downto 0);
          stuck : OUT  std_logic
         );
     END COMPONENT;
@@ -500,8 +506,27 @@ begin
 				sram_capture <= True;
 				
 				cpu_single_step <= x"00";
+				
+				waits <= (others => '0');
 			else
 				-- processing of normal clocks here. We run at 100MHz.
+				
+				-- First manage CPU wait states
+				-- if switch 1 (SWI[7]) is set we run at 63 wait states
+				-- if switch 2 (SWI[6]) is set we run at 31 wait states
+				-- if switch 2 (SWI[5]) is set we run at 8 wait states
+				-- else we run at zero wait states
+				if SWI(7)='1' then
+					waits <= "111111";
+				elsif SWI(6)='1' then
+					waits <= "011111";
+				elsif SWI(5)='1' then
+					waits <= "001000";
+				else
+					waits <= (others => '0');
+				end if;
+				
+				
 				---------------------------------------------------------
 				-- SRAM map (1 mega byte, 0..FFFFF, 20 bit address space)
 				---------------------------------------------------------
@@ -1028,6 +1053,7 @@ begin
 			 cruclk => cpu_cruclk,
 			 hold => cpu_hold,
 			 holda => cpu_holda,
+			 waits => waits,
           stuck => cpu_stuck
         );
 		

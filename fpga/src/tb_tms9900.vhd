@@ -68,6 +68,7 @@ ARCHITECTURE behavior OF tb_tms9900 IS
 			cruclk   : out STD_LOGIC;
 			hold     : in STD_LOGIC;		-- DMA request, active high
 			holda    : out STD_LOGIC;     -- DMA ack, active high
+			waits    : in STD_LOGIC_VECTOR(5 downto 0);
          stuck : OUT  std_logic
         );
     END COMPONENT;
@@ -157,6 +158,7 @@ BEGIN
 			 cruclk => cruclk,
 			 hold => hold,
 			 holda => holda,
+			 waits => "000000", -- "111111", -- "000000",
           stuck => stuck
         );
 		  
