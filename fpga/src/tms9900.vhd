@@ -60,6 +60,7 @@ entity tms9900 is Port (
 	hold     : in STD_LOGIC;		-- DMA request, active high
 	holda    : out STD_LOGIC;     -- DMA ack, active high
 	waits    : in STD_LOGIC_VECTOR(5 downto 0);	-- number of wait states per memory cycles
+	scratch_en : in STD_LOGIC;		-- when 1 in-core scratchpad RAM is enabled
 	stuck	 	: out  STD_LOGIC		-- when high the CPU is stuck
 	);
 end tms9900;
@@ -95,7 +96,7 @@ architecture Behavioral of tms9900 is
 		do_branch,
 		do_stuck,
 		do_read,
-		do_read0, do_read1, do_read2, do_read3, 
+		do_read0, do_read1, do_read2, do_read3, do_read_pad, do_read_pad1,
 		do_write,
 		do_write0, do_write1, do_write2, do_write3, 
 		do_ir_imm, do_lwpi_limi,
@@ -171,6 +172,19 @@ architecture Behavioral of tms9900 is
 	signal mult_b : std_logic_vector(17 downto 0);
 	signal mult_product : std_logic_vector(35 downto 0);
 	signal dividend : std_logic_vector(31 downto 0);	-- for the divide instruction
+	
+	
+	component scratchpad is
+    Port ( addr : in  STD_LOGIC_VECTOR (7 downto 1);
+           din  : in  STD_LOGIC_VECTOR (15 downto 0);
+           dout : out  STD_LOGIC_VECTOR (15 downto 0);
+           clk  : in  STD_LOGIC;
+           wr   : in  STD_LOGIC);
+	end component;	
+	
+	signal scratchpad_wr  : std_logic;
+	signal scratchpad_en  : std_logic;
+	signal scratchpad_out : STD_LOGIC_VECTOR (15 downto 0);
 
 begin
 
@@ -182,6 +196,14 @@ begin
 		b => mult_b,
 		p => mult_product);
 	mult_debug_out <= mult_product;
+	
+
+   my_scratchpad: scratchpad port map (
+			  addr => addr(7 downto 1),
+           din  => wr_dat,
+           dout => scratchpad_out,
+           clk  => clk,
+           wr   => scratchpad_wr);
 
 	cpu_debug_out <= debug_wr_data & debug_wr_addr & st & pc & pc_ir & ir;
 	
@@ -321,6 +343,8 @@ begin
 			capture_ir <= True;
 			set_int_priority <= False;
 			int_ack <= '0';
+			scratchpad_en <= '0';
+			scratchpad_wr <= '0';
 		else
 			if rising_edge(clk) then
 			
@@ -334,19 +358,39 @@ begin
 					when do_pc_read =>
 						addr <= pc;
 						pc <= std_logic_vector(unsigned(pc) + to_unsigned(2,16));
-						as <= '1';
-						rd <= '1';
-						cpu_state <= do_read0;
+						if pc(15 downto 8) = x"83" and scratch_en='1' then
+							-- scratchpad support begin
+							scratchpad_wr <= '0';
+							scratchpad_en <= '1';
+							cpu_state <= do_read_pad;
+						else 
+							as <= '1';
+							rd <= '1';
+							cpu_state <= do_read0;
+						end if;
 					when do_read =>		-- start memory read cycle
-						as <= '1';
-						rd <= '1';
-						addr <= ea;
-						cpu_state <= do_read0;
+						addr <= ea;					
+						if ea(15 downto 8) = x"83" and scratch_en='1' then
+							-- scratchpad support begin
+							scratchpad_wr <= '0';
+							scratchpad_en <= '1';
+							cpu_state <= do_read_pad;
+						else 
+							as <= '1';
+							rd <= '1';
+							cpu_state <= do_read0;
+						end if;
 					when do_alu_read =>
-						as <= '1';
-						rd <= '1';
 						addr <= alu_result;
-						cpu_state <= do_read0;
+						if alu_result(15 downto 8) = x"83" and scratch_en='1' then
+							scratchpad_wr <= '0';
+							scratchpad_en <= '1';
+							cpu_state <= do_read_pad;
+						else
+							as <= '1';
+							rd <= '1';
+							cpu_state <= do_read0;
+						end if;
 					when do_read0 => 
 						cpu_state <= do_read1; 
 						as <= '0';
@@ -362,20 +406,42 @@ begin
 							rd <= '0';
 							rd_dat <= data_in;
 						-- end if;
+					when do_read_pad =>
+						cpu_state <= do_read_pad1;
+					when do_read_pad1 =>
+						-- read from scratchpad
+						scratchpad_en <= '0';					
+						cpu_state <= cpu_state_next; -- do_read4; -- cpu_state_next;
+						data_out <= scratchpad_out;	-- for debugging show what was read
+						rd_dat <= scratchpad_out;
 						
 					-- write cycles --
 					when do_write =>
-						as <= '1';
-						wr <= '1';
 						addr <= ea;
 						data_out <= wr_dat;
-						cpu_state <= do_write0;
+						if ea(15 downto 8) = x"83" and scratch_en='1' then
+							scratchpad_wr <= '1';
+							scratchpad_en <= '1';
+							cpu_state <= do_write3;
+						else
+							as <= '1';
+							wr <= '1';
+							cpu_state <= do_write0;
+						end if;
 					when do_alu_write =>
-						as <= '1';
-						wr <= '1';
-						addr <= alu_result;
+						-- scratchpad support begin
+						addr <= alu_result;						
 						data_out <= wr_dat;
-						cpu_state <= do_write0;
+						if alu_result(15 downto 8) = x"83" and scratch_en='1' then
+							scratchpad_wr <= '1';
+							scratchpad_en <= '1';
+							cpu_state <= do_write3;
+						else
+							-- external memory
+							as <= '1';
+							wr <= '1';
+							cpu_state <= do_write0;
+						end if;
 					when do_write0 => 
 						cpu_state <= do_write1; 
 						as <= '0';
@@ -392,6 +458,8 @@ begin
 						end if;
 					when do_write2 => cpu_state <= do_write3;
 					when do_write3 => 
+						scratchpad_wr <= '0';
+						scratchpad_en <= '0';
 						-- if ready='1' then
 							cpu_state <= cpu_state_next; -- do_write4; -- cpu_state_next;
 							wr <= '0';

@@ -16,10 +16,14 @@
             <top_module name="tb_tms9900" />
             <top_module name="textio" />
             <top_module name="vcomponents" />
+            <top_module name="vcomponents" />
+            <top_module name="vital_primitives" />
+            <top_module name="vital_timing" />
+            <top_module name="vpkg" />
          </top_modules>
       </db_ref>
    </db_ref_list>
-   <WVObjectSize size="24" />
+   <WVObjectSize size="28" />
    <wave_markers>
       <marker time="3935000000" label="" />
    </wave_markers>
@@ -125,6 +129,24 @@
    <wvobject fp_name="/tb_tms9900/cru_test_data" type="array" db_ref_id="1">
       <obj_property name="ElementShortName">cru_test_data[15:0]</obj_property>
       <obj_property name="ObjectShortName">cru_test_data[15:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_tms9900/uut/scratchpad_wr" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">scratchpad_wr</obj_property>
+      <obj_property name="ObjectShortName">scratchpad_wr</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_tms9900/uut/scratchpad_en" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">scratchpad_en</obj_property>
+      <obj_property name="ObjectShortName">scratchpad_en</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_tms9900/uut/wr_dat" type="array" db_ref_id="1">
+      <obj_property name="ElementShortName">wr_dat[15:0]</obj_property>
+      <obj_property name="ObjectShortName">wr_dat[15:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_tms9900/uut/scratchpad_out" type="array" db_ref_id="1">
+      <obj_property name="ElementShortName">scratchpad_out[15:0]</obj_property>
+      <obj_property name="ObjectShortName">scratchpad_out[15:0]</obj_property>
       <obj_property name="Radix">HEXRADIX</obj_property>
    </wvobject>
 </wave_config>

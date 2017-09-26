@@ -69,6 +69,7 @@ ARCHITECTURE behavior OF tb_tms9900 IS
 			hold     : in STD_LOGIC;		-- DMA request, active high
 			holda    : out STD_LOGIC;     -- DMA ack, active high
 			waits    : in STD_LOGIC_VECTOR(5 downto 0);
+			scratch_en : in STD_LOGIC;		-- when 1 in-core scratchpad RAM is enabled
          stuck : OUT  std_logic
         );
     END COMPONENT;
@@ -159,6 +160,7 @@ BEGIN
 			 hold => hold,
 			 holda => holda,
 			 waits => "000000", -- "111111", -- "000000",
+ 		 	 scratch_en => '1',
           stuck => stuck
         );
 		  

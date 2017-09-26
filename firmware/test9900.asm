@@ -46,6 +46,8 @@ BOOT
   LIMI 2
 ; Test LDCR
   LI  R12,>550
+  INC R12
+  DEC R12
   LI  R3,>8155
   LDCR R3,8
   STCR R3,8

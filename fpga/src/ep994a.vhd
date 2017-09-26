@@ -350,6 +350,7 @@ architecture Behavioral of ep994a is
 			hold     : in STD_LOGIC;
 			holda    : out STD_LOGIC;
 			waits    : in STD_LOGIC_VECTOR(5 downto 0);
+			scratch_en : in STD_LOGIC;		-- when 1 in-core scratchpad RAM is enabled
          stuck : OUT  std_logic
         );
     END COMPONENT;
@@ -1054,6 +1055,7 @@ begin
 			 hold => cpu_hold,
 			 holda => cpu_holda,
 			 waits => waits,
+			 scratch_en => '1',
           stuck => cpu_stuck
         );
 		
