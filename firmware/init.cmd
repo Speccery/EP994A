@@ -60,18 +60,27 @@ REM  cp ../../../ticart/ASCART.bin .
 REM  memloader %CART_ROM% ASCART.bin
 
 REM  Defender
-REM memloader %PORT% %CART_ROM% Defender.C.bin
+rem memloader %PORT% %CART_ROM% Defender.C.bin
 
 REM Diagnostic module
 rem memloader %PORT% %CART_GROM% DiagnosG.bin
 
 REM  TI Parsec
-memloader %PORT% %CART_ROM% PARSECC.bin
-memloader %PORT% %CART_GROM% PARSECG.bin
+rem memloader %PORT% %CART_ROM% PARSECC.bin
+rem memloader %PORT% %CART_GROM% PARSECG.bin
 
 REM  Alpiner
 rem memloader %PORT% %CART_ROM% ALPINERC.BIN
 rem memloader %PORT% %CART_GROM% ALPINERG.BIN
+
+REM  munchman
+memloader %PORT% %CART_ROM% MUNCHMNC.BIN
+memloader %PORT% %CART_GROM% MUNCHMNG.BIN
+
+
+REM load Ralph's test rom
+rem memloader %PORT% %CART_ROM% ralph\dblreadC.rpk\dblreadC.bin
+rem memloader %PORT% %CART_GROM% ralph\dblreadC.rpk\dblreadG.bin
 
 REM  CPU out of reset
 memloader %PORT% 100008 cpu_reset_off.bin

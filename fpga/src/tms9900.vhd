@@ -91,7 +91,8 @@ architecture Behavioral of tms9900 is
 	-- debug stuff end
 		
 	type cpu_state_type is (
-		do_pc_read, do_alu_read,
+		do_pc_read, 
+		do_alu_read,
 		do_fetch, do_decode,
 		do_branch,
 		do_stuck,
@@ -185,6 +186,30 @@ architecture Behavioral of tms9900 is
 	signal scratchpad_wr  : std_logic;
 	signal scratchpad_en  : std_logic;
 	signal scratchpad_out : STD_LOGIC_VECTOR (15 downto 0);
+	
+	procedure do_pc_read_quick(
+		signal pc : inout std_logic_vector(15 downto 0);
+		signal addr : out std_logic_vector(15 downto 0);
+		signal cpu_state : out cpu_state_type;
+		signal as : out std_logic;
+		signal rd : out std_logic;
+		signal scratchpad_wr : out std_logic;
+		signal scratchpad_en : out std_logic
+	) is
+	begin
+		addr <= pc;
+		pc <= std_logic_vector(unsigned(pc) + to_unsigned(2,16));
+		if pc(15 downto 8) = x"83" and scratch_en='1' then
+			-- scratchpad support begin
+			scratchpad_wr <= '0';
+			scratchpad_en <= '1';
+			cpu_state <= do_read_pad;
+		else 
+			as <= '1';
+			rd <= '1';
+			cpu_state <= do_read0;
+		end if;
+	end do_pc_read_quick;
 
 begin
 
@@ -483,8 +508,25 @@ begin
 								int_ack <= '1';
 							else
 								iaq <= '1';
-								cpu_state <= do_pc_read;
+								-- let's run faster in here and save one clock cycle by setting things up already here.
+								-- instead of going to do_pc_read let's inline that stuff here.
+								-- LEGACY code:
+								-- -- cpu_state <= do_pc_read;
+								do_pc_read_quick(pc=>pc, addr=>addr, cpu_state=>cpu_state, as=>as, rd=>rd, scratchpad_wr=>scratchpad_wr, scratchpad_en=>scratchpad_en);
 								cpu_state_next <= do_decode;
+--								addr <= pc;
+--								pc <= std_logic_vector(unsigned(pc) + to_unsigned(2,16));
+--								if pc(15 downto 8) = x"83" and scratch_en='1' then
+--									-- scratchpad support begin
+--									scratchpad_wr <= '0';
+--									scratchpad_en <= '1';
+--									cpu_state <= do_read_pad;
+--								else 
+--									as <= '1';
+--									rd <= '1';
+--									cpu_state <= do_read0;
+--								end if;
+								
 							end if;
 						end if;
 --						test_out <= x"0000";
