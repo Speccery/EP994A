@@ -54,8 +54,8 @@ rem memloader %PORT% %CART_ROM2% RXBD.Bin
 rem memloader %PORT% %CART_GROM% RXBG.Bin
 
 REM  TI Invaders
-rem memloader %PORT% %CART_ROM% TI-InvaC.bin
-rem memloader %PORT% %CART_GROM% TI-InvaG.bin
+memloader %PORT% %CART_ROM% TI-InvaC.bin
+memloader %PORT% %CART_GROM% TI-InvaG.bin
 
 REM  ERIK test ROM
 goto skip_test_rom

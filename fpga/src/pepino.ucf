@@ -186,9 +186,9 @@ NET "switch"         LOC = "K14"  | IOSTANDARD = LVTTL | PULLDOWN;
 # TMS99105 #RD and #WE/#IOCLK
 # #RD = PMOD2-IO3 "B8"
 # #WE = PMOD2-IO1 "A8"
-NET "MEM_n_ext"		LOC = "B8" | IOSTANDARD = LVCMOS33;
+# NET "MEM_n_ext"		LOC = "B8" | IOSTANDARD = LVCMOS33;
 # NET "RD_n"			LOC = "B8" | IOSTANDARD = LVCMOS33;
-NET "WE_n_ext"			LOC = "A8" | IOSTANDARD = LVCMOS33;
+# NET "WE_n_ext"			LOC = "A8" | IOSTANDARD = LVCMOS33;
 
 # Debugging pins (PS2 keyboard port)
 # Actually taken into real use.

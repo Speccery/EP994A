@@ -64,48 +64,6 @@ entity ep994a is
 
 			  SWITCH		: in std_logic;
 			  
-			  -- I/O interfaces
---			  INDATA		: inout std_logic_vector(15 downto 0);	-- TMS99105 multiplexed A/D bus
-
-			  --------------------------------------
-			  -- The connection information below is the Pepino FPGA buffer board.
-			  -- There were two iterations in my circuit: 
-			  -- 	1st I used the board as is, just using the extension connectors
-			  --	2nd I cut a few traces and soldered a couple of wires, to free up two I/O pins.
-			  --		 This was done by having the LVC16245 buffer chip be operated as a single 16-bit wide
-			  --		 buffer instead of two 8 bit buffers.
-			  --
-			  -- LVC16245 control signals. low = input. Pin numbers for the nRF24L01 connector.
-			  -- 			FPGA	label	J7		label		FPGA	
-			  ------------------------------------------
-			  --				A14	IRQ 	8  7	MISO		C10
-			  --	CH1_EN	D8		MOSI 	6  5	SCK		D9		CH1_DIR
-			  --	CH2_EN	F9		SS		4  3	NE			C8		CH2_DIR
-			  --	   				3V3	2	1	GND
-			  --
-			  -- two traces on PCB cut: J7-5 (CH1_DIR) and J7-4 (CH2_EN)
-			  --------------------------------------
-			  
---			  CH1_DIR	: out std_logic;	-- FPGA pin D9 - CUT
---			  CH2_DIR	: out std_logic;	-- FPGA pin C8 
---			  CH1_EN		: out std_logic;	-- FPGA pin D8 
---			  CH2_EN		: out std_logic;	-- FPGA pin F9 - CUT
---			  
---			  -- TMS99105 control signals
---			  ALATCH		: in std_logic;		
-			  MEM_n_ext	: in std_logic;		
---			  RD_n		: in std_logic;
-			  WE_n_ext	: in std_logic;
-
-			  ----------------------------------------------
-			  -- Signals for the PCB
---			  ALATCH    : in std_logic;	-- CPU address latch input
---			  RD_n      : in std_logic;	-- CPU read signal
---			  BUS_OE_n  : out std_logic;	-- when low, 16-bit bus drivers active
---			  BUSDIR 	: out std_logic;	-- direction of 16-bit bus. High=TMS99105 driving the bus
---			  CTRL_RD_n : out std_logic;	-- when IO1N..IO8N contains bus control signals from CPU
---			  CTRL_CP   : out std_logic;  -- rising edge clocks IO1P..IO8P to control latch
-			  
 			  -- VGA output
 			  VGA_HSYNC	: out std_logic;
 			  VGA_VSYNC	: out std_logic;
@@ -116,8 +74,6 @@ entity ep994a is
 			  -- DEBUG (PS2 KBD port)
 			  DEBUG1		: out std_logic;
 			  DEBUG2		: out std_logic;
---			  INTERRUPT	: out std_logic;	-- interrupt to the CPU
---			  CPU_RESET		: out std_logic;
 
 			  -- SWITCHES (in reverse order compared to the markings)
 			  SWI       : in std_logic_vector(7 downto 0);
@@ -198,8 +154,8 @@ architecture Behavioral of ep994a is
 	
 	-- TMS99105 control signals
 	signal cpu_addr			: std_logic_vector(15 downto 0);
-	signal cpu_data_out		: std_logic_vector(15 downto 0);	-- data to CPU
-	signal cpu_data_in		: std_logic_vector(15 downto 0);	-- data from CPU
+	signal data_to_cpu		: std_logic_vector(15 downto 0);	-- data to CPU
+	signal data_from_cpu		: std_logic_vector(15 downto 0);	-- data from CPU
 --	signal alatch_sampler	: std_logic_vector(15 downto 0);
 	signal wr_sampler			: std_logic_vector(3 downto 0);
 	signal rd_sampler			: std_logic_vector(3 downto 0);
@@ -445,7 +401,7 @@ begin
 	SRAM_DAT		<= -- broadcast on all byte lanes when memory controller is writing
 						mem_data_out & mem_data_out & mem_data_out & mem_data_out when cpu_access='0' and mem_drive_bus='1' else
 						-- broadcast on 16-bit wide lanes when CPU is writing
-						cpu_data_in & cpu_data_in when cpu_access='1' and MEM_n='0' and WE_n = '0' else
+						data_from_cpu & data_from_cpu when cpu_access='1' and MEM_n='0' and WE_n = '0' else
 						(others => 'Z');
 						
 	sram_16bit_read_bus <= SRAM_DAT(15 downto 0) when sram_addr_bus(0)='0' else SRAM_DAT(31 downto 16);
@@ -459,7 +415,6 @@ begin
 	-- CPU reset out. If either cpu_reset_ctrl(0) or funky_reset(MSB) is zero, put CPU to reset.
 	real_reset <= funky_reset(funky_reset'length-1);
 	real_reset_n <= not real_reset;
-	-- CPU_RESET <= cpu_reset_ctrl(0) and real_reset;
 	conl_reset <= cpu_reset_ctrl(0) and real_reset;
 	
 	cpu_access <= not cpu_holda;	-- CPU owns the bus except when in hold
@@ -786,7 +741,7 @@ begin
 				if sams_regs(6)='0' then	-- if sams_regs(6) is set I/O is out and paged RAM is there instead
 					if go_write = '1' and MEM_n='0' then
 						if cpu_addr(15 downto 8) = x"80" then
-							outreg <= cpu_data_in;			-- write to >80XX is sampled in the output register
+							outreg <= data_from_cpu;			-- write to >80XX is sampled in the output register
 						elsif cpu_addr(15 downto 8) = x"8C" then
 							vdp_wr <= '1';
 						elsif cpu_addr(15 downto 8) = x"9C" then
@@ -894,21 +849,8 @@ begin
 	
 	
 	cpu_hold <= '1' when mem_read_rq='1' or mem_write_rq='1' or (cpu_single_step(0)='1' and cpu_single_step(1)='0') else '0'; -- issue DMA request
-
-	-- TMS99105 CPU interface.
---	BUSDIR <= RD_n;	-- Bus buffers towards TMS99105 only during read cycle
---	bus_oe_n_internal <= '1' when alatch_sampler(2) = '1' and alatch_sampler(5) = '0' else '0'; -- only four clock cycles during which indata buffers are disabled
---	BUS_OE_n <= bus_oe_n_internal;
---	CTRL_RD_n <= not bus_oe_n_internal;	-- Control bits readable when addr/data buffers are off
---	CTRL_CP <= '1' when alatch_sampler(4) = '1' and alatch_sampler(6) = '0' else '0';	-- issue clock pulse	
-	-- FPGA drivers follow RD_n except during control signal operations (CTRL_RD_n = '0')
---	INDATA <= "ZZZZZZZZ" & conl_led1 & conl_led2 & conl_app_n & conl_ready & conl_hold & conl_nmi & conl_int & conl_reset when bus_oe_n_internal='1'
---		else "ZZZZZZZZZZZZZZZZ" when RD_n = '1'
---		else cpu_data_out;
-		
 	DEBUG1 <= go_write;
---	WE_n <= WE_n_ext;
-	
+
 	go_write <= '1' when wr_sampler = "1000" else '0'; -- wr_sampler = "1110" else '0';
 	go_cruclk <= '1' when cruclk_sampler(1 downto 0) = "01" else '0';
 
@@ -919,18 +861,7 @@ begin
 	conl_led1 <= cru1100;
 	conl_led2 <= alatch_counter(19);
 	
-	
---	-- Control LVC16245 direction and output enables.
---	-- ALATCH, MEN_n, RD_n, WE_n are control signals that we always receive from the CPU.
---	-- The LVC16245 is in input mode, i.e. driving from CPU to FPGA, always except when #RD is low.
---	CH1_DIR <= 'Z'; -- trace cut not RD_n;		-- CH1_DIR='0' means input, '1' means output i.e. serving CPU reads.
---	CH2_DIR <= not RD_n;
---	INDATA <= "ZZZZZZZZZZZZZZZZ" when RD_n = '1' else cpu_data_out;	-- FPGA drivers follow RD_n
---	-- Enable signals for the LVC16245
---	CH1_EN <= '0';
---	CH2_EN <= 'Z'; -- TRACE CUT '0'; 
-	
-	cpu_data_out <= 
+	data_to_cpu <= 
 		vdp_data_out         			when sams_regs(6)='0' and cpu_addr(15 downto 10) = "100010" else	-- 10001000..10001011 (8800..8BFF)
 		grom_data_out & x"00" 			when sams_regs(6)='0' and cpu_addr(15 downto 8) = x"98" and cpu_addr(1)='1' else	-- GROM address read
 		pager_data_out(7 downto 0) & pager_data_out(7 downto 0) when paging_registers = '1' else	-- replicate pager values on both hi and lo bytes
@@ -950,7 +881,7 @@ begin
 		reset 	=> real_reset_n,	
 		mode 		=> cpu_addr(1),
 		addr		=> cpu_addr(8 downto 1),
-		data_in 	=> cpu_data_out(15 downto 8),
+		data_in 	=> data_from_cpu(15 downto 8),
 		data_out => vdp_data_out,
 		wr 		=> vdp_wr,	
 		rd 		=> vdp_rd,
@@ -970,7 +901,7 @@ begin
 	-- GROM implementation - GROM's are mapped to external RAM
 	extbasgrom : entity work.gromext port map (
 			clk 		=> clk,
-			din 		=> cpu_data_out(15 downto 8),
+			din 		=> data_from_cpu(15 downto 8),
 			dout		=> grom_data_out,
 			we 		=> grom_we,
 			rd 		=> grom_rd,
@@ -984,7 +915,7 @@ begin
 	TMS9919_CHIP: entity work.tms9919 port map (
 			clk 		=> clk,
 			reset		=> real_reset_n,
-			data_in 	=> cpu_data_out(15 downto 8),
+			data_in 	=> data_from_cpu(15 downto 8),
 			we			=> tms9919_we,
 			dac_out	=> dac_data
 		);
@@ -1007,7 +938,7 @@ begin
 	paging_registers <= '1' when paging_regs_visible = '1' and (cpu_rd='1' or cpu_wr='1') and cpu_addr(15 downto 13) = "010" else '0';
 	page_reg_read <= '1' when paging_registers = '1' and cpu_rd ='1' else '0';	
 
-	pager_data_in <= x"00" & cpu_data_in(15 downto 8);	-- my own extended mode not supported here
+	pager_data_in <= x"00" & data_from_cpu(15 downto 8);	-- my own extended mode not supported here
 
 	pager : pager612 port map (
 		clk		 => clk,
@@ -1033,8 +964,8 @@ begin
           clk => clk,
           reset => cpu_reset,
           addr_out => cpu_addr,
-          data_in => cpu_data_out,
-          data_out => cpu_data_in,
+          data_in => data_to_cpu,
+          data_out => data_from_cpu,
           rd => cpu_rd,
           wr => cpu_wr,
           ready => cpu_ready,
