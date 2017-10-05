@@ -97,7 +97,8 @@ architecture Behavioral of tms9900 is
 		do_branch,
 		do_stuck,
 		do_read,
-		do_read0, do_read1, do_read2, do_read3, do_read_pad, do_read_pad1,
+		do_read0, do_read1, do_read2, do_read3,
+		do_read_pad, do_read_pad1,
 		do_write,
 		do_write0, do_write1, do_write2, do_write3, 
 		do_ir_imm, do_lwpi_limi,
@@ -427,7 +428,7 @@ begin
 					when do_read2 => cpu_state <= do_read3;
 					when do_read3 => 
 						-- if ready='1' then 
-							cpu_state <= cpu_state_next; -- do_read4; -- cpu_state_next;
+							cpu_state <= cpu_state_next;
 							rd <= '0';
 							rd_dat <= data_in;
 						-- end if;

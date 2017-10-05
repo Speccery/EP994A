@@ -683,6 +683,9 @@ void DoLoad(const char *name, const struct ti_pab *pab) {
     // Huge hack: if we have TIFILES header, just skip it.
     if (length == 0 && strncmp(buf, "\x07TIFILES", 8) == 0) {
       // We have TIFILES header, let's skip it.
+      // Now, first we look at it.
+      struct tifiles_header header;
+      memcpy(&header, buf, sizeof(header)); // save to header.
       memcpy(buf, buf + 128, chunk - 128);
       chunk -= 128;
       printf("Skipping TIFILES header\n");
@@ -692,6 +695,11 @@ void DoLoad(const char *name, const struct ti_pab *pab) {
       memcpy(buf, buf + 128, chunk - 128);
       chunk -= 128;
       printf("Skipping V9T9 header for AMSTEST4\n");
+    }
+    else if (length == 0 && strncmp(buf, "XBDEMO", 6) == 0) {
+      memcpy(buf, buf + 128, chunk - 128);
+      chunk -= 128;
+      printf("Skipping V9T9 header for XBDEMO\n");
     }
 
     // Check that chunk does not bring us over the available space
@@ -719,10 +727,10 @@ int DoDiskProcess() {
 				  // We have a command from the CPU. PAB is at offset 32.
 	struct ti_pab *p = (struct ti_pab *)&cmd_buf[32];
   unsigned short pabsta = *(unsigned short *)&cmd_buf[DSR_PABSTA - SCRATCHPAD];
-  print_pab("Got PAB: ", pabsta, p);
   swap_word_bytes(&pabsta);
   swap_word_bytes(&p->addr);
-	swap_word_bytes(&p->record_number);
+  swap_word_bytes(&p->record_number);
+  print_pab("Got PAB: ", pabsta, p);
 	if (p->opcode == OP_SAVE) {
 		// Save operation, the TI wants to save a program to our disk.
 		// DEBUG: Save sprite table

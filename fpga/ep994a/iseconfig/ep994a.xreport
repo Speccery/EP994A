@@ -1,11 +1,11 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <report-views version="2.0" >
  <header>
-  <DateModified>2017-09-30T12:10:39</DateModified>
+  <DateModified>2017-10-05T18:33:30</DateModified>
   <ModuleName>ep994a</ModuleName>
   <SummaryTimeStamp>2017-05-05T22:39:25</SummaryTimeStamp>
-  <SavedFilePath>X:/Omat/trunk/EP994A/fpga/ep994a/iseconfig/ep994a.xreport</SavedFilePath>
-  <ImplementationReportsDirectory>X:/Omat/trunk/EP994A/fpga/work\</ImplementationReportsDirectory>
+  <SavedFilePath>C:/Users/Erik Piehl/Dropbox/Omat/trunk/EP994A/fpga/ep994a/iseconfig/ep994a.xreport</SavedFilePath>
+  <ImplementationReportsDirectory>C:/Users/Erik Piehl/Dropbox/Omat/trunk/EP994A/fpga/work\</ImplementationReportsDirectory>
   <DateInitialized>2016-11-04T07:00:18</DateInitialized>
   <EnableMessageFiltering>false</EnableMessageFiltering>
  </header>

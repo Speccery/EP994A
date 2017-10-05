@@ -55,6 +55,7 @@ begin
 		x"000" & abus_high(15 downto 12);	-- mapping off
 	
 	dbus_out <= regs(to_integer(unsigned(abus_low(3 downto 0)))) when page_reg_read = '1' and access_regs = '1' else
+		-- mapen & write_enable & page_reg_read & access_regs & x"E" & mapen & write_enable & page_reg_read & access_regs & x"F";
 		x"BEEF";
 end Behavioral;
 

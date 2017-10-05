@@ -886,8 +886,8 @@ begin
 	led(0) <= cpu_reset;
 	led(1) <= cpu_hold;
 	led(2) <= cpu_holda;
-	led(3) <= cpu_rd;
-	led(4) <= cpu_stuck;
+	led(3) <= sams_regs(0);
+	led(4) <= sams_regs(1);
 	led(5) <= cpu_wr;
 	led(6) <= '1';
 	led(7) <= alatch_counter(19);
@@ -1004,10 +1004,10 @@ begin
 	paging_enable 			<= sams_regs(1);			-- 1E02 in CRU space
 	
 	-- the pager registers can be accessed at >4000 to >5FFF when paging_regs_visible is set
-	paging_registers <= '1' when paging_regs_visible = '1' and MEM_n = '0' and cpu_addr(15 downto 13) = "010" else '0';
-	page_reg_read <= '1' when paging_registers = '1' and RD_n='0' else '0';	
+	paging_registers <= '1' when paging_regs_visible = '1' and (cpu_rd='1' or cpu_wr='1') and cpu_addr(15 downto 13) = "010" else '0';
+	page_reg_read <= '1' when paging_registers = '1' and cpu_rd ='1' else '0';	
 
-	pager_data_in <= x"00" & cpu_data_out(15 downto 8);	-- my own extended mode not supported here
+	pager_data_in <= x"00" & cpu_data_in(15 downto 8);	-- my own extended mode not supported here
 
 	pager : pager612 port map (
 		clk		 => clk,

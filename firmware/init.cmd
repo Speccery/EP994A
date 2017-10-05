@@ -33,15 +33,17 @@ REM  DSR for disk support
 memloader %PORT% %DSR_ROM% diskdsr_4000.bin
 
 REM  Extended Basic
-rem memloader %PORT% %CART_ROM% TIExtC.Bin
-rem memloader %PORT% %CART_ROM2% TIExtD.Bin
-rem memloader %PORT% %CART_GROM% TIExtG.Bin
+goto skipex
+memloader %PORT% %CART_ROM% TIExtC.Bin
+memloader %PORT% %CART_ROM2% TIExtD.Bin
+memloader %PORT% %CART_GROM% TIExtG.Bin
+:skipex
 
 REM  Erik Test Cartridge
-REM  memloader %PORT% %CART_ROM% ERIK1.bin
+rem memloader %PORT% %CART_ROM% ..\..\projects\ticart\ERIK1.bin
 
 REM  Memory extension test
-REM  memloader %PORT% %CART_ROM% AMSTEST4-8.BIN
+memloader %PORT% %CART_ROM% ..\memloader\AMSTEST4-8.BIN
 
 REM  Editor/Assembler
 rem memloader %PORT% %CART_GROM% TIEAG.BIN
@@ -56,8 +58,10 @@ rem memloader %PORT% %CART_ROM% TI-InvaC.bin
 rem memloader %PORT% %CART_GROM% TI-InvaG.bin
 
 REM  ERIK test ROM
-REM  cp ../../../ticart/ASCART.bin .
-REM  memloader %CART_ROM% ASCART.bin
+goto skip_test_rom
+copy ..\..\projects\ticart\ASCART.bin .
+memloader %PORT% %CART_ROM% ASCART.bin
+:skip_test_rom
 
 REM  Defender
 rem memloader %PORT% %CART_ROM% Defender.C.bin
@@ -74,8 +78,8 @@ rem memloader %PORT% %CART_ROM% ALPINERC.BIN
 rem memloader %PORT% %CART_GROM% ALPINERG.BIN
 
 REM  munchman
-memloader %PORT% %CART_ROM% MUNCHMNC.BIN
-memloader %PORT% %CART_GROM% MUNCHMNG.BIN
+REM memloader %PORT% %CART_ROM% MUNCHMNC.BIN
+REM memloader %PORT% %CART_GROM% MUNCHMNG.BIN
 
 
 REM load Ralph's test rom
