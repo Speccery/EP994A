@@ -142,6 +142,7 @@ architecture Behavioral of tms9918 is
 	--
 	constant slv_511	: std_logic_vector(9 downto 0) := std_logic_vector(to_unsigned(511,10));
 	constant slv_760	: std_logic_vector(9 downto 0) := std_logic_vector(to_unsigned(760,10));
+	constant slv_479	: std_logic_vector(9 downto 0) := std_logic_vector(to_unsigned(479,10)); -- EP-USTRIP
 	
 	signal 	blanking : std_logic;
 	
@@ -314,7 +315,9 @@ begin
 			-- read from linebuffer
 			if clk25MHz = '1' then
 				if video_on = '1' and reg1(6)='1' then
-					if VGACol <= slv_511 and blanking = '0' then
+					if (VGACol <= slv_511 and blanking = '0' and reg1(4)='0') -- EP-USTRIP not text mode
+				    or (VGACol <= slv_479 and blanking = '0' and reg1(4)='1') -- EP-USTRIP text mode  
+				    then
 						vga_red 		<= vga_line_buf_out(7 downto 5);
 						vga_green 	<= vga_line_buf_out(4 downto 2);
 						vga_blue 	<= vga_line_buf_out(1 downto 0);
@@ -575,7 +578,7 @@ begin
 							-- we arrived at next line boundary, process it
 							vga_bank <= not vga_bank;
 							refresh_state <= process_line;
-							vga_line_buf_addr <= (others => '0');
+							vga_line_buf_addr <= (others => '1'); -- EP-USTRIP- Fixed from zero to one to init line properly
 							blanking <= '0';
 							if ypos(2 downto 0) /= "111" then
 								char_addr <= char_addr_reload;	-- reload char ptr to beginning of line

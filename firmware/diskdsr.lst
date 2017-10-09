@@ -1,4 +1,4 @@
-XAS99 CROSS-ASSEMBLER   VERSION 1.5.3
+XAS99 CROSS-ASSEMBLER   VERSION 1.5.2
 **** **** ****     > diskdsr.asm
 0001               * diskdsr.asm
 0002               * Disk DSR module for the TMS99105 system EP994A
@@ -15,7 +15,7 @@ XAS99 CROSS-ASSEMBLER   VERSION 1.5.3
 0013               
 0014      8000     MYRAM   EQU >8000        * EP994A scratchpad is 1k in size, starts at >8000
 0015      8002     ENTRYN  EQU >8002        * Save entry point number
-0016      8004     PABSTA  EQU >8004        * Start of PAB in VDP memory
+0016      8004     PABSTA  EQU >8004        * Start of PAB in VDP memory (also used by host program)
 0017      8006     MARKER  EQU >8006
 0018      8008     RCOUNT  EQU >8008        * DSR call count
 0019               
@@ -43,7 +43,7 @@ XAS99 CROSS-ASSEMBLER   VERSION 1.5.3
 0041 400E 0000       DATA 0
 0042               
 0043               MYMSG
-0044 4010 ....       TEXT  'TMS99105 FPGA SYSTEM ERIK PIEHL'
+0044 4010 ....       TEXT  'FAST FPGA SYSTEM (C) ERIK PIEHL'
 0045                 BYTE  0
 0046                 EVEN
 0047               

@@ -196,7 +196,7 @@ architecture Behavioral of ep994a is
 	signal cpu_single_step  : std_logic_vector(7 downto 0) := x"00";	-- single stepping. bit 0=1 single step mode, bit 1=1 advance one instruction	
 	
 	-- Module port banking
-	signal basic_rom_bank : std_logic_vector(3 downto 1) := "000";	-- latch ROM selection, 64K ROM support
+	signal basic_rom_bank : std_logic_vector(6 downto 1) := "000000";	-- latch ROM selection, 512K ROM support
 	signal cartridge_cs	 : std_logic;	-- 0x6000..0x7FFF
 	
 	-- audio subsystem
@@ -221,8 +221,8 @@ architecture Behavioral of ep994a is
 	-- signal pager_extended   : std_logic;
 	
 	-- TMS99105 Shield control latch signals (written to control latch during control cycle)
-	signal conl_led1  : std_logic;	-- IO8P - indata[7]
-	signal conl_led2  : std_logic;	-- IO7P - indata[6]
+--	signal conl_led1  : std_logic;	-- IO8P - indata[7]
+--	signal conl_led2  : std_logic;	-- IO7P - indata[6]
 	signal conl_app_n : std_logic;
 	signal conl_ready : std_logic;
 	signal conl_hold  : std_logic;
@@ -517,7 +517,7 @@ begin
 						sram_addr_bus <= x"8" & grom_ram_addr(15 downto 1);	-- 0x80000 GROM
 					elsif cartridge_cs='1' and sams_regs(5)='0' then
 						-- Handle paging of module port at 0x6000 unless sams_regs(5) is set (1E0A)
-						sram_addr_bus <= x"9" & basic_rom_bank & cpu_addr(12 downto 1);	-- mapped to 0x90000
+						sram_addr_bus <= '0' & basic_rom_bank & cpu_addr(12 downto 1);	-- mapped to 0x00000..0x7FFFF
 					elsif cru1100='1' and cpu_addr(15 downto 13) = "010" then	
 						-- DSR's for disk system
 						sram_addr_bus <= x"B" & "000" & cpu_addr(12 downto 1);	-- mapped to 0xB0000
@@ -530,8 +530,8 @@ begin
 						sram_addr_bus <= x"B8" & "00" & cpu_addr(9 downto 1);
 					else
 						-- regular RAM access
-						-- Bottom 512K is CPU SAMS RAM for now, so we have 19 bit memory addresses for RAM
-						sram_addr_bus <= "0" & translated_addr(6 downto 0) & cpu_addr(11 downto 1);
+						-- Top 256K is CPU SAMS RAM for now, so we have 18 bit memory addresses for RAM
+						sram_addr_bus <= "11" & translated_addr(5 downto 0) & cpu_addr(11 downto 1);
 					end if;
 				end if;
 				
@@ -722,7 +722,7 @@ begin
 				end case;
 				
 				if cpu_reset_ctrl(1)='0' then
-					basic_rom_bank <= "000";	-- Reset ROM bank selection
+					basic_rom_bank <= "000000";	-- Reset ROM bank selection
 				end if;
 				
 				
@@ -747,7 +747,7 @@ begin
 						elsif cpu_addr(15 downto 8) = x"9C" then
 							grom_we <= '1';			-- GROM writes
 						elsif cartridge_cs='1' and sams_regs(5)='0' then
-							basic_rom_bank <= cpu_addr(3 downto 1);	-- capture ROM bank select
+							basic_rom_bank <= cpu_addr(6 downto 1);	-- capture ROM bank select
 						elsif cpu_addr(15 downto 8) = x"84" then	
 							tms9919_we <= '1';		-- Audio chip write
 						elsif paging_registers = '1' then 
@@ -858,8 +858,8 @@ begin
 	-- Here drive the two shield board LEDs to include a little status information:
 	-- LED1: Disk access
 	-- LED2: ALATCH counter indication (i.e. CPU is alive)
-	conl_led1 <= cru1100;
-	conl_led2 <= alatch_counter(19);
+--	conl_led1 <= cru1100;
+--	conl_led2 <= alatch_counter(19);
 	
 	data_to_cpu <= 
 		vdp_data_out         			when sams_regs(6)='0' and cpu_addr(15 downto 10) = "100010" else	-- 10001000..10001011 (8800..8BFF)

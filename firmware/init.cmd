@@ -10,8 +10,10 @@ REM    (Scratcpad from 68000 to B8000 but not used here)
 REM 
 set CONSOLE_GROM=80000
 set CART_GROM=86000
-set CART_ROM=90000
-set CART_ROM2=92000
+rem set CART_ROM=90000
+rem set CART_ROM2=92000
+set CART_ROM=0
+set CART_ROM2=2000
 set CONSOLE_ROM=BA000
 set DSR_ROM=B0000
 if X%1X==XX goto setport4
@@ -53,9 +55,12 @@ rem memloader %PORT% %CART_ROM% RXBC.Bin
 rem memloader %PORT% %CART_ROM2% RXBD.Bin
 rem memloader %PORT% %CART_GROM% RXBG.Bin
 
-REM  TI Invaders
+REM  TI Invaders 
 memloader %PORT% %CART_ROM% TI-InvaC.bin
 memloader %PORT% %CART_GROM% TI-InvaG.bin
+
+REM Don't mess
+rem memloader  %PORT% %CART_ROM% dontmess.bin
 
 REM  ERIK test ROM
 goto skip_test_rom

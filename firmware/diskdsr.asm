@@ -41,7 +41,7 @@ MYPAB   EQU >8020        * PAB is copied from VDP RAM to here.
   DATA 0
   
 MYMSG  
-  TEXT  'TMS99105 FPGA SYSTEM ERIK PIEHL'
+  TEXT  'FAST FPGA SYSTEM (C) ERIK PIEHL'
   BYTE  0
   EVEN
   
