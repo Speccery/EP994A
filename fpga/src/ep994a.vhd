@@ -276,7 +276,7 @@ architecture Behavioral of ep994a is
 	signal cpu_ic03    : std_logic_vector(3 downto 0) := "0001";
 	signal cpu_int_ack : std_logic;
 	
-	signal waits : std_logic_vector(5 downto 0);
+	signal waits : std_logic_vector(7 downto 0);
 	
 -------------------------------------------------------------------------------	
     COMPONENT tms9900
@@ -305,7 +305,7 @@ architecture Behavioral of ep994a is
 			cruclk   : out STD_LOGIC;
 			hold     : in STD_LOGIC;
 			holda    : out STD_LOGIC;
-			waits    : in STD_LOGIC_VECTOR(5 downto 0);
+			waits    : in STD_LOGIC_VECTOR(7 downto 0);
 			scratch_en : in STD_LOGIC;		-- when 1 in-core scratchpad RAM is enabled
          stuck : OUT  std_logic
         );
@@ -473,11 +473,20 @@ begin
 				-- if switch 2 (SWI[5]) is set we run at 8 wait states
 				-- else we run at zero wait states
 				if SWI(7)='1' then
-					waits <= "111111";
+					if cpu_as='1' then
+						-- setup number of wait states depending on address accessed
+						case cpu_addr(15 downto 12) is
+							when x"0" => waits <= x"60"; -- ROM an scratchpad 640 ns
+							when x"1" => waits <= x"60";
+							when x"8" => waits <= x"60"; -- scratchpad and I/O
+							when others =>
+								waits <= x"F0";	-- 196, i.e. 200, i.e. 2000ns
+						end case;
+					end if;
 				elsif SWI(6)='1' then
-					waits <= "011111";
+					waits <= x"1F";
 				elsif SWI(5)='1' then
-					waits <= "001000";
+					waits <= x"08";
 				else
 					waits <= (others => '0');
 				end if;
@@ -986,7 +995,7 @@ begin
 			 hold => cpu_hold,
 			 holda => cpu_holda,
 			 waits => waits,
-			 scratch_en => '1',
+			 scratch_en => '0',
           stuck => cpu_stuck
         );
 		

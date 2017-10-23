@@ -45,7 +45,7 @@ REM  Erik Test Cartridge
 rem memloader %PORT% %CART_ROM% ..\..\projects\ticart\ERIK1.bin
 
 REM  Memory extension test
-memloader %PORT% %CART_ROM% ..\memloader\AMSTEST4-8.BIN
+rem memloader %PORT% %CART_ROM% ..\memloader\AMSTEST4-8.BIN
 
 REM  Editor/Assembler
 rem memloader %PORT% %CART_GROM% TIEAG.BIN
@@ -56,11 +56,11 @@ rem memloader %PORT% %CART_ROM2% RXBD.Bin
 rem memloader %PORT% %CART_GROM% RXBG.Bin
 
 REM  TI Invaders 
-memloader %PORT% %CART_ROM% TI-InvaC.bin
-memloader %PORT% %CART_GROM% TI-InvaG.bin
+rem memloader %PORT% %CART_ROM% TI-InvaC.bin
+rem memloader %PORT% %CART_GROM% TI-InvaG.bin
 
 REM Don't mess
-rem memloader  %PORT% %CART_ROM% dontmess.bin
+memloader  %PORT% %CART_ROM% dontmess.bin
 
 REM  ERIK test ROM
 goto skip_test_rom
@@ -75,8 +75,10 @@ REM Diagnostic module
 rem memloader %PORT% %CART_GROM% DiagnosG.bin
 
 REM  TI Parsec
-rem memloader %PORT% %CART_ROM% PARSECC.bin
-rem memloader %PORT% %CART_GROM% PARSECG.bin
+goto skipparsec
+memloader %PORT% %CART_ROM% PARSECC.bin
+memloader %PORT% %CART_GROM% PARSECG.bin
+:skipparsec
 
 REM  Alpiner
 rem memloader %PORT% %CART_ROM% ALPINERC.BIN
