@@ -459,7 +459,7 @@ begin
 	-------------------------------------size
 	
 	-- CPU reset out. If either cpu_reset_ctrl(0) or funky_reset(MSB) is zero, put CPU to reset.
-	real_reset <= funky_reset(funky_reset'length-1);
+	real_reset <= funky_reset(funky_reset'length-1) and cpu_reset_ctrl(0);
 	real_reset_n <= not real_reset;
 	conl_reset <= cpu_reset_ctrl(0) and real_reset;
 	
