@@ -35,7 +35,7 @@ REM  DSR for disk support
 memloader %PORT% %DSR_ROM% diskdsr_4000.bin
 
 REM  Extended Basic
-goto skipex
+REM goto skipex
 memloader %PORT% %CART_ROM% TIExtC.Bin
 memloader %PORT% %CART_ROM2% TIExtD.Bin
 memloader %PORT% %CART_GROM% TIExtG.Bin
@@ -60,7 +60,7 @@ rem memloader %PORT% %CART_ROM% TI-InvaC.bin
 rem memloader %PORT% %CART_GROM% TI-InvaG.bin
 
 REM Don't mess
-memloader  %PORT% %CART_ROM% dontmess.bin
+REM memloader  %PORT% %CART_ROM% dontmess.bin
 
 REM  ERIK test ROM
 goto skip_test_rom

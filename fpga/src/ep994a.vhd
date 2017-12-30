@@ -77,10 +77,19 @@ entity ep994a is
 
 			  -- SWITCHES (in reverse order compared to the markings)
 			  SWI       : in std_logic_vector(7 downto 0);
+			  -- SWI 0: when set, CPU will automatically be taken out of reset after copying FLASH to RAM.
 			  
 			  -- AUDIO
 			  AUDIO_L	: out std_logic;
 			  AUDIO_R	: out std_logic;
+			  
+			  -- FLASH ROM
+			  FLASH_CS   : out std_logic;
+			  FLASH_CK   : out std_logic;
+			  FLASH_SI   : out std_logic;
+			  FLASH_SO   : in std_logic;
+			  FLASH_WP   : out std_logic;
+			  FLASH_HOLD : out std_logic;
 			  
 			  -- SRAM
 			  SRAM_DAT	: inout std_logic_vector(31 downto 0);
@@ -277,7 +286,19 @@ architecture Behavioral of ep994a is
 	signal cpu_int_ack : std_logic;
 	
 	signal waits : std_logic_vector(7 downto 0);
-	
+-------------------------------------------------------------------------------	
+-- Signals for SPI Flash controller
+-------------------------------------------------------------------------------	
+	signal clk8 : std_logic := '0';	-- about 8 MHz clock, i.e. 100MHz divided by 12 which is 8.3MHz
+	signal clk8_divider : integer range 0 to 15 := 0;
+	signal romLoaded : std_logic;
+	signal flashDataOut : STD_LOGIC_VECTOR (15 downto 0);
+	signal flashAddrOut : STD_LOGIC_VECTOR (19 downto 0);
+	signal flashRamWE_n : std_logic;
+	signal flashLoading : std_logic;
+	signal lastFlashRamWE_n : std_logic;	-- last state of flashRamWE_n
+	signal lastFlashLoading : std_logic;	-- last state of flashLoading
+		
 -------------------------------------------------------------------------------	
     COMPONENT tms9900
     PORT(
@@ -339,6 +360,28 @@ architecture Behavioral of ep994a is
 			  );
 	end component;
 -------------------------------------------------------------------------------
+-- Magnus Karlsson's FLASH loader component written in Verilog
+	component flash is 
+	Port (
+		clk8 			: in STD_LOGIC;
+		n_reset 		: in STD_LOGIC;
+		bad_load 	: in STD_LOGIC;
+		load_disk 	: in STD_LOGIC;
+		disk			: in STD_LOGIC_VECTOR(3 downto 0);
+		dioBusControl : in STD_LOGIC;
+		romLoaded 	: out STD_LOGIC;
+		diskLoaded 	: out STD_LOGIC;
+		memoryDataOut : out STD_LOGIC_VECTOR(15 downto 0);
+		memoryAddr 	: out STD_LOGIC_VECTOR(19 downto 0);
+		n_ramWE 		: out STD_LOGIC;
+		loading 		: out STD_LOGIC;
+		spi_sclk 	: out STD_LOGIC;
+		spi_ss 		: out STD_LOGIC;
+		spi_mosi 	: out STD_LOGIC;
+		spi_miso 	: in STD_LOGIC
+	);
+	end component;
+-------------------------------------------------------------------------------
 begin
   
  clkin1_buf : IBUFG
@@ -394,11 +437,13 @@ begin
 
 	-- Use all 32 bits of RAM, we use CE0 and CE1 to control what chip is active.
 	-- The byte enables are driven the same way for both chips.
-	SRAM_BE 		<= "0000" when cpu_access = '1' else	-- TMS99105 is always 16-bit, use CE 
+	SRAM_BE 		<= "0000" when cpu_access = '1' or flashLoading = '1' else	-- TMS99105 is always 16-bit, use CE 
 						"1010" when mem_addr(0) = '1' else	-- lowest byte
 						"0101";										-- second lowest byte
 	SRAM_ADR 	<= '0' & sram_addr_bus(18 downto 1);	-- sram_addr_bus(0) selects between the two chips
-	SRAM_DAT		<= -- broadcast on all byte lanes when memory controller is writing
+	SRAM_DAT		<= -- broadcast 16-bit wide lines when flash loading is active
+						flashDataOut & flashDataOut when cpu_access='0' and flashLoading='1' and mem_drive_bus='1' else
+						-- broadcast on all byte lanes when memory controller is writing
 						mem_data_out & mem_data_out & mem_data_out & mem_data_out when cpu_access='0' and mem_drive_bus='1' else
 						-- broadcast on 16-bit wide lanes when CPU is writing
 						data_from_cpu & data_from_cpu when cpu_access='1' and MEM_n='0' and WE_n = '0' else
@@ -411,7 +456,8 @@ begin
 	SRAM_WE	<=		debug_sram_we;  -- when cpu_access = '0' else WE_n; 
 	SRAM_OE	<=		debug_sram_oe; -- when cpu_access = '0' else RD_n; 	
 	
-	-------------------------------------
+	-------------------------------------size
+	
 	-- CPU reset out. If either cpu_reset_ctrl(0) or funky_reset(MSB) is zero, put CPU to reset.
 	real_reset <= funky_reset(funky_reset'length-1);
 	real_reset_n <= not real_reset;
@@ -491,16 +537,30 @@ begin
 					waits <= (others => '0');
 				end if;
 				
+				-- If SWI(0) is set then automatically bring CPU out of reset once FPGA has moved
+				-- data from flash memory to SRAM.
+				lastFlashLoading <= flashLoading;
+				if SWI(0) = '1' then 
+					if flashLoading='1' then
+						cpu_reset_ctrl <= x"FC";	-- during flash loading force reset on
+					end if;
+					if flashLoading='0' and lastFlashLoading='1' then
+						-- flash loading just stopped. Bring CPU out of reset.
+						cpu_reset_ctrl <= x"FF";
+					end if;
+				end if;
+				
 				
 				---------------------------------------------------------
 				-- SRAM map (1 mega byte, 0..FFFFF, 20 bit address space)
 				---------------------------------------------------------
-				-- 00000..7FFFF - SAMS RAM 512K
+				-- 00000..7FFFF - Cartridge module port, paged, 512K, to support the TI megademo :)
 				-- 80000..8FFFF - GROM mapped to this area, 64K (was at 30000)
-				-- 90000..AFFFF - Cartridge module port, paged, 64K (was at 70000)
+				-- 90000..AFFFF - Not used currently
 				-- B0000..B7FFF - DSR area, 32K reserved	(was at 60000)
 				-- B8000..B8FFF - Scratchpad 	(was at 68000)
 				-- BA000..BCFFF - Boot ROM remapped (was at 0)   
+				-- C0000..FFFFF - SAMS SRAM 256K (i.e. the "normal" CPU RAM paged with the SAMS system)
 				---------------------------------------------------------
 				-- The SAMS control bits are set to zero on reset.
 				-- sams_regs(0) CRU 1E00: when set, paging registers appear at DSR space >4000..
@@ -558,6 +618,9 @@ begin
 					-- which controls the stepping.
 					cpu_single_step(1) <= '0';	
 				end if;
+				
+				-- for flash loading, sample the status of flashRamWE_n
+				lastFlashRamWE_n <= flashRamWE_n;
 
 				-- memory controller state machine
 				case mem_state is
@@ -569,8 +632,24 @@ begin
 						mem_read_ack <= '0';
 						mem_write_ack <= '0';
 --						cpu_access <= '1';		
-						DEBUG2 <= '0';						
-						if mem_write_rq = '1' and mem_addr(20)='0' and cpu_holda='1' then
+						DEBUG2 <= '0';		
+						if flashLoading = '1' and cpu_holda = '1' and flashRamWE_n='0' and lastFlashRamWE_n='1' then
+							-- We are loading from flash memory chip to SRAM.
+							-- The total amount is 256K bytes. We perform the following mapping:
+							-- 1) First 128K loaded from flash are written from address 0 onwards (i.e. paged module RAM area)
+							-- 2) Next 64K are written to 80000 i.e. our 64K GROM area
+							-- 3) Last 64K are written to B0000 i.e. our DSR ROM and ROM area.
+							-- Note that addresses from flashAddrOut are byte address but LSB set to zero
+							if flashAddrOut(17)='0' then
+								sram_addr_bus <= "000" & flashAddrOut(16 downto 1);	-- 128K range from 00000
+							elsif flashAddrOut(16)='0' then
+								sram_addr_bus <= "1000" & flashAddrOut(15 downto 1);	-- 64K range from 80000
+							else
+								sram_addr_bus <= "1011" & flashAddrOut(15 downto 1);	-- 64K range from B0000
+							end if;
+							mem_state <= wr0;
+							mem_drive_bus <= '1';	-- only writes drive the bus
+						elsif mem_write_rq = '1' and mem_addr(20)='0' and cpu_holda='1' then
 							-- normal memory write
 							sram_addr_bus <= mem_addr(19 downto 1);	-- setup address
 --							cpu_access <= '0';
@@ -608,7 +687,9 @@ begin
 						debug_sram_ce0 <= '1';
 						mem_drive_bus <= '0';
 						mem_state <= grace;
-						mem_write_ack <= '1';
+						if flashLoading = '0' then
+							mem_write_ack <= '1';
+						end if;
 						
 					-- states to handle read cycles
 					when rd0 => 
@@ -845,19 +926,21 @@ begin
 		mem_write_rq 	=> mem_write_rq,
 		mem_write_ack	=> mem_write_ack	
 		);
-		
-	-- led <= outreg(15 downto 8);
-	led(0) <= cpu_reset;
-	led(1) <= cpu_hold;
-	led(2) <= cpu_holda;
-	led(3) <= sams_regs(0);
-	led(4) <= sams_regs(1);
-	led(5) <= cpu_wr;
-	led(6) <= '1';
-	led(7) <= alatch_counter(19);
+
+	-- The leds have two functions: during Flash loading they make a progress bar of the LED to RAM transfer.
+	-- During normal operation they show various control signals.
+	led(0) <= cpu_reset 		when flashLoading = '0' else '1';
+	led(1) <= cpu_hold  		when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) >= "000" else '0';
+	led(2) <= cpu_holda 		when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) >= "001" else '0';
+	led(3) <= sams_regs(0) 	when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) >= "010" else '0';
+	led(4) <= sams_regs(1) 	when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) >= "011" else '0';
+	led(5) <= cpu_wr   		when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) >= "100" else '0';
+	led(6) <= '1'				when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) >= "101" else '0';
+	led(7) <= alatch_counter(19) when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) = "110" else '0';
+
 	
-	
-	cpu_hold <= '1' when mem_read_rq='1' or mem_write_rq='1' or (cpu_single_step(0)='1' and cpu_single_step(1)='0') else '0'; -- issue DMA request
+	cpu_hold <= '1' when mem_read_rq='1' or mem_write_rq='1' or (cpu_single_step(0)='1' and cpu_single_step(1)='0') 
+							or flashLoading = '1' else '0'; -- issue DMA request
 	DEBUG1 <= go_write;
 
 	go_write <= '1' when wr_sampler = "1000" else '0'; -- wr_sampler = "1110" else '0';
@@ -931,7 +1014,7 @@ begin
 		
 	MY_DAC : entity work.dac port map (
 			clk_i   	=> clk,
-         res_n_i 	=> funky_reset(funky_reset'length-1),
+         res_n_i 	=> real_reset_n,
          dac_i   	=> dac_data,
          dac_o   	=> dac_out_bit
 		);
@@ -966,7 +1049,7 @@ begin
 	WE_n <= not cpu_wr;
 	RD_n <= not cpu_rd;
 	cpu_cruin <= cru_read_bit;
-	cpu_reset <= not (cpu_reset_ctrl(0) and real_reset);
+	cpu_reset <= not (cpu_reset_ctrl(0) and real_reset and not flashLoading);
 	cpu_int_req <= not conl_int and cpu_reset_ctrl(2);	-- cpu_reset_ctrl(2), when cleared, allows us to mask interrupts
 	
 	cpu : tms9900 PORT MAP (
@@ -998,6 +1081,38 @@ begin
 			 scratch_en => '0',
           stuck => cpu_stuck
         );
+		  
+	process(clk) 
+	begin
+		if rising_edge(clk) then
+			clk8_divider <= clk8_divider + 1;
+			if clk8_divider = 5 then
+				clk8 <= not clk8;
+				clk8_divider <= 0;
+			end if;
+		end if;
+	end process;
+		
+   FLASH_WP <= '1';
+	FLASH_HOLD <= '1';
+	serial_flash_rom : flash PORT MAP (
+				clk8 			=> clk8,
+				n_reset 		=> funky_reset(funky_reset'length-1),
+				bad_load 	=> '0',
+				load_disk 	=> '0',
+				disk			=> "0000",
+				dioBusControl => '1',
+				romLoaded 	=> romLoaded,
+				diskLoaded 	=> open,
+				memoryDataOut => flashDataOut,
+				memoryAddr 	=> flashAddrOut,
+				n_ramWE 		=> flashRamWE_n,
+				loading 		=> flashLoading,
+				spi_sclk 	=> FLASH_CK,
+				spi_ss 		=> FLASH_CS,
+				spi_mosi 	=> FLASH_SI,
+				spi_miso 	=> FLASH_SO
+			);
 		
 end Behavioral;
 
