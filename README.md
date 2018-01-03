@@ -1,6 +1,6 @@
 # EP994A
-My TI-99/4A clone implemented with a TMS99105 CPU and FPGA (main branch).
-Another version of the clone (the latest development in softcpu branch) includes my own
+My TI-99/4A clone implemented with a TMS99105 CPU and FPGA (master branch).
+Another version of the clone (the latest development in soft-cpu branch) includes my own
 TMS9900 CPU core written in VHDL.
 
 See the file LICENSE for license terms. At least for now (without contributors from others)
@@ -11,7 +11,7 @@ Latest changes
 --------------
 Commit 2018-01-03:
 - So I have been very lacy at updating this README file. There has been a ton of changes.
-  Note that there are two branches, main branch contains the **TMS99105** version and **softcpu** contains the FPGA CPU version. 
+  Note that there are two branches, master branch contains the **TMS99105** version and soft-cpu contains the **FPGA CPU** version. 
 
 
 Commit 2016-11-13:
