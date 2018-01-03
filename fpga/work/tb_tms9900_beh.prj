@@ -1,0 +1,5 @@
+vhdl work "../src/scratchpad.vhd"
+vhdl work "../ep994a/ipcore_dir/multiplier.vhd"
+vhdl work "../src/tms9900.vhd"
+vhdl work "../src/testrom.vhd"
+vhdl work "../src/tb_tms9900.vhd"

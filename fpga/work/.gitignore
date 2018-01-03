@@ -45,3 +45,9 @@ webtalk.log
 webtalk_pn.xml
 xlnx_auto_0_xdb/
 xst/
+legacy-bits/
+.DS_Store
+planAhead_run_1/
+tb_tms9900_isim_beh.exe
+tb_tms9900_isim_beh.wdb
+tb_tms9900_isim_beh1.wdb

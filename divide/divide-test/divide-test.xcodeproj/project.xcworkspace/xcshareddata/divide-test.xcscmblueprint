@@ -1,0 +1,32 @@
+{
+  "DVTSourceControlWorkspaceBlueprintPrimaryRemoteRepositoryKey" : "A0AD86DA2EC2475F1D5913B52F8534D6DBDB2D5D",
+  "DVTSourceControlWorkspaceBlueprintWorkingCopyRepositoryLocationsKey" : {
+    "ef6cfdd1-865c-40fb-8d93-d4184c357d8e++505" : {
+
+    }
+  },
+  "DVTSourceControlWorkspaceBlueprintWorkingCopyStatesKey" : {
+    "A0AD86DA2EC2475F1D5913B52F8534D6DBDB2D5D" : 9223372036854775807,
+    "ef6cfdd1-865c-40fb-8d93-d4184c357d8e++505" : 9223372036854775807
+  },
+  "DVTSourceControlWorkspaceBlueprintIdentifierKey" : "C70E8395-B18F-431D-842C-1E4B5D525951",
+  "DVTSourceControlWorkspaceBlueprintWorkingCopyPathsKey" : {
+    "A0AD86DA2EC2475F1D5913B52F8534D6DBDB2D5D" : "EP994A\/",
+    "ef6cfdd1-865c-40fb-8d93-d4184c357d8e++505" : ""
+  },
+  "DVTSourceControlWorkspaceBlueprintNameKey" : "divide-test",
+  "DVTSourceControlWorkspaceBlueprintVersion" : 204,
+  "DVTSourceControlWorkspaceBlueprintRelativePathToProjectKey" : "divide\/divide-test\/divide-test.xcodeproj",
+  "DVTSourceControlWorkspaceBlueprintRemoteRepositoriesKey" : [
+    {
+      "DVTSourceControlWorkspaceBlueprintRemoteRepositoryURLKey" : "https:\/\/github.com\/Speccery\/EP994A.git",
+      "DVTSourceControlWorkspaceBlueprintRemoteRepositorySystemKey" : "com.apple.dt.Xcode.sourcecontrol.Git",
+      "DVTSourceControlWorkspaceBlueprintRemoteRepositoryIdentifierKey" : "A0AD86DA2EC2475F1D5913B52F8534D6DBDB2D5D"
+    },
+    {
+      "DVTSourceControlWorkspaceBlueprintRemoteRepositoryURLKey" : "svn:\/\/192.168.100.210\/projects",
+      "DVTSourceControlWorkspaceBlueprintRemoteRepositorySystemKey" : "com.apple.dt.Xcode.sourcecontrol.Subversion",
+      "DVTSourceControlWorkspaceBlueprintRemoteRepositoryIdentifierKey" : "ef6cfdd1-865c-40fb-8d93-d4184c357d8e++505"
+    }
+  ]
+}

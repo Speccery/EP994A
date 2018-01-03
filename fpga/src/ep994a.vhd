@@ -91,6 +91,11 @@ entity ep994a is
 			  FLASH_WP   : out std_logic;
 			  FLASH_HOLD : out std_logic;
 			  
+			  -- GPIO port
+			  GPIO		 : inout std_logic_vector(15 downto 0);
+				-- GPIO 0..7  = IO1P..IO8P - these are the keyboard row strobes.
+				-- GPIO 8..15 = IO1N..IO8N - these are key input signals.
+			  
 			  -- SRAM
 			  SRAM_DAT	: inout std_logic_vector(31 downto 0);
 			  SRAM_ADR	: out std_logic_vector(18 downto 0);
@@ -217,7 +222,7 @@ architecture Behavioral of ep994a is
 	signal cru1100			: std_logic;		-- disk controller CRU select
 	
 	-- SAMS memory extension
-	signal sams_regs			: std_logic_vector(7 downto 0);
+	signal sams_regs			: std_logic_vector(7 downto 0) := x"00";
 	signal pager_data_in		: std_logic_vector(15 downto 0);
 	signal pager_data_out   : std_logic_vector(15 downto 0);
 	signal translated_addr  : std_logic_vector(15 downto 0);
@@ -459,7 +464,7 @@ begin
 	-------------------------------------size
 	
 	-- CPU reset out. If either cpu_reset_ctrl(0) or funky_reset(MSB) is zero, put CPU to reset.
-	real_reset <= funky_reset(funky_reset'length-1) and cpu_reset_ctrl(0);
+	real_reset <= funky_reset(funky_reset'length-1);
 	real_reset_n <= not real_reset;
 	conl_reset <= cpu_reset_ctrl(0) and real_reset;
 	
@@ -471,6 +476,26 @@ begin
 	conl_int <= not vdp_interrupt when cru9901(2)='1' else '1';	-- TMS9901 interrupt mask bit
 	-- cartridge memory select
   	cartridge_cs 	<= '1' when MEM_n = '0' and cpu_addr(15 downto 13) = "011" else '0'; -- cartridge_cs >6000..>7FFF
+	
+	-------------------------------------
+	-- key matrix support
+	GPIO(15 downto 8) <= "ZZZZZZZZ";	-- IO1N..IO8N are inputs
+	-- KBD connector signals
+	-- 15 | IO8P | col#3
+	-- 14 | IO7P | col#2	
+	-- 13 | IO6P | col#1	
+	-- 12 | IO5P | col#0	
+	--  9 | IO4P | col#4	
+	--  8 | IO3P | col#5
+	GPIO(1 downto 0) <= "ZZ";	-- unused
+	-- For the column decoder, rely on pull-ups to bring the row selectors high
+	GPIO(7) <= '0' when cru9901(20 downto 18) = "011" else 'Z'; 	-- col#3
+	GPIO(6) <= '0' when cru9901(20 downto 18) = "010" else 'Z'; 	-- col#2
+	GPIO(5) <= '0' when cru9901(20 downto 18) = "001" else 'Z'; 	-- col#1
+	GPIO(4) <= '0' when cru9901(20 downto 18) = "000" else 'Z'; 	-- col#0
+	GPIO(3) <= '0' when cru9901(20 downto 18) = "100" else 'Z'; 	-- col#4
+	GPIO(2) <= '0' when cru9901(20 downto 18) = "101" else 'Z'; 	-- col#5
+	-------------------------------------
 	
 	process(clk, switch)
 	variable ki : integer range 0 to 7;
@@ -539,10 +564,13 @@ begin
 				
 				-- If SWI(0) is set then automatically bring CPU out of reset once FPGA has moved
 				-- data from flash memory to SRAM.
+				cpu_reset <= not (cpu_reset_ctrl(0) and real_reset and not flashLoading);
 				lastFlashLoading <= flashLoading;
 				if SWI(0) = '1' then 
 					if flashLoading='1' then
 						cpu_reset_ctrl <= x"FC";	-- during flash loading force reset on
+						basic_rom_bank <= (others => '0');
+						sams_regs <= x"00";
 					end if;
 					if flashLoading='0' and lastFlashLoading='1' then
 						-- flash loading just stopped. Bring CPU out of reset.
@@ -870,7 +898,7 @@ begin
 				if MEM_n='1' and cpu_addr(15 downto 1)= x"110" & "000" and go_cruclk = '1' then
 					cru1100 <= cpu_cruout;
 				end if;
-				-- SAMS register writes
+				-- SAMS register writes. 
 				if MEM_n='1' and cpu_addr(15 downto 4) = x"1E0" and go_cruclk = '1' then
 					sams_regs(to_integer(unsigned(cpu_addr(3 downto 1)))) <= cpu_cruout;
 				end if;				
@@ -889,13 +917,18 @@ begin
 					--	8 = 1000
 					-- A = 1010 
 					ki := to_integer(unsigned(cpu_addr(3 downto 1))) - 3; -- row select on address
-					cru_read_bit <= keyboard(to_integer(unsigned(cru9901(20 downto 18))), ki); -- column select on multiplexor select
-				elsif cpu_addr(15 downto 1) & '0' >= 6 and cpu_addr(15 downto 1) & '0' < 22 then
-					-- 6 = 0110
-					--	8 = 1000
-					-- A = 1010 
-					ki := to_integer(unsigned(cpu_addr(3 downto 1))) - 3; -- row select on address
-					cru_read_bit <= keyboard(to_integer(unsigned(cru9901(20 downto 18))), ki); -- column select on multiplexor select
+--					cru_read_bit <= keyboard(to_integer(unsigned(cru9901(20 downto 18))), ki); -- column select on multiplexor select
+					case ki is
+						when 0 => cru_read_bit <= GPIO(8);
+						when 1 => cru_read_bit <= GPIO(9);
+						when 2 => cru_read_bit <= GPIO(10);
+						when 3 => cru_read_bit <= GPIO(11);
+						when 4 => cru_read_bit <= GPIO(12);
+						when 5 => cru_read_bit <= GPIO(13);
+						when 6 => cru_read_bit <= GPIO(14);
+						when 7 => cru_read_bit <= GPIO(15);
+					end case;
+					
 				elsif cpu_addr(15 downto 1) & '0' = x"0004" then
 					cru_read_bit <= not vdp_interrupt; -- VDP interrupt status (read with TB 2 instruction)
 				elsif cpu_addr(15 downto 1) & '0' = x"0000" then
@@ -1049,7 +1082,6 @@ begin
 	WE_n <= not cpu_wr;
 	RD_n <= not cpu_rd;
 	cpu_cruin <= cru_read_bit;
-	cpu_reset <= not (cpu_reset_ctrl(0) and real_reset and not flashLoading);
 	cpu_int_req <= not conl_int and cpu_reset_ctrl(2);	-- cpu_reset_ctrl(2), when cleared, allows us to mask interrupts
 	
 	cpu : tms9900 PORT MAP (

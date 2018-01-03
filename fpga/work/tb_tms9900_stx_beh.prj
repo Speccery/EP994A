@@ -1,0 +1,3 @@
+vhdl isim_temp "../src/tms9900.vhd"
+vhdl isim_temp "../src/testrom.vhd"
+vhdl isim_temp "../src/tb_tms9900.vhd"
