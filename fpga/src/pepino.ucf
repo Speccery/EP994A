@@ -87,20 +87,29 @@ NET "SRAM_DAT[31]" LOC = "P2" | IOSTANDARD=LVCMOS33;
 #NET "RD_n" 		 IOSTANDARD = LVCMOS33 | PULLDOWN  | LOC=C10;
 #NET "CTRL_CP" 	 IOSTANDARD = LVCMOS33 | PULLDOWN  | LOC=D9;
 #NET "BUSDIR" 	 IOSTANDARD = LVCMOS33 | PULLDOWN  | LOC=C8;
-
-# external Clock	-> ALATCH
-#NET "ALATCH" IOSTANDARD = LVCMOS33 | PULLDOWN;
-#NET "ALATCH" LOC = C10;
-# NET "MEM_n" IOSTANDARD = LVCMOS33 | PULLDOWN;
-# NET "MEM_n" LOC = A14;
-
-# DIR low = input
-#NET "ch1_dir" LOC = D9 | IOSTANDARD = LVCMOS33 | SLEW = FAST | DRIVE = 8;
-#NET "ch2_dir" LOC = C8 | IOSTANDARD = LVCMOS33 | SLEW = FAST | DRIVE = 8;
-
-# EN active low
-#NET "ch1_en" LOC = D8 | IOSTANDARD = LVCMOS33 | SLEW = FAST | DRIVE = 8;
-#NET "ch2_en" LOC = F9 | IOSTANDARD = LVCMOS33 | SLEW = FAST | DRIVE = 8;
+##########################################
+# PINOUT of J7 with the signals from above
+# For the TMS99105 board
+# ALATCH    8 7 RD_n
+# BUS_OE_n  6 5 CTRL_CP
+# CTRL_RD_n 4 3 BUSDIR
+# VCC3      2 1 GND 
+##########################################
+# PINOUT with SD_PROC connected
+# in parenthesis the functions as mapped by the XC9572XL
+# This is a SPI interface. MOSI and MISO per the LPC1343.
+# RQ currently not implemented by the LPC1343, let's see if we need it.
+# D2 (RQ)   8 7 D5 (CLK)
+# D3 (MISO) 6 5 D6 (#CS)
+# D4 (MOSI) 4 3 D7 ()
+# VCC3 2 1 GND
+##########################################
+NET "LPC1343_RQ" 	 IOSTANDARD = LVCMOS33 | PULLDOWN  | LOC=A14;
+NET "LPC1343_MISO" IOSTANDARD = LVCMOS33 | PULLDOWN  | LOC=D8;
+NET "LPC1343_MOSI" IOSTANDARD = LVCMOS33 | PULLDOWN  | LOC=F9;
+NET "LPC1343_CLK"  IOSTANDARD = LVCMOS33 | PULLDOWN  | LOC=C10;
+NET "LPC1343_CS_n" IOSTANDARD = LVCMOS33 | PULLDOWN  | LOC=D9;
+NET "LPC1343_X" 	 IOSTANDARD = LVCMOS33 | PULLDOWN  | LOC=C8; # extra
 
 # indata[0-15]
 # NET "indata[0]" IOSTANDARD = LVCMOS33 | PULLDOWN;

@@ -95,6 +95,13 @@ entity ep994a is
 			  GPIO		 : inout std_logic_vector(15 downto 0);
 				-- GPIO 0..7  = IO1P..IO8P - these are the keyboard row strobes.
 				-- GPIO 8..15 = IO1N..IO8N - these are key input signals.
+				
+			  LPC1343_RQ	: out STD_LOGIC; 
+			  LPC1343_MISO : out STD_LOGIC;
+			  LPC1343_MOSI : in STD_LOGIC;
+			  LPC1343_CLK  : in STD_LOGIC;
+			  LPC1343_CS_n : in STD_LOGIC;
+			  LPC1343_X 	: in STD_LOGIC;	-- unused for now
 			  
 			  -- SRAM
 			  SRAM_DAT	: inout std_logic_vector(31 downto 0);
@@ -303,7 +310,21 @@ architecture Behavioral of ep994a is
 	signal flashLoading : std_logic;
 	signal lastFlashRamWE_n : std_logic;	-- last state of flashRamWE_n
 	signal lastFlashLoading : std_logic;	-- last state of flashLoading
-		
+	
+-------------------------------------------------------------------------------	
+-- Signals for LPC1343 SPI controller receiver
+-------------------------------------------------------------------------------	
+	signal lastLPC_CLK : std_logic;
+	signal lastLPC_CS : std_logic_vector(7 downto 0) := x"00";
+	signal spiLPC_rx : std_logic_vector(7 downto 0);
+	signal spiLPC_tx : std_logic_vector(7 downto 0);
+	signal spi_bitcount : integer range 0 to 7;
+	signal spi_ready : boolean := false;
+	signal spi_test_toggle : boolean := false;
+	signal spi_test_count : integer range 0 to 255 := 0;
+	signal spi_clk_sampler : std_logic_vector(2 downto 0) := "000";
+	signal spi_rx_bit : std_logic;	
+	signal wait_clock : boolean := false;
 -------------------------------------------------------------------------------	
     COMPONENT tms9900
     PORT(
@@ -962,14 +983,15 @@ begin
 
 	-- The leds have two functions: during Flash loading they make a progress bar of the LED to RAM transfer.
 	-- During normal operation they show various control signals.
-	led(0) <= cpu_reset 		when flashLoading = '0' else '1';
-	led(1) <= cpu_hold  		when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) >= "000" else '0';
-	led(2) <= cpu_holda 		when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) >= "001" else '0';
-	led(3) <= sams_regs(0) 	when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) >= "010" else '0';
-	led(4) <= sams_regs(1) 	when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) >= "011" else '0';
-	led(5) <= cpu_wr   		when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) >= "100" else '0';
-	led(6) <= '1'				when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) >= "101" else '0';
-	led(7) <= alatch_counter(19) when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) = "110" else '0';
+--	led(0) <= cpu_reset 		when flashLoading = '0' else '1';
+--	led(1) <= cpu_hold  		when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) >= "000" else '0';
+--	led(2) <= cpu_holda 		when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) >= "001" else '0';
+--	led(3) <= sams_regs(0) 	when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) >= "010" else '0';
+--	led(4) <= sams_regs(1) 	when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) >= "011" else '0';
+--	led(5) <= cpu_wr   		when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) >= "100" else '0';
+--	led(6) <= '1'				when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) >= "101" else '0';
+--	led(7) <= alatch_counter(19) when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) = "110" else '0';
+	led <= spiLPC_tx;
 
 	
 	cpu_hold <= '1' when mem_read_rq='1' or mem_write_rq='1' or (cpu_single_step(0)='1' and cpu_single_step(1)='0') 
@@ -1145,6 +1167,54 @@ begin
 				spi_mosi 	=> FLASH_SI,
 				spi_miso 	=> FLASH_SO
 			);
+			
+	-- a simple SPI receiver circuit
+	
+--	signal lastLPC_CLK : std_logic;
+--	signal lastLPC_CS  : std_logic;
+--	signal spiLPC_rx : std_logic_vector(7 downto 0);
+--	signal spiLPC_tx : std_logic_vector(7 downto 0);
+--	variable spi_bitcount : integer range 0 to 7;	
+	LPC1343_RQ <= '1' when spi_ready else '0' ; -- indicates data well received / sent
+	LPC1343_MISO <= spiLPC_tx(7) when LPC1343_CS_n='0' else 'Z';
+	process(clk)
+	begin
+		if rising_edge(clk) then
+			spi_clk_sampler <= spi_clk_sampler(1 downto 0) & LPC1343_CLK;
+			lastLPC_CLK <= LPC1343_CLK;
+			lastLPC_CS <= lastLPC_CS(6 downto 0) & LPC1343_CS_n;
+			if lastLPC_CS(7 downto 5) = "111" and lastLPC_CS(1 downto 0) = "00" and LPC1343_CS_n='0' and not wait_clock then 
+				-- falling edge of CS
+					spi_bitcount <= 0;
+					spi_ready <= false;
+					spi_test_count <= spi_test_count + 1;
+					spiLPC_tx <= std_logic_vector(to_unsigned(spi_test_count,8));
+					wait_clock <= true;
+--					spi_test_toggle <= not spi_test_toggle;
+--					if spi_test_toggle then
+--					else 
+--						spiLPC_tx <= spiLPC_rx;
+--					end if;
+			end if;
+			if spi_clk_sampler = "011" and lastLPC_CS(0) = '0' and LPC1343_CS_n='0' then 
+				-- rising edge of clock, receive shift
+				spi_rx_bit <= LPC1343_MOSI;
+				spiLPC_rx <= spiLPC_rx(6 downto 0) & LPC1343_MOSI;				
+				spi_ready <= false;
+				wait_clock <= false;
+			end if;
+			if spi_clk_sampler = "110"  and lastLPC_CS(0) = '0' and LPC1343_CS_n='0' then 
+				-- falling edge of clock, transmit shift
+				spiLPC_tx <= spiLPC_tx(6 downto 0) & spi_rx_bit;
+				spi_bitcount <= spi_bitcount + 1;
+				if spi_bitcount = 7 then
+					spi_bitcount <= 0;
+					spi_ready <= true;
+				end if;
+			end if;
+			
+		end if;
+	end process;
 		
 end Behavioral;
 
