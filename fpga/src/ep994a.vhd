@@ -121,6 +121,13 @@ architecture Behavioral of ep994a is
 		  rst 		: in  STD_LOGIC;
 		  tx				: out STD_LOGIC;
 		  rx				: in STD_LOGIC;
+		  -- SPI interface begin
+		  spi_cs_n		: in STD_LOGIC;
+		  spi_clk		: in STD_LOGIC;
+		  spi_mosi		: in STD_LOGIC;
+		  spi_miso     : out STD_LOGIC;
+		  spi_rq			: out STD_LOGIC;	-- spi request - currently used for debugging.
+		  -- SPI interface end
 		  mem_addr 	: out  STD_LOGIC_VECTOR (31 downto 0);
 		  mem_data_out : out  STD_LOGIC_VECTOR (7 downto 0);
 		  mem_data_in : in  STD_LOGIC_VECTOR (7 downto 0);
@@ -407,7 +414,7 @@ architecture Behavioral of ep994a is
 		spi_miso 	: in STD_LOGIC
 	);
 	end component;
--------------------------------------------------------------------------------
+
 begin
   
  clkin1_buf : IBUFG
@@ -971,7 +978,14 @@ begin
 		clk 		=> clk,
 		rst 		=> real_reset_n,
 		tx			=> txd,
-		rx			=> rxd,
+ 		rx			=> rxd,
+	   -- SPI interface begin
+	   spi_cs_n	=> LPC1343_CS_n,
+	   spi_clk	=> LPC1343_CLK,
+	   spi_mosi	=> LPC1343_MOSI,
+	   spi_miso => LPC1343_MISO,
+	   spi_rq	=> LPC1343_RQ,
+	   -- SPI interface end
 		mem_addr 		=> mem_addr,
 		mem_data_out 	=> mem_data_out,
 		mem_data_in		=> mem_data_in,
@@ -1167,54 +1181,7 @@ begin
 				spi_mosi 	=> FLASH_SI,
 				spi_miso 	=> FLASH_SO
 			);
-			
-	-- a simple SPI receiver circuit
-	
---	signal lastLPC_CLK : std_logic;
---	signal lastLPC_CS  : std_logic;
---	signal spiLPC_rx : std_logic_vector(7 downto 0);
---	signal spiLPC_tx : std_logic_vector(7 downto 0);
---	variable spi_bitcount : integer range 0 to 7;	
-	LPC1343_RQ <= '1' when spi_ready else '0' ; -- indicates data well received / sent
-	LPC1343_MISO <= spiLPC_tx(7) when LPC1343_CS_n='0' else 'Z';
-	process(clk)
-	begin
-		if rising_edge(clk) then
-			spi_clk_sampler <= spi_clk_sampler(1 downto 0) & LPC1343_CLK;
-			lastLPC_CLK <= LPC1343_CLK;
-			lastLPC_CS <= lastLPC_CS(6 downto 0) & LPC1343_CS_n;
-			if lastLPC_CS(7 downto 5) = "111" and lastLPC_CS(1 downto 0) = "00" and LPC1343_CS_n='0' and not wait_clock then 
-				-- falling edge of CS
-					spi_bitcount <= 0;
-					spi_ready <= false;
-					spi_test_count <= spi_test_count + 1;
-					spiLPC_tx <= std_logic_vector(to_unsigned(spi_test_count,8));
-					wait_clock <= true;
---					spi_test_toggle <= not spi_test_toggle;
---					if spi_test_toggle then
---					else 
---						spiLPC_tx <= spiLPC_rx;
---					end if;
-			end if;
-			if spi_clk_sampler = "011" and lastLPC_CS(0) = '0' and LPC1343_CS_n='0' then 
-				-- rising edge of clock, receive shift
-				spi_rx_bit <= LPC1343_MOSI;
-				spiLPC_rx <= spiLPC_rx(6 downto 0) & LPC1343_MOSI;				
-				spi_ready <= false;
-				wait_clock <= false;
-			end if;
-			if spi_clk_sampler = "110"  and lastLPC_CS(0) = '0' and LPC1343_CS_n='0' then 
-				-- falling edge of clock, transmit shift
-				spiLPC_tx <= spiLPC_tx(6 downto 0) & spi_rx_bit;
-				spi_bitcount <= spi_bitcount + 1;
-				if spi_bitcount = 7 then
-					spi_bitcount <= 0;
-					spi_ready <= true;
-				end if;
-			end if;
-			
-		end if;
-	end process;
 		
+			
 end Behavioral;
 

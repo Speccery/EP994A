@@ -33,6 +33,13 @@ entity serloader is
            rst 			: in  STD_LOGIC;
 			  tx				: out STD_LOGIC;
 			  rx				: in STD_LOGIC;
+			  -- SPI interface begin
+			  spi_cs_n		: in STD_LOGIC;
+			  spi_clk		: in STD_LOGIC;
+			  spi_mosi		: in STD_LOGIC;
+			  spi_miso     : out STD_LOGIC;
+			  spi_rq			: out STD_LOGIC;	-- spi request - currently used for debugging.
+			  -- SPI interface end
            mem_addr 		: out  STD_LOGIC_VECTOR (31 downto 0);
            mem_data_out : out  STD_LOGIC_VECTOR (7 downto 0);
            mem_data_in 	: in  STD_LOGIC_VECTOR (7 downto 0);
@@ -62,11 +69,20 @@ architecture serloader_Behavioral of serloader is
 	signal mode				: std_logic_vector(1 downto 0);		-- repeat mode, autoincrement mode
 	signal rpt_count 		: std_logic_vector(15 downto 0);
 
+	-- uart routing
 	signal rx_data 	: STD_LOGIC_VECTOR (7 downto 0);	-- data from serial port
    signal rx_new_data: STD_LOGIC;
 	signal tx_data 	: STD_LOGIC_VECTOR (7 downto 0);	-- data to serial port
 	signal tx_now		: STD_LOGIC;							-- transmit tx_data NOW
 	signal tx_busy		: STD_LOGIC;							-- transmitter is busy
+
+	-- SPI routing
+	signal spi_rx_data 	: STD_LOGIC_VECTOR (7 downto 0);	-- data from serial port
+   signal spi_rx_ready  : STD_LOGIC;
+	signal spi_tx_data 	: STD_LOGIC_VECTOR (7 downto 0);	-- data to serial port
+	signal spi_tx_now		: STD_LOGIC;							-- transmit tx_data NOW
+	signal spi_tx_busy		: STD_LOGIC;							-- transmitter is busy
+
 	
 	signal cnt_minus1 : std_logic_vector(15 downto 0);
 	signal ack_w_high : integer;
@@ -92,7 +108,27 @@ architecture serloader_Behavioral of serloader is
         new_data	: out std_logic
     );	
 	 end component;	
-
+-------------------------------------------------------------------------------
+-- my own SPI receiver
+	component spi_slave is
+    Port ( clk 		: in  STD_LOGIC;
+			  rst			: in STD_LOGIC;
+			  
+           cs_n 		: in  STD_LOGIC;
+			  spi_clk 	: in  STD_LOGIC;			  
+           mosi 		: in  STD_LOGIC;
+           miso 		: out  STD_LOGIC;
+			  spi_rq 	: out STD_LOGIC;	-- debug for now - data was wll received or sent
+			  
+           rx_data 	: out  STD_LOGIC_VECTOR (7 downto 0);
+			  rx_ready 	: out STD_LOGIC;
+			  
+           tx_data 	: in  STD_LOGIC_VECTOR (7 downto 0);
+			  tx_busy 	: out STD_LOGIC;
+			  tx_new_data : in STD_LOGIC	-- launch transmission of new data
+		);
+	end component;
+-------------------------------------------------------------------------------
 begin
 	
 	tx_data <= tx_data_latch;
@@ -364,6 +400,25 @@ begin
 		new_data => rx_new_data
 		);
 	
+	spi_tx_data <= x"00";
+	spi_tx_now <= '0';
+	spi_receiver : spi_slave PORT MAP
+			( clk => clk,
+			  rst => rst,
+			  
+           cs_n 		=> spi_cs_n,
+			  spi_clk 	=> spi_clk,
+           mosi 		=> spi_mosi,
+           miso 		=> spi_miso,
+			  spi_rq 	=> spi_rq,
+			  
+           rx_data 	=> spi_rx_data,
+			  rx_ready 	=> spi_rx_ready,
+			  
+           tx_data 	=> spi_tx_data,
+			  tx_busy 	=> spi_tx_busy,
+			  tx_new_data => spi_tx_now -- launch transmission of new data
+		); 
 	
 end serloader_Behavioral;
 
