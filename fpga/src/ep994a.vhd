@@ -463,7 +463,12 @@ begin
 				
 				-- Drive SRAM addresses outputs synchronously 
 				if cpu_access = '1' then
-					if cpu_addr(15 downto 8) = x"98" and cpu_addr(1)='0' then
+					-- Test TMS99100 instruction LDS (load distant) if cpu_addr(0) is set and if we are reading from 0x6XXX
+					-- EPEP BUGBUG note that this will break access to standard cartridges!
+					if cpu_addr(15 downto 12) = x"6" and cpu_addr(0)='1' then
+						-- Direct this access to GROM area i.e. to 0x86XXX
+						sram_addr_bus <= x"8" & cpu_addr(15 downto 1);
+					elsif cpu_addr(15 downto 8) = x"98" and cpu_addr(1)='0' then
 						sram_addr_bus <= x"8" & grom_ram_addr(15 downto 1);	-- 0x80000 GROM
 					elsif cartridge_cs='1' and sams_regs(5)='0' then
 						-- Handle paging of module port at 0x6000 unless sams_regs(5) is set (1E0A)

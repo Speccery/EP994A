@@ -13,7 +13,7 @@ set CART_ROM=90000
 set CART_ROM2=92000
 set CONSOLE_ROM=BA000
 set DSR_ROM=B0000
-set PORT=-4
+set PORT=-7
 
 
 memloader %PORT% 100008 cpu_reset_on.bin
