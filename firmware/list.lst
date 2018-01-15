@@ -56,16 +56,16 @@ XAS99 CROSS-ASSEMBLER   VERSION 1.5.3
      000A 0020r
 0068               
 0069 000C 8320     PRINTS	DATA	PRINTWS,GOPRINT
-     000E 04E2r
+     000E 0548r
 0070 0010 8320     PRINTR1	DATA	PRINTWS,GOPR1
-     0012 04D0r
+     0012 0536r
 0071 0014 8320     PRINTCH DATA	PRINTWS,GOPRCHAR
-     0016 0514r
+     0016 057Ar
 0072 0018 8320     CLS     DATA  PRINTWS,GOCLS
-     001A 0524r
+     001A 058Ar
 0073               
 0074 001C 8340     NICEDELAY DATA	DELAYWS,GODELAY
-     001E 0552r
+     001E 05B8r
 0075               
 0076               ; Our interrupt routine
 0077               VDPINT
@@ -110,7 +110,7 @@ XAS99 CROSS-ASSEMBLER   VERSION 1.5.3
 0107 0052 0205  20   LI  R5,>7A9B
      0054 7A9B 
 0108 0056 9805  38   CB  R5,@TESTK+1
-     0058 05A1r
+     0058 0607r
 0109 005A 1201  14   JLE GOGOGO
 0110 005C 1000  14   NOP
 0111               GOGOGO
@@ -119,7 +119,7 @@ XAS99 CROSS-ASSEMBLER   VERSION 1.5.3
      0060 8C00 
 0114               ; Write initial values to VDP registers
 0115 0062 0201  20       LI    R1,VDPSEQ
-     0064 0594r
+     0064 05FAr
 0116 0066 0202  20       LI    R2,>8000    ; command, write register 0
      0068 8000 
 0117               VLP
@@ -152,7 +152,7 @@ XAS99 CROSS-ASSEMBLER   VERSION 1.5.3
 0136 0094 16FC  14       JNE   -!
 0137               SKIP_CLEAR:
 0138 0096 06A0  32       BL    @COPYFONTS
-     0098 046Ar
+     0098 04D0r
 0139 009A 04CC  14       CLR   R12         ; CRU pointer
 0140 009C 1E00  20       SBZ   0           ; Make sure we are not in timer mode
 0141 009E 1D02  20       SBO   2           ; Enable VDP interrupts
@@ -165,7 +165,7 @@ XAS99 CROSS-ASSEMBLER   VERSION 1.5.3
 0148 00A0 0200  20       LI    R0,>0380    ; address of color table
      00A2 0380 
 0149 00A4 06A0  32       BL		@SETUPVDPA
-     00A6 0402r
+     00A6 0468r
 0150 00A8 0201  20       LI    R1,32
      00AA 0020 
 0151 00AC 0202  20       LI    R2,>1700
@@ -180,10 +180,10 @@ XAS99 CROSS-ASSEMBLER   VERSION 1.5.3
      00BA 8320 
 0001 00BC 0420  54 			BLWP	@PRINTS
      00BE 000Cr
-0002 00C0 19A2r    			DATA	HELLO
+0002 00C0 1A08r    			DATA	HELLO
 0001 00C2 0420  54 	    BLWP	@PRINTS
      00C4 000Cr
-0002 00C6 059Cr      	  DATA	TXTCRLF
+0002 00C6 0602r      	  DATA	TXTCRLF
 0160               
 0161 00C8 1028  14       JMP		GROM1
 0162               
@@ -223,7 +223,7 @@ XAS99 CROSS-ASSEMBLER   VERSION 1.5.3
 0180 0106 16FA  14       JNE   -!
 0001 0108 0420  54 	    BLWP	@PRINTS
      010A 000Cr
-0002 010C 059Cr      	  DATA	TXTCRLF
+0002 010C 0602r      	  DATA	TXTCRLF
 0182 010E 0581  14       INC    R1
 0183 0110 0241  22       ANDI   R1,>1F
      0112 001F 
@@ -245,7 +245,7 @@ XAS99 CROSS-ASSEMBLER   VERSION 1.5.3
 0194               !gromloop
 0001 012A 0420  54 			BLWP	@PRINTS
      012C 000Cr
-0002 012E 198Cr    			DATA	GROMTESTS
+0002 012E 19F2r    			DATA	GROMTESTS
 0196 0130 D800  38 			MOVB	R0,@>9C02
      0132 9C02 
 0197 0134 06C0  14 			SWPB	R0
@@ -292,1908 +292,1919 @@ XAS99 CROSS-ASSEMBLER   VERSION 1.5.3
      0180 2000 
 0222 0182 0609  14       DEC   R9
 0223 0184 16D2  14       JNE   -!gromloop
-0224               ; Try to read keyboard button '1', but first enable VDP interrupts
-0225 0186 04CC  14       CLR   R12         ; CRU pointer
-0226 0188 1E00  20       SBZ   0           ; Make sure we are not in timer mode
-0227 018A 1D02  20       SBO   2           ; Enable VDP interrupts
-0228 018C 0300  24       LIMI  2           ; Enable interrupts
-     018E 0002 
-0229               
-0230 0190 0203  20       LI    R3,25000
-     0192 61A8 
-0231 0194 04C0  14 !k    CLR   R0
-0232 0196 C800  38       MOV   R0,@PRINTWS
-     0198 8320 
-0233               !
-0234 019A 020C  20       LI    R12,>24
-     019C 0024 
-0235 019E 30C0  56       LDCR  R0,3
-0236 01A0 020C  20       LI    R12,6        ; Address to read rows
-     01A2 0006 
-0237 01A4 3601  64       STCR  R1,8
-0001 01A6 C801  38 			MOV		R1,@PRTR1P		; Store HEX value to print
-     01A8 8322 
-0002 01AA 0420  54 			BLWP	@PRINTR1			; Go print R1
-     01AC 0010r
-0001 01AE 0420  54 	    BLWP	@PRINTS
-     01B0 000Cr
-0002 01B2 059Cr      	  DATA	TXTCRLF
-0240 01B4 0220  22       AI    R0,>100
-     01B6 0100 
-0241 01B8 0280  22       CI    R0,>600
-     01BA 0600 
-0242 01BC 16EE  14       JNE   -!
-0243 01BE C060  34       MOV   @INTWS,R1   ; Interrupt counter
-     01C0 A000 
-0001 01C2 C801  38 			MOV		R1,@PRTR1P		; Store HEX value to print
-     01C4 8322 
-0002 01C6 0420  54 			BLWP	@PRINTR1			; Go print R1
-     01C8 0010r
-0001 01CA 0420  54 	    BLWP	@PRINTS
-     01CC 000Cr
-0002 01CE 059Cr      	  DATA	TXTCRLF
-0001 01D0 0420  54 			BLWP	@PRINTS
-     01D2 000Cr
-0002 01D4 197Fr    			DATA	CRU0STR
-0247 01D6 C060  34       MOV   @INTWS+4,R1 ; read reg 2 from interrupt context (CRU bits)
-     01D8 A004 
-0001 01DA C801  38 			MOV		R1,@PRTR1P		; Store HEX value to print
-     01DC 8322 
-0002 01DE 0420  54 			BLWP	@PRINTR1			; Go print R1
-     01E0 0010r
-0001 01E2 0420  54 	    BLWP	@PRINTS
-     01E4 000Cr
-0002 01E6 059Cr      	  DATA	TXTCRLF
-0250 01E8 C060  34       MOV   @INTWS+6,R1 ; Also show reg 3
-     01EA A006 
-0001 01EC C801  38 			MOV		R1,@PRTR1P		; Store HEX value to print
-     01EE 8322 
-0002 01F0 0420  54 			BLWP	@PRINTR1			; Go print R1
-     01F2 0010r
-0001 01F4 0420  54 	    BLWP	@PRINTS
-     01F6 000Cr
-0002 01F8 059Cr      	  DATA	TXTCRLF
-0253 01FA 04CC  14       CLR   R12
-0254 01FC 3401  64       STCR  R1,0       ; Read 16 bits (count of 0 means 16)
-0001 01FE C801  38 			MOV		R1,@PRTR1P		; Store HEX value to print
-     0200 8322 
-0002 0202 0420  54 			BLWP	@PRINTR1			; Go print R1
-     0204 0010r
-0001 0206 0420  54 	    BLWP	@PRINTS
-     0208 000Cr
-0002 020A 059Cr      	  DATA	TXTCRLF
-0257 020C 0205  20       LI R5,100
-     020E 0064 
-0258 0210 0206  20       LI R6,7
-     0212 0007 
-0259 0214 3946  56       MPY R6,R5
-0001 0216 C805  38 			MOV		R5,@PRTR1P		; Store HEX value to print
-     0218 8322 
-0002 021A 0420  54 			BLWP	@PRINTR1			; Go print R1
-     021C 0010r
-0001 021E C806  38 			MOV		R6,@PRTR1P		; Store HEX value to print
-     0220 8322 
-0002 0222 0420  54 			BLWP	@PRINTR1			; Go print R1
-     0224 0010r
-0001 0226 0420  54 	    BLWP	@PRINTS
-     0228 000Cr
-0002 022A 059Cr      	  DATA	TXTCRLF
-0263               ; EP 2017-08-01 What the heck?
-0264               ; TI ROM seems to use also ODD addressed INCT and DECT instructions
-0265               ; For example: 0848: DECT @>8373
-0266               ; I wonder what that does with a real CPU and with the VHDL CPU...
-0267               ; We need to check.
-0268 022C 0205  20 		LI R5,>0000
-     022E 0000 
-0269 0230 C805  38 		MOV R5,@TESTLOC
-     0232 8360 
-0270 0234 C060  34 		MOV @TESTLOC,R1
-     0236 8360 
-0001 0238 C801  38 			MOV		R1,@PRTR1P		; Store HEX value to print
-     023A 8322 
-0002 023C 0420  54 			BLWP	@PRINTR1			; Go print R1
-     023E 0010r
-0272 0240 0660  34 		DECT @TESTLOC+1
-     0242 8361 
-0273 0244 C060  34 		MOV @TESTLOC,R1
-     0246 8360 
-0001 0248 C801  38 			MOV		R1,@PRTR1P		; Store HEX value to print
-     024A 8322 
-0002 024C 0420  54 			BLWP	@PRINTR1			; Go print R1
-     024E 0010r
-0275 0250 05E0  34 		INCT @TESTLOC+1
-     0252 8361 
-0276 0254 C060  34 		MOV @TESTLOC,R1
-     0256 8360 
-0001 0258 C801  38 			MOV		R1,@PRTR1P		; Store HEX value to print
-     025A 8322 
-0002 025C 0420  54 			BLWP	@PRINTR1			; Go print R1
-     025E 0010r
-0001 0260 0420  54 	    BLWP	@PRINTS
-     0262 000Cr
-0002 0264 059Cr      	  DATA	TXTCRLF
-0279               
-0280               
-0281 0266 0603  14       DEC   R3
-0282 0268 1695  14       JNE   -!k
-0283               
-0284               
-0285               GODEFENDER
-0286               ; Check if we have defender loaded. If we have let's go!
-0287 026A C060  34       MOV   @>6000,R1
-     026C 6000 
-0288 026E 0281  22       CI     R1,>AA01
-     0270 AA01 
-0289 0272 1607  14       JNE   !
-0290 0274 C060  34       MOV   @>600E,R1
-     0276 600E 
-0291 0278 0281  22       CI    R1,>6072
-     027A 6072 
-0292 027C 1602  14       JNE   !
-0293 027E 0460  28       B     @>6072
-     0280 6072 
-0294               !
-0295               
-0296               ;;			BLWP	@NICEDELAY
-0297               ; Do test of GROM memory. Calculate GROM checksums
-0298               GROMCHECK
-0299               ;;			BLWP	@CLS
-0300               ;;			CLR		R0
-0301               ;;			MOV		R0,@PRINTWS
-0001 0282 0420  54 			BLWP	@PRINTS
-     0284 000Cr
-0002 0286 1969r    			DATA	GTT
-0303               
-0304               ; Start of checksum loop
-0305 0288 0204  20 			LI		R4,3					; Iteration counter
-     028A 0003 
-0306               !gr3
-0307 028C 04C0  14 			CLR		R0
-0308               !gr2
-0309 028E D800  38 			MOVB	R0,@>9C02				; Setup GROM address to zero
-     0290 9C02 
-0310 0292 06C0  14 			SWPB	R0
-0311 0294 D800  38 			MOVB	R0,@>9C02
-     0296 9C02 
-0312 0298 06C0  14       SWPB  R0
-0001 029A C800  38 			MOV		R0,@PRTR1P		; Store HEX value to print
-     029C 8322 
-0002 029E 0420  54 			BLWP	@PRINTR1			; Go print R1
-     02A0 0010r
+0224               ; Attempt to run a TMS99110 instruction
+0225 0186 0201  20       LI    R1,>180     ; Halfway through the screen
+     0188 0180 
+0226 018A C801  38       MOV   R1,@PRINTWS
+     018C 8320 
+0001 018E 0420  54 			BLWP	@PRINTS
+     0190 000Cr
+0002 0192 1A2Ar    			DATA	TEST_TMS99110
+0001 0194 0420  54 	    BLWP	@PRINTS
+     0196 000Cr
+0002 0198 0602r      	  DATA	TXTCRLF
+0229 019A 0205  20       LI   R5,>1234    Arbitrary integer.
+     019C 1234 
+0230               *       CIR  R5          Convert integer in R5 to real and store in FPAC (R0, R1).
+0231               *       Opcode in binary: 0000 1100 1000 0101
+0232 019E 0C85           DATA >0C85       Opcode for CIR instruction.
+0233               *       XOP @CRLF,14
+0234               *       XOP R0,10        Print contents of R0 followed by CRLF.
+0235               *       XOP @CRLF,14
+0236               *       XOP R1,10        Print contents of R1 followed by CRLF.
+0237               *       XOP @CRLF,14
+0001 01A0 C800  38 			MOV		R0,@PRTR1P		; Store HEX value to print
+     01A2 8322 
+0002 01A4 0420  54 			BLWP	@PRINTR1			; Go print R1
+     01A6 0010r
+0001 01A8 C801  38 			MOV		R1,@PRTR1P		; Store HEX value to print
+     01AA 8322 
+0002 01AC 0420  54 			BLWP	@PRINTR1			; Go print R1
+     01AE 0010r
+0001 01B0 0420  54 	    BLWP	@PRINTS
+     01B2 000Cr
+0002 01B4 0602r      	  DATA	TXTCRLF
+0241               * Next let's make LDS "load distant source operation"
+0242 01B6 02C0  12       STST  R0    ; read flag register
+0001 01B8 C800  38 			MOV		R0,@PRTR1P		; Store HEX value to print
+     01BA 8322 
+0002 01BC 0420  54 			BLWP	@PRINTR1			; Go print R1
+     01BE 0010r
+0001 01C0 0420  54 			BLWP	@PRINTS
+     01C2 000Cr
+0002 01C4 1A18r    			DATA	FLAGS_STRING
+0001 01C6 0420  54 	    BLWP	@PRINTS
+     01C8 000Cr
+0002 01CA 0602r      	  DATA	TXTCRLF
+0246               *     LDS
+0247 01CC 0780           DATA >0780  ; LDS opcode
+0248 01CE C020  34       MOV  @>2000,R0    ; Distant load
+     01D0 2000 
+0249 01D2 C060  34       MOV  @>2000,R1    ; close load
+     01D4 2000 
+0001 01D6 C800  38 			MOV		R0,@PRTR1P		; Store HEX value to print
+     01D8 8322 
+0002 01DA 0420  54 			BLWP	@PRINTR1			; Go print R1
+     01DC 0010r
+0001 01DE C801  38 			MOV		R1,@PRTR1P		; Store HEX value to print
+     01E0 8322 
+0002 01E2 0420  54 			BLWP	@PRINTR1			; Go print R1
+     01E4 0010r
+0001 01E6 0420  54 	    BLWP	@PRINTS
+     01E8 000Cr
+0002 01EA 0602r      	  DATA	TXTCRLF
+0253               
+0254               ; Try to read keyboard button '1', but first enable VDP interrupts
+0255 01EC 04CC  14       CLR   R12         ; CRU pointer
+0256 01EE 1E00  20       SBZ   0           ; Make sure we are not in timer mode
+0257 01F0 1D02  20       SBO   2           ; Enable VDP interrupts
+0258 01F2 0300  24       LIMI  2           ; Enable interrupts
+     01F4 0002 
+0259               
+0260 01F6 0203  20       LI    R3,25000
+     01F8 61A8 
+0261 01FA 04C0  14 !k    CLR   R0
+0262 01FC C800  38       MOV   R0,@PRINTWS
+     01FE 8320 
+0263               !
+0264 0200 020C  20       LI    R12,>24
+     0202 0024 
+0265 0204 30C0  56       LDCR  R0,3
+0266 0206 020C  20       LI    R12,6        ; Address to read rows
+     0208 0006 
+0267 020A 3601  64       STCR  R1,8
+0001 020C C801  38 			MOV		R1,@PRTR1P		; Store HEX value to print
+     020E 8322 
+0002 0210 0420  54 			BLWP	@PRINTR1			; Go print R1
+     0212 0010r
+0001 0214 0420  54 	    BLWP	@PRINTS
+     0216 000Cr
+0002 0218 0602r      	  DATA	TXTCRLF
+0270 021A 0220  22       AI    R0,>100
+     021C 0100 
+0271 021E 0280  22       CI    R0,>600
+     0220 0600 
+0272 0222 16EE  14       JNE   -!
+0273 0224 C060  34       MOV   @INTWS,R1   ; Interrupt counter
+     0226 A000 
+0001 0228 C801  38 			MOV		R1,@PRTR1P		; Store HEX value to print
+     022A 8322 
+0002 022C 0420  54 			BLWP	@PRINTR1			; Go print R1
+     022E 0010r
+0001 0230 0420  54 	    BLWP	@PRINTS
+     0232 000Cr
+0002 0234 0602r      	  DATA	TXTCRLF
+0001 0236 0420  54 			BLWP	@PRINTS
+     0238 000Cr
+0002 023A 19E5r    			DATA	CRU0STR
+0277 023C C060  34       MOV   @INTWS+4,R1 ; read reg 2 from interrupt context (CRU bits)
+     023E A004 
+0001 0240 C801  38 			MOV		R1,@PRTR1P		; Store HEX value to print
+     0242 8322 
+0002 0244 0420  54 			BLWP	@PRINTR1			; Go print R1
+     0246 0010r
+0001 0248 0420  54 	    BLWP	@PRINTS
+     024A 000Cr
+0002 024C 0602r      	  DATA	TXTCRLF
+0280 024E C060  34       MOV   @INTWS+6,R1 ; Also show reg 3
+     0250 A006 
+0001 0252 C801  38 			MOV		R1,@PRTR1P		; Store HEX value to print
+     0254 8322 
+0002 0256 0420  54 			BLWP	@PRINTR1			; Go print R1
+     0258 0010r
+0001 025A 0420  54 	    BLWP	@PRINTS
+     025C 000Cr
+0002 025E 0602r      	  DATA	TXTCRLF
+0283 0260 04CC  14       CLR   R12
+0284 0262 3401  64       STCR  R1,0       ; Read 16 bits (count of 0 means 16)
+0001 0264 C801  38 			MOV		R1,@PRTR1P		; Store HEX value to print
+     0266 8322 
+0002 0268 0420  54 			BLWP	@PRINTR1			; Go print R1
+     026A 0010r
+0001 026C 0420  54 	    BLWP	@PRINTS
+     026E 000Cr
+0002 0270 0602r      	  DATA	TXTCRLF
+0287 0272 0205  20       LI R5,100
+     0274 0064 
+0288 0276 0206  20       LI R6,7
+     0278 0007 
+0289 027A 3946  56       MPY R6,R5
+0001 027C C805  38 			MOV		R5,@PRTR1P		; Store HEX value to print
+     027E 8322 
+0002 0280 0420  54 			BLWP	@PRINTR1			; Go print R1
+     0282 0010r
+0001 0284 C806  38 			MOV		R6,@PRTR1P		; Store HEX value to print
+     0286 8322 
+0002 0288 0420  54 			BLWP	@PRINTR1			; Go print R1
+     028A 0010r
+0001 028C 0420  54 	    BLWP	@PRINTS
+     028E 000Cr
+0002 0290 0602r      	  DATA	TXTCRLF
+0293               ; EP 2017-08-01 What the heck?
+0294               ; TI ROM seems to use also ODD addressed INCT and DECT instructions
+0295               ; For example: 0848: DECT @>8373
+0296               ; I wonder what that does with a real CPU and with the VHDL CPU...
+0297               ; We need to check.
+0298 0292 0205  20 		LI R5,>0000
+     0294 0000 
+0299 0296 C805  38 		MOV R5,@TESTLOC
+     0298 8360 
+0300 029A C060  34 		MOV @TESTLOC,R1
+     029C 8360 
+0001 029E C801  38 			MOV		R1,@PRTR1P		; Store HEX value to print
+     02A0 8322 
+0002 02A2 0420  54 			BLWP	@PRINTR1			; Go print R1
+     02A4 0010r
+0302 02A6 0660  34 		DECT @TESTLOC+1
+     02A8 8361 
+0303 02AA C060  34 		MOV @TESTLOC,R1
+     02AC 8360 
+0001 02AE C801  38 			MOV		R1,@PRTR1P		; Store HEX value to print
+     02B0 8322 
+0002 02B2 0420  54 			BLWP	@PRINTR1			; Go print R1
+     02B4 0010r
+0305 02B6 05E0  34 		INCT @TESTLOC+1
+     02B8 8361 
+0306 02BA C060  34 		MOV @TESTLOC,R1
+     02BC 8360 
+0001 02BE C801  38 			MOV		R1,@PRTR1P		; Store HEX value to print
+     02C0 8322 
+0002 02C2 0420  54 			BLWP	@PRINTR1			; Go print R1
+     02C4 0010r
+0001 02C6 0420  54 	    BLWP	@PRINTS
+     02C8 000Cr
+0002 02CA 0602r      	  DATA	TXTCRLF
+0309               
+0310               
+0311 02CC 0603  14       DEC   R3
+0312 02CE 1695  14       JNE   -!k
+0313               
 0314               
-0315 02A2 04C1  14       CLR		R1						; init checksum
-0316 02A4 0202  20       LI		R2,>1800
-     02A6 1800 
-0317               !grr
-0318 02A8 04C3  14       CLR		R3
-0319 02AA D0E0  34       MOVB	@>9800,R3			; get byte
-     02AC 9800 
-0320 02AE 0B11  56       SRC		R1,1
-0321 02B0 A043  18 			A			R3,R1
-0322 02B2 0602  14 			DEC		R2
-0323 02B4 16F9  14 			JNE		-!grr
-0001 02B6 C801  38 			MOV		R1,@PRTR1P		; Store HEX value to print
-     02B8 8322 
-0002 02BA 0420  54 			BLWP	@PRINTR1			; Go print R1
-     02BC 0010r
-0325               			; Get address and print it
-0326 02BE 04C1  14       CLR   R1
-0327 02C0 D060  34       MOVB  @>9802,R1
-     02C2 9802 
-0328 02C4 D0A0  34       MOVB  @>9802,R2
-     02C6 9802 
-0329 02C8 0982  56       SRL   R2,8
-0330 02CA E042  18       SOC   R2,R1
-0001 02CC C801  38 			MOV		R1,@PRTR1P		; Store HEX value to print
-     02CE 8322 
-0002 02D0 0420  54 			BLWP	@PRINTR1			; Go print R1
-     02D2 0010r
-0001 02D4 0420  54 	    BLWP	@PRINTS
-     02D6 000Cr
-0002 02D8 059Cr      	  DATA	TXTCRLF
+0315               GODEFENDER
+0316               ; Check if we have defender loaded. If we have let's go!
+0317 02D0 C060  34       MOV   @>6000,R1
+     02D2 6000 
+0318 02D4 0281  22       CI     R1,>AA01
+     02D6 AA01 
+0319 02D8 1607  14       JNE   !
+0320 02DA C060  34       MOV   @>600E,R1
+     02DC 600E 
+0321 02DE 0281  22       CI    R1,>6072
+     02E0 6072 
+0322 02E2 1602  14       JNE   !
+0323 02E4 0460  28       B     @>6072
+     02E6 6072 
+0324               !
+0325               
+0326               ;;			BLWP	@NICEDELAY
+0327               ; Do test of GROM memory. Calculate GROM checksums
+0328               GROMCHECK
+0329               ;;			BLWP	@CLS
+0330               ;;			CLR		R0
+0331               ;;			MOV		R0,@PRINTWS
+0001 02E8 0420  54 			BLWP	@PRINTS
+     02EA 000Cr
+0002 02EC 19CFr    			DATA	GTT
 0333               
-0334 02DA 0220  22 			AI		R0,>2000
-     02DC 2000 
-0335 02DE 0280  22 			CI		R0,>6000
-     02E0 6000 
-0336 02E2 16D5  14 			JNE		-!gr2
-0337               
-0338 02E4 0604  14 			DEC		R4
-0339 02E6 16D2  14 			JNE		-!gr3				; next iteration
-0340               
-0341 02E8 0420  54 			BLWP	@NICEDELAY
-     02EA 001Cr
-0342               
-0343               
-0344 02EC 102C  14       JMP   MAINSTART
-0345               
-0346               NOCLEAR
-0347               ; Write fonts
-0348 02EE 0202  20       LI    R2,CHARS
-     02F0 0574r
-0349 02F2 0201  20       LI    R1,ENDCHARS-CHARS ; count
-     02F4 0020 
-0350 02F6 0203  20       LI    R3,>4300    ; address 300
-     02F8 4300 
-0351 02FA 06C3  14       SWPB  R3
-0352 02FC D803  38       MOVB  R3,@VDPWA   ; low byte of address
-     02FE 8C02 
-0353 0300 06C3  14       SWPB  R3
-0354 0302 D803  38       MOVB  R3,@VDPWA   ; high byte of address
-     0304 8C02 
-0355               
-0356 0306 D832  48 !     MOVB  *R2+,@VDPWD
-     0308 8C00 
-0357 030A 0601  14       DEC   R1
-0358 030C 16FC  14       JNE   -!
-0359               
-0360               TESTCHARS
-0361               ; write a few characters
-0362 030E 0203  20       LI    R3,>4000    ; address 0
-     0310 4000 
-0363 0312 06C3  14       SWPB  R3
-0364 0314 D803  38       MOVB  R3,@VDPWA   ; low byte of address
-     0316 8C02 
-0365 0318 06C3  14       SWPB  R3
-0366 031A D803  38       MOVB  R3,@VDPWA   ; high byte of address
-     031C 8C02 
+0334               ; Start of checksum loop
+0335 02EE 0204  20 			LI		R4,3					; Iteration counter
+     02F0 0003 
+0336               !gr3
+0337 02F2 04C0  14 			CLR		R0
+0338               !gr2
+0339 02F4 D800  38 			MOVB	R0,@>9C02				; Setup GROM address to zero
+     02F6 9C02 
+0340 02F8 06C0  14 			SWPB	R0
+0341 02FA D800  38 			MOVB	R0,@>9C02
+     02FC 9C02 
+0342 02FE 06C0  14       SWPB  R0
+0001 0300 C800  38 			MOV		R0,@PRTR1P		; Store HEX value to print
+     0302 8322 
+0002 0304 0420  54 			BLWP	@PRINTR1			; Go print R1
+     0306 0010r
+0344               
+0345 0308 04C1  14       CLR		R1						; init checksum
+0346 030A 0202  20       LI		R2,>1800
+     030C 1800 
+0347               !grr
+0348 030E 04C3  14       CLR		R3
+0349 0310 D0E0  34       MOVB	@>9800,R3			; get byte
+     0312 9800 
+0350 0314 0B11  56       SRC		R1,1
+0351 0316 A043  18 			A			R3,R1
+0352 0318 0602  14 			DEC		R2
+0353 031A 16F9  14 			JNE		-!grr
+0001 031C C801  38 			MOV		R1,@PRTR1P		; Store HEX value to print
+     031E 8322 
+0002 0320 0420  54 			BLWP	@PRINTR1			; Go print R1
+     0322 0010r
+0355               			; Get address and print it
+0356 0324 04C1  14       CLR   R1
+0357 0326 D060  34       MOVB  @>9802,R1
+     0328 9802 
+0358 032A D0A0  34       MOVB  @>9802,R2
+     032C 9802 
+0359 032E 0982  56       SRL   R2,8
+0360 0330 E042  18       SOC   R2,R1
+0001 0332 C801  38 			MOV		R1,@PRTR1P		; Store HEX value to print
+     0334 8322 
+0002 0336 0420  54 			BLWP	@PRINTR1			; Go print R1
+     0338 0010r
+0001 033A 0420  54 	    BLWP	@PRINTS
+     033C 000Cr
+0002 033E 0602r      	  DATA	TXTCRLF
+0363               
+0364 0340 0220  22 			AI		R0,>2000
+     0342 2000 
+0365 0344 0280  22 			CI		R0,>6000
+     0346 6000 
+0366 0348 16D5  14 			JNE		-!gr2
 0367               
-0368 031E 0205  20       LI    R5,>80
-     0320 0080 
-0369               LPLP
-0370 0322 0200  20       LI    R0,>2021    ; >6061
-     0324 2021 
-0371 0326 D800  38       MOVB  R0,@VDPWD
-     0328 8C00 
-0372 032A 06C0  14       SWPB  R0
-0373 032C D800  38       MOVB  R0,@VDPWD
-     032E 8C00 
-0374 0330 06C0  14       SWPB  R0
-0375 0332 0200  20       LI    R0,>3031     ;>6263
-     0334 3031 
-0376 0336 D800  38       MOVB  R0,@VDPWD
-     0338 8C00 
-0377 033A 06C0  14       SWPB  R0
-0378 033C D800  38       MOVB  R0,@VDPWD
-     033E 8C00 
-0379 0340 06C0  14       SWPB  R0
-0380 0342 0605  14       DEC   R5
-0381 0344 16EE  14       JNE   LPLP
-0382               
-0383               
-0384               MAINSTART
-0385 0346 0201  20       LI    R1,OUTP
-     0348 B000 
-0386 034A 0200  20       LI    R0,>100
-     034C 0100 
-0387 034E 0203  20       LI    R3,20
-     0350 0014 
-0388               
-0389               MAINLOOP
-0390 0352 D440  30       MOVB  R0,*R1
-0391 0354 0A10  56       SLA   R0,1
-0392 0356 1602  14       JNE   !
-0393 0358 0200  20       LI    R0,>100
-     035A 0100 
-0394 035C 04C2  14 !     CLR   R2
-0395               !delay
-0396 035E 0602  14       DEC   R2
-0397 0360 16FE  14       JNE   -!delay
-0398 0362 0603  14       DEC   R3
-0399 0364 16F6  14       JNE   MAINLOOP
-0400               ; Copy the dump to VDP memory
-0401 0366 0200  20       LI    R0,0
-     0368 0000 
-0402 036A 06A0  32       BL    @SETUPVDPA
-     036C 0402r
-0403 036E 0201  20       LI    R1,VDPDUMP
-     0370 0E3Ar
-0404 0372 0202  20       LI    R2,DUMPEND-VDPDUMP
-     0374 0B10 
-0405               VCOPYLP
-0406 0376 D831  48       MOVB  *R1+,@VDPWD
-     0378 8C00 
-0407 037A 0602  14       DEC   R2
-0408               ;      MOVB  *R1+,@VDPWD
-0409               ;      MOVB  *R1+,@VDPWD
-0410               ;      DECT  R2
-0411 037C 16FC  14       JNE   VCOPYLP
+0368 034A 0604  14 			DEC		R4
+0369 034C 16D2  14 			JNE		-!gr3				; next iteration
+0370               
+0371 034E 0420  54 			BLWP	@NICEDELAY
+     0350 001Cr
+0372               
+0373               
+0374 0352 102C  14       JMP   MAINSTART
+0375               
+0376               NOCLEAR
+0377               ; Write fonts
+0378 0354 0202  20       LI    R2,CHARS
+     0356 05DAr
+0379 0358 0201  20       LI    R1,ENDCHARS-CHARS ; count
+     035A 0020 
+0380 035C 0203  20       LI    R3,>4300    ; address 300
+     035E 4300 
+0381 0360 06C3  14       SWPB  R3
+0382 0362 D803  38       MOVB  R3,@VDPWA   ; low byte of address
+     0364 8C02 
+0383 0366 06C3  14       SWPB  R3
+0384 0368 D803  38       MOVB  R3,@VDPWA   ; high byte of address
+     036A 8C02 
+0385               
+0386 036C D832  48 !     MOVB  *R2+,@VDPWD
+     036E 8C00 
+0387 0370 0601  14       DEC   R1
+0388 0372 16FC  14       JNE   -!
+0389               
+0390               TESTCHARS
+0391               ; write a few characters
+0392 0374 0203  20       LI    R3,>4000    ; address 0
+     0376 4000 
+0393 0378 06C3  14       SWPB  R3
+0394 037A D803  38       MOVB  R3,@VDPWA   ; low byte of address
+     037C 8C02 
+0395 037E 06C3  14       SWPB  R3
+0396 0380 D803  38       MOVB  R3,@VDPWA   ; high byte of address
+     0382 8C02 
+0397               
+0398 0384 0205  20       LI    R5,>80
+     0386 0080 
+0399               LPLP
+0400 0388 0200  20       LI    R0,>2021    ; >6061
+     038A 2021 
+0401 038C D800  38       MOVB  R0,@VDPWD
+     038E 8C00 
+0402 0390 06C0  14       SWPB  R0
+0403 0392 D800  38       MOVB  R0,@VDPWD
+     0394 8C00 
+0404 0396 06C0  14       SWPB  R0
+0405 0398 0200  20       LI    R0,>3031     ;>6263
+     039A 3031 
+0406 039C D800  38       MOVB  R0,@VDPWD
+     039E 8C00 
+0407 03A0 06C0  14       SWPB  R0
+0408 03A2 D800  38       MOVB  R0,@VDPWD
+     03A4 8C00 
+0409 03A6 06C0  14       SWPB  R0
+0410 03A8 0605  14       DEC   R5
+0411 03AA 16EE  14       JNE   LPLP
 0412               
-0413               ; Now delay loop
-0414 037E 0201  20       LI    R1,10
-     0380 000A 
-0415 0382 0602  14 !     DEC   R2
-0416 0384 16FE  14       JNE   -!
-0417 0386 0601  14       DEC   R1
-0418 0388 16FC  14       JNE   -!
-0419               ; Make a small animation
-0420 038A 0204  20       LI    R4,VDPDUMP+768-32 ; -32 for message
-     038C 111Ar
-0421 038E 0205  20       LI    R5,0            ; Scroll offset
-     0390 0000 
-0422 0392 0206  20       LI    R6,0
-     0394 0000 
-0423 0396 0208  20       LI    R8,32
-     0398 0020 
-0424 039A C081  18       MOV   R1,R2
-0425               
-0426 039C 0209  20       LI    R9,10000         ; our delay
-     039E 2710 
-0427               
-0428               !again
-0429 03A0 0201  20       LI    R1,VDPDUMP
-     03A2 0E3Ar
-0430 03A4 04C0  14       CLR   R0
-0431 03A6 06A0  32       BL    @SETUPVDPA
-     03A8 0402r
-0432               ; Animate 1 row
-0433               !row
-0434 03AA C1C6  18       MOV   R6,R7
-0435 03AC A1C5  18       A     R5,R7
-0436 03AE 0247  22       ANDI  R7,>1F
-     03B0 001F 
-0437 03B2 A1C1  18       A     R1,R7
-0438 03B4 D817  46       MOVB  *R7,@VDPWD
-     03B6 8C00 
-0439 03B8 0586  14       INC   R6          ; R6 counts our columns
-0440 03BA 8206  18       C     R6,R8
-0441 03BC 16F6  14       JNE   -!row
-0442 03BE 04C6  14       CLR   R6
-0443 03C0 0221  22       AI    R1,32
-     03C2 0020 
-0444 03C4 8101  18       C     R1,R4
-0445 03C6 16F1  14       JNE   -!row
-0446               ; Increment our offset
-0447 03C8 0585  14       INC   R5
-0448 03CA 0245  22       ANDI  R5,31
-     03CC 001F 
-0449               ; Make our small delay
-0450 03CE 0289  22       CI    R9,0
-     03D0 0000 
-0451 03D2 13E6  14       JEQ   -!again   ; if delay is zero, no more printing
-0452               
-0453 03D4 C1C9  18       MOV   R9,R7
-0454 03D6 0607  14 !del  DEC   R7
-0455 03D8 16FE  14       JNE   -!del
-0456               
-0457               ; decrement delay
-0458 03DA 0229  22       AI    R9,-10
-     03DC FFF6 
-0459               ; Display a message from our sponsor
-0460 03DE 0200  20       LI    R0,23*32
-     03E0 02E0 
-0461 03E2 C800  38       MOV   R0,@PRINTWS
-     03E4 8320 
-0001 03E6 0420  54 			BLWP	@PRINTS
-     03E8 000Cr
-0002 03EA 194Ar    			DATA	TMS99105
-0001 03EC C809  38 			MOV		R9,@PRTR1P		; Store HEX value to print
-     03EE 8322 
-0002 03F0 0420  54 			BLWP	@PRINTR1			; Go print R1
-     03F2 0010r
-0001 03F4 0420  54 			BLWP	@PRINTS
-     03F6 000Cr
-0002 03F8 1966r    			DATA	SPACES
-0465               ; Proceed to second row directly
-0466 03FA 0221  22       AI    R1,32
-     03FC 0020 
-0467               
-0468               
-0469 03FE 10D0  14       JMP   -!again
-0470               
-0471               
-0472               
-0473               
-0474 0400 10A2  14       JMP   MAINSTART
-0475               
-0476               *---------------------------------------------
-0477               * Set VDP address from R0
-0478               *---------------------------------------------
-0479               SETUPVDPA
-0480 0402 0240  22       ANDI  R0,>3FFF
-     0404 3FFF 
-0481 0406 06C0  14       SWPB  R0
-0482 0408 D800  38       MOVB  R0,@VDPWA         * Send low byte of VDP RAM write address
-     040A 8C02 
-0483 040C 06C0  14       SWPB  R0
-0484 040E 0260  22       ORI   R0,>4000          * Set read/write bits 14 and 15 to write (01)
-     0410 4000 
-0485 0412 D800  38       MOVB  R0,@VDPWA         * Send high byte of VDP RAM write address
-     0414 8C02 
-0486 0416 045B  20       RT
-0487               
-0488               *---------------------------------------------
-0489               * Scroll up - test VDP reads
-0490               * For reads top 2 bits are zero
-0491               *---------------------------------------------
-0492               SCROLLUP
-0493 0418 C28B  18       MOV   R11,R10           * Save return address
-0494 041A 0206  20       LI    R6,>20            * VRAM read address
-     041C 0020 
-0495 041E 04C0  14       CLR   R0                * VRAM write address
-0496 0420 0207  20       LI    R7,23             * 23 lines
-     0422 0017 
-0497               
-0498               !scrollloop
-0499 0424 06C6  14       SWPB  R6
-0500 0426 D806  38       MOVB  R6,@VDPWA         * Send low byte of VDP RAM read address
-     0428 8C02 
-0501 042A 06C6  14       SWPB  R6
-0502 042C D806  38       MOVB  R6,@VDPWA
-     042E 8C02 
-0503 0430 0202  20       LI    R2,>20
-     0432 0020 
-0504 0434 0205  20       LI    R5,TMPBUF
-     0436 A040 
-0505 0438 0201  20       LI    R1,VDPRD          * VDP read address
-     043A 8800 
-0506               !rdloop
-0507 043C DD51  40       MOVB  *R1,*R5+          * read byte from VRAM
-0508 043E DD51  40       MOVB  *R1,*R5+          * read byte from VRAM
-0509 0440 0642  14       DECT  R2
-0510 0442 16FC  14       JNE   -!rdloop
-0511               ; Next write the same stuff to the previous line
-0512 0444 06A0  32       BL    @SETUPVDPA
-     0446 0402r
-0513 0448 0202  20       LI    R2,>20
-     044A 0020 
-0514 044C 0205  20       LI    R5,TMPBUF
-     044E A040 
-0515 0450 0201  20       LI    R1,VDPWD          * VDP read address
-     0452 8C00 
-0516               !wrloop
-0517 0454 D475  40       MOVB  *R5+,*R1
-0518 0456 D475  40       MOVB  *R5+,*R1
-0519 0458 0642  14       DECT  R2
-0520 045A 16FC  14       jne   -!wrloop
-0521 045C 0220  22       AI    R0,>20
-     045E 0020 
-0522 0460 0226  22       AI    R6,>20
+0413               
+0414               MAINSTART
+0415 03AC 0201  20       LI    R1,OUTP
+     03AE B000 
+0416 03B0 0200  20       LI    R0,>100
+     03B2 0100 
+0417 03B4 0203  20       LI    R3,20
+     03B6 0014 
+0418               
+0419               MAINLOOP
+0420 03B8 D440  30       MOVB  R0,*R1
+0421 03BA 0A10  56       SLA   R0,1
+0422 03BC 1602  14       JNE   !
+0423 03BE 0200  20       LI    R0,>100
+     03C0 0100 
+0424 03C2 04C2  14 !     CLR   R2
+0425               !delay
+0426 03C4 0602  14       DEC   R2
+0427 03C6 16FE  14       JNE   -!delay
+0428 03C8 0603  14       DEC   R3
+0429 03CA 16F6  14       JNE   MAINLOOP
+0430               ; Copy the dump to VDP memory
+0431 03CC 0200  20       LI    R0,0
+     03CE 0000 
+0432 03D0 06A0  32       BL    @SETUPVDPA
+     03D2 0468r
+0433 03D4 0201  20       LI    R1,VDPDUMP
+     03D6 0EA0r
+0434 03D8 0202  20       LI    R2,DUMPEND-VDPDUMP
+     03DA 0B10 
+0435               VCOPYLP
+0436 03DC D831  48       MOVB  *R1+,@VDPWD
+     03DE 8C00 
+0437 03E0 0602  14       DEC   R2
+0438               ;      MOVB  *R1+,@VDPWD
+0439               ;      MOVB  *R1+,@VDPWD
+0440               ;      DECT  R2
+0441 03E2 16FC  14       JNE   VCOPYLP
+0442               
+0443               ; Now delay loop
+0444 03E4 0201  20       LI    R1,10
+     03E6 000A 
+0445 03E8 0602  14 !     DEC   R2
+0446 03EA 16FE  14       JNE   -!
+0447 03EC 0601  14       DEC   R1
+0448 03EE 16FC  14       JNE   -!
+0449               ; Make a small animation
+0450 03F0 0204  20       LI    R4,VDPDUMP+768-32 ; -32 for message
+     03F2 1180r
+0451 03F4 0205  20       LI    R5,0            ; Scroll offset
+     03F6 0000 
+0452 03F8 0206  20       LI    R6,0
+     03FA 0000 
+0453 03FC 0208  20       LI    R8,32
+     03FE 0020 
+0454 0400 C081  18       MOV   R1,R2
+0455               
+0456 0402 0209  20       LI    R9,10000         ; our delay
+     0404 2710 
+0457               
+0458               !again
+0459 0406 0201  20       LI    R1,VDPDUMP
+     0408 0EA0r
+0460 040A 04C0  14       CLR   R0
+0461 040C 06A0  32       BL    @SETUPVDPA
+     040E 0468r
+0462               ; Animate 1 row
+0463               !row
+0464 0410 C1C6  18       MOV   R6,R7
+0465 0412 A1C5  18       A     R5,R7
+0466 0414 0247  22       ANDI  R7,>1F
+     0416 001F 
+0467 0418 A1C1  18       A     R1,R7
+0468 041A D817  46       MOVB  *R7,@VDPWD
+     041C 8C00 
+0469 041E 0586  14       INC   R6          ; R6 counts our columns
+0470 0420 8206  18       C     R6,R8
+0471 0422 16F6  14       JNE   -!row
+0472 0424 04C6  14       CLR   R6
+0473 0426 0221  22       AI    R1,32
+     0428 0020 
+0474 042A 8101  18       C     R1,R4
+0475 042C 16F1  14       JNE   -!row
+0476               ; Increment our offset
+0477 042E 0585  14       INC   R5
+0478 0430 0245  22       ANDI  R5,31
+     0432 001F 
+0479               ; Make our small delay
+0480 0434 0289  22       CI    R9,0
+     0436 0000 
+0481 0438 13E6  14       JEQ   -!again   ; if delay is zero, no more printing
+0482               
+0483 043A C1C9  18       MOV   R9,R7
+0484 043C 0607  14 !del  DEC   R7
+0485 043E 16FE  14       JNE   -!del
+0486               
+0487               ; decrement delay
+0488 0440 0229  22       AI    R9,-10
+     0442 FFF6 
+0489               ; Display a message from our sponsor
+0490 0444 0200  20       LI    R0,23*32
+     0446 02E0 
+0491 0448 C800  38       MOV   R0,@PRINTWS
+     044A 8320 
+0001 044C 0420  54 			BLWP	@PRINTS
+     044E 000Cr
+0002 0450 19B0r    			DATA	TMS99105
+0001 0452 C809  38 			MOV		R9,@PRTR1P		; Store HEX value to print
+     0454 8322 
+0002 0456 0420  54 			BLWP	@PRINTR1			; Go print R1
+     0458 0010r
+0001 045A 0420  54 			BLWP	@PRINTS
+     045C 000Cr
+0002 045E 19CCr    			DATA	SPACES
+0495               ; Proceed to second row directly
+0496 0460 0221  22       AI    R1,32
      0462 0020 
-0523 0464 0607  14       DEC   R7
-0524 0466 16DE  14       JNE   -!scrollloop
-0525 0468 045A  20       B     *R10            * Return
-0526               
-0527               * copy fonts from GROMs to pattern table
-0528               COPYFONTS
-0529 046A C28B  18       MOV   R11,R10     ; Save return address
-0530 046C 0200  20       LI    R0,>6B4         * setup GROM source address of font table
-     046E 06B4 
-0531 0470 0207  20       LI    R7,GROM0
-     0472 05A2r
-0532 0474 A1C0  18       A     R0,R7
-0533               ;      MOVB    R0,@>9C02
-0534               ;      SWPB    R0
-0535               ;      MOVB    R0,@>9C02
-0536 0476 0200  20       LI      R0,>800+(32*8)          * destination address in VRAM
-     0478 0900 
-0537 047A 06A0  32       BL      @SETUPVDPA
-     047C 0402r
-0538 047E 0200  20       LI      R0,62                                                   * 62 characters to copy
-     0480 003E 
-0539 0482 04C2  14       CLR     R2
-0540               !ch2
-0541 0484 0201  20       LI      R1,7                                                    * 7 bytes per char
-     0486 0007 
-0542               !char
-0543 0488 D837  48       MOVB    *R7+,@VDPWD        * move byte from GROM to VDP
-     048A 8C00 
-0544 048C 0601  14       DEC     R1
-0545 048E 16FC  14       JNE     -!char
-0546 0490 D802  38       MOVB    R2,@VDPWD                                 * 8th byte just zero
-     0492 8C00 
-0547 0494 0600  14       DEC     R0
-0548 0496 16F6  14       JNE     -!ch2
-0549 0498 045A  20       B     *R10    ; return
-0550               
-0551               
-0552               HEXWORD	; EP display R1 in hex in the current VDP location
-0553 049A 0203  20 			LI	R3,4
-     049C 0004 
-0554               HEXLOOP
-0555 049E C28B  18 		  MOV R11,R10
-0556 04A0 C081  18 			MOV	R1,R2
-0557 04A2 06A0  32 !			BL	@HEXNIBBLE
-     04A4 04B6r
-0558 04A6 0A42  56 			SLA	R2,4
-0559 04A8 C042  18 			MOV	R2,R1
-0560 04AA 0603  14 			DEC	R3
-0561 04AC 16FA  14 			JNE	-!
-0562 04AE 045A  20 			B 	*R10
-0563               
-0564               HEXBYTE	; Display most significant byte of R1 in the current VDP location
-0565 04B0 0203  20 			LI 	R3,2
-     04B2 0002 
-0566 04B4 10F4  14 			JMP	HEXLOOP
-0567               
-0568               
-0569               HEXNIBBLE	; EP display top 4 bits of R1 in current VDP RAM location
-0570 04B6 0941  56 			SRL 	R1,4
-0571 04B8 0241  22 			ANDI 	R1,>0F00
-     04BA 0F00 
-0572 04BC 0221  22 			AI		R1,>3000	; Convert to ASCII
-     04BE 3000 
-0573 04C0 0281  22 			CI		R1,>3A00
-     04C2 3A00 
-0574 04C4 1A02  14 			JL		!
-0575 04C6 0221  22 			AI		R1,>0700
-     04C8 0700 
-0576 04CA D801  38 !     MOVB  R1,@VDPWD
-     04CC 8C00 
-0577 04CE 045B  20 			RT
-0578               
-0579               *--------------------------------------------
-0580               * GOPR1
-0581               * Print contents of R1 in the PRINTWS
-0582               * workspace.
-0583               *--------------------------------------------
-0584               GOPR1
-0585 04D0 0300  24 			LIMI	0
-     04D2 0000 
-0586 04D4 06A0  32 			BL		@SETUPVDPA		; Setup dest address
-     04D6 0402r
-0587 04D8 06A0  32 			BL		@HEXWORD			; print
-     04DA 049Ar
-0588 04DC 0220  22 			AI		R0,4					; Advance VDP ptr
-     04DE 0004 
-0589 04E0 0380  18 			RTWP
-0590               
-0591               *--------------------------------------------
-0592               * *** Print a string ***
-0593               * Entered with BLWP, so return with RTWP
-0594               * PC points to string pointer, so use R14
-0595               * to access it and inc R14 past it.
-0596               * R0 in this workspace is VDP RAM pointer.
-0597               *--------------------------------------------
-0598               GOPRINT
-0599 04E2 0300  24 				LIMI	0						; no more interrupts until RTWP
-     04E4 0000 
-0600 04E6 C07E  30 			  MOV		*R14+,R1		; Fetch string pointer to R1
-0601 04E8 06A0  32 			  BL		@SETUPVDPA
-     04EA 0402r
-0602 04EC D0B1  28 !				MOVB	*R1+,R2
-0603 04EE 1311  14 				JEQ		!done				; zero ends -> !done
-0604 04F0 0282  22 				CI		R2,>0D00
-     04F2 0D00 
-0605 04F4 13FB  14 				JEQ		-!					; Skip 0xD's
-0606 04F6 0282  22 				CI		R2,>0A00    ; is it linefeed?
-     04F8 0A00 
-0607 04FA 1607  14 				JNE		!write			; no -> !write
-0608               ; Here we are with a linefeed. Update to next line.
-0609 04FC 0220  22 				AI		R0,32
-     04FE 0020 
-0610 0500 0240  22 				ANDI	R0,>FFE0
-     0502 FFE0 
-0611 0504 06A0  32 				BL		@SETUPVDPA
-     0506 0402r
-0612 0508 10F1  14 				JMP		-!
-0613               ; Write the character to the VDP
-0614               !write
-0615 050A 0580  14 				INC	  R0					; update our VDP address
-0616 050C D802  38 				MOVB	R2,@VDPWD
-     050E 8C00 
-0617 0510 10ED  14 				JMP		-!
-0618               !done
-0619 0512 0380  18   		  RTWP
+0497               
+0498               
+0499 0464 10D0  14       JMP   -!again
+0500               
+0501               
+0502               
+0503               
+0504 0466 10A2  14       JMP   MAINSTART
+0505               
+0506               *---------------------------------------------
+0507               * Set VDP address from R0
+0508               *---------------------------------------------
+0509               SETUPVDPA
+0510 0468 0240  22       ANDI  R0,>3FFF
+     046A 3FFF 
+0511 046C 06C0  14       SWPB  R0
+0512 046E D800  38       MOVB  R0,@VDPWA         * Send low byte of VDP RAM write address
+     0470 8C02 
+0513 0472 06C0  14       SWPB  R0
+0514 0474 0260  22       ORI   R0,>4000          * Set read/write bits 14 and 15 to write (01)
+     0476 4000 
+0515 0478 D800  38       MOVB  R0,@VDPWA         * Send high byte of VDP RAM write address
+     047A 8C02 
+0516 047C 045B  20       RT
+0517               
+0518               *---------------------------------------------
+0519               * Scroll up - test VDP reads
+0520               * For reads top 2 bits are zero
+0521               *---------------------------------------------
+0522               SCROLLUP
+0523 047E C28B  18       MOV   R11,R10           * Save return address
+0524 0480 0206  20       LI    R6,>20            * VRAM read address
+     0482 0020 
+0525 0484 04C0  14       CLR   R0                * VRAM write address
+0526 0486 0207  20       LI    R7,23             * 23 lines
+     0488 0017 
+0527               
+0528               !scrollloop
+0529 048A 06C6  14       SWPB  R6
+0530 048C D806  38       MOVB  R6,@VDPWA         * Send low byte of VDP RAM read address
+     048E 8C02 
+0531 0490 06C6  14       SWPB  R6
+0532 0492 D806  38       MOVB  R6,@VDPWA
+     0494 8C02 
+0533 0496 0202  20       LI    R2,>20
+     0498 0020 
+0534 049A 0205  20       LI    R5,TMPBUF
+     049C A040 
+0535 049E 0201  20       LI    R1,VDPRD          * VDP read address
+     04A0 8800 
+0536               !rdloop
+0537 04A2 DD51  40       MOVB  *R1,*R5+          * read byte from VRAM
+0538 04A4 DD51  40       MOVB  *R1,*R5+          * read byte from VRAM
+0539 04A6 0642  14       DECT  R2
+0540 04A8 16FC  14       JNE   -!rdloop
+0541               ; Next write the same stuff to the previous line
+0542 04AA 06A0  32       BL    @SETUPVDPA
+     04AC 0468r
+0543 04AE 0202  20       LI    R2,>20
+     04B0 0020 
+0544 04B2 0205  20       LI    R5,TMPBUF
+     04B4 A040 
+0545 04B6 0201  20       LI    R1,VDPWD          * VDP read address
+     04B8 8C00 
+0546               !wrloop
+0547 04BA D475  40       MOVB  *R5+,*R1
+0548 04BC D475  40       MOVB  *R5+,*R1
+0549 04BE 0642  14       DECT  R2
+0550 04C0 16FC  14       jne   -!wrloop
+0551 04C2 0220  22       AI    R0,>20
+     04C4 0020 
+0552 04C6 0226  22       AI    R6,>20
+     04C8 0020 
+0553 04CA 0607  14       DEC   R7
+0554 04CC 16DE  14       JNE   -!scrollloop
+0555 04CE 045A  20       B     *R10            * Return
+0556               
+0557               * copy fonts from GROMs to pattern table
+0558               COPYFONTS
+0559 04D0 C28B  18       MOV   R11,R10     ; Save return address
+0560 04D2 0200  20       LI    R0,>6B4         * setup GROM source address of font table
+     04D4 06B4 
+0561 04D6 0207  20       LI    R7,GROM0
+     04D8 0608r
+0562 04DA A1C0  18       A     R0,R7
+0563               ;      MOVB    R0,@>9C02
+0564               ;      SWPB    R0
+0565               ;      MOVB    R0,@>9C02
+0566 04DC 0200  20       LI      R0,>800+(32*8)          * destination address in VRAM
+     04DE 0900 
+0567 04E0 06A0  32       BL      @SETUPVDPA
+     04E2 0468r
+0568 04E4 0200  20       LI      R0,62                                                   * 62 characters to copy
+     04E6 003E 
+0569 04E8 04C2  14       CLR     R2
+0570               !ch2
+0571 04EA 0201  20       LI      R1,7                                                    * 7 bytes per char
+     04EC 0007 
+0572               !char
+0573 04EE D837  48       MOVB    *R7+,@VDPWD        * move byte from GROM to VDP
+     04F0 8C00 
+0574 04F2 0601  14       DEC     R1
+0575 04F4 16FC  14       JNE     -!char
+0576 04F6 D802  38       MOVB    R2,@VDPWD                                 * 8th byte just zero
+     04F8 8C00 
+0577 04FA 0600  14       DEC     R0
+0578 04FC 16F6  14       JNE     -!ch2
+0579 04FE 045A  20       B     *R10    ; return
+0580               
+0581               
+0582               HEXWORD	; EP display R1 in hex in the current VDP location
+0583 0500 0203  20 			LI	R3,4
+     0502 0004 
+0584               HEXLOOP
+0585 0504 C28B  18 		  MOV R11,R10
+0586 0506 C081  18 			MOV	R1,R2
+0587 0508 06A0  32 !			BL	@HEXNIBBLE
+     050A 051Cr
+0588 050C 0A42  56 			SLA	R2,4
+0589 050E C042  18 			MOV	R2,R1
+0590 0510 0603  14 			DEC	R3
+0591 0512 16FA  14 			JNE	-!
+0592 0514 045A  20 			B 	*R10
+0593               
+0594               HEXBYTE	; Display most significant byte of R1 in the current VDP location
+0595 0516 0203  20 			LI 	R3,2
+     0518 0002 
+0596 051A 10F4  14 			JMP	HEXLOOP
+0597               
+0598               
+0599               HEXNIBBLE	; EP display top 4 bits of R1 in current VDP RAM location
+0600 051C 0941  56 			SRL 	R1,4
+0601 051E 0241  22 			ANDI 	R1,>0F00
+     0520 0F00 
+0602 0522 0221  22 			AI		R1,>3000	; Convert to ASCII
+     0524 3000 
+0603 0526 0281  22 			CI		R1,>3A00
+     0528 3A00 
+0604 052A 1A02  14 			JL		!
+0605 052C 0221  22 			AI		R1,>0700
+     052E 0700 
+0606 0530 D801  38 !     MOVB  R1,@VDPWD
+     0532 8C00 
+0607 0534 045B  20 			RT
+0608               
+0609               *--------------------------------------------
+0610               * GOPR1
+0611               * Print contents of R1 in the PRINTWS
+0612               * workspace.
+0613               *--------------------------------------------
+0614               GOPR1
+0615 0536 0300  24 			LIMI	0
+     0538 0000 
+0616 053A 06A0  32 			BL		@SETUPVDPA		; Setup dest address
+     053C 0468r
+0617 053E 06A0  32 			BL		@HEXWORD			; print
+     0540 0500r
+0618 0542 0220  22 			AI		R0,4					; Advance VDP ptr
+     0544 0004 
+0619 0546 0380  18 			RTWP
 0620               
 0621               *--------------------------------------------
-0622               * GOPRCHAR
-0623               * Print a character from R1 high byte, PRINTWS
-0624               * workspace.
-0625               *--------------------------------------------
-0626               GOPRCHAR
-0627 0514 0300  24 			LIMI 	0
-     0516 0000 
-0628 0518 06A0  32 			BL		@SETUPVDPA		; Setup dest address
-     051A 0402r
-0629 051C 0580  14 			INC	  R0						; update our VDP address
-0630 051E D801  38 			MOVB	R1,@VDPWD
-     0520 8C00 
-0631 0522 0380  18 			RTWP
-0632               
-0633               *--------------------------------------------
-0634               * CLS
-0635               * Clear the screen. Enter with BLWP
-0636               *--------------------------------------------
-0637               GOCLS
-0638 0524 0300  24        LIMI 0
-     0526 0000 
-0639 0528 04C0  14        CLR  R0                * Start at top left corner of the screen
-0640 052A 0201  20        LI   R1,>2000          * Write a space (>20 hex is 32 decimal)
-     052C 2000 
-0641 052E 0202  20        LI   R2,768            * Number of bytes to write
-     0530 0300 
-0642               
-0643 0532 D820  54        MOVB @PRINTWS+1,@VDPWA ;* Send low byte of VDP RAM write address
-     0534 8321 
-     0536 8C02 
-0644 0538 0260  22        ORI  R0,>4000          * Set read/write bits 14 and 15 to write (01)
-     053A 4000 
-0645 053C D800  38        MOVB R0,@VDPWA         * Send high byte of VDP RAM write address
-     053E 8C02 
-0646               
-0647 0540 D801  38 !      MOVB R1,@VDPWD         * Write byte to VDP RAM
-     0542 8C00 
-0648 0544 0602  14        DEC  R2                * Byte counter
-0649 0546 16FC  14        JNE  -!                * Check if done
+0622               * *** Print a string ***
+0623               * Entered with BLWP, so return with RTWP
+0624               * PC points to string pointer, so use R14
+0625               * to access it and inc R14 past it.
+0626               * R0 in this workspace is VDP RAM pointer.
+0627               *--------------------------------------------
+0628               GOPRINT
+0629 0548 0300  24 				LIMI	0						; no more interrupts until RTWP
+     054A 0000 
+0630 054C C07E  30 			  MOV		*R14+,R1		; Fetch string pointer to R1
+0631 054E 06A0  32 			  BL		@SETUPVDPA
+     0550 0468r
+0632 0552 D0B1  28 !				MOVB	*R1+,R2
+0633 0554 1311  14 				JEQ		!done				; zero ends -> !done
+0634 0556 0282  22 				CI		R2,>0D00
+     0558 0D00 
+0635 055A 13FB  14 				JEQ		-!					; Skip 0xD's
+0636 055C 0282  22 				CI		R2,>0A00    ; is it linefeed?
+     055E 0A00 
+0637 0560 1607  14 				JNE		!write			; no -> !write
+0638               ; Here we are with a linefeed. Update to next line.
+0639 0562 0220  22 				AI		R0,32
+     0564 0020 
+0640 0566 0240  22 				ANDI	R0,>FFE0
+     0568 FFE0 
+0641 056A 06A0  32 				BL		@SETUPVDPA
+     056C 0468r
+0642 056E 10F1  14 				JMP		-!
+0643               ; Write the character to the VDP
+0644               !write
+0645 0570 0580  14 				INC	  R0					; update our VDP address
+0646 0572 D802  38 				MOVB	R2,@VDPWD
+     0574 8C00 
+0647 0576 10ED  14 				JMP		-!
+0648               !done
+0649 0578 0380  18   		  RTWP
 0650               
-0651 0548 0200  20        LI   R0,1              * second column
-     054A 0001 
-0652 054C 06A0  32        BL   @SETUPVDPA
-     054E 0402r
-0653 0550 0380  18        RTWP
-0654               
+0651               *--------------------------------------------
+0652               * GOPRCHAR
+0653               * Print a character from R1 high byte, PRINTWS
+0654               * workspace.
 0655               *--------------------------------------------
-0656               * DELAY that takes enough time for a human
-0657               * to see something on the screen.
-0658               * Enter with BLWP
-0659               *--------------------------------------------
-0660               GODELAY
-0661               ; Stop here for a while
-0662 0552 04C0  14       CLR   R0
-0663 0554 0201  20       LI    R1,10
-     0556 000A 
-0664               !mydelay
-0665 0558 0600  14       DEC   R0
-0666 055A 16FE  14       JNE   -!mydelay
-0667 055C 0601  14       DEC   R1
-0668 055E 16FC  14       JNE   -!mydelay
-0669               ; Next scroll the screen up
-0670 0560 06A0  32       BL    @SCROLLUP
-     0562 0418r
-0671               ; Stop here for a while
-0672 0564 04C0  14       CLR   R0
-0673 0566 0201  20       LI    R1,10
-     0568 000A 
-0674               !mydelay
-0675 056A 0600  14       DEC   R0
-0676 056C 16FE  14       JNE   -!mydelay
-0677 056E 0601  14       DEC   R1
-0678 0570 16FC  14       JNE   -!mydelay
-0679 0572 0380  18 			RTWP
+0656               GOPRCHAR
+0657 057A 0300  24 			LIMI 	0
+     057C 0000 
+0658 057E 06A0  32 			BL		@SETUPVDPA		; Setup dest address
+     0580 0468r
+0659 0582 0580  14 			INC	  R0						; update our VDP address
+0660 0584 D801  38 			MOVB	R1,@VDPWD
+     0586 8C00 
+0661 0588 0380  18 			RTWP
+0662               
+0663               *--------------------------------------------
+0664               * CLS
+0665               * Clear the screen. Enter with BLWP
+0666               *--------------------------------------------
+0667               GOCLS
+0668 058A 0300  24        LIMI 0
+     058C 0000 
+0669 058E 04C0  14        CLR  R0                * Start at top left corner of the screen
+0670 0590 0201  20        LI   R1,>2000          * Write a space (>20 hex is 32 decimal)
+     0592 2000 
+0671 0594 0202  20        LI   R2,768            * Number of bytes to write
+     0596 0300 
+0672               
+0673 0598 D820  54        MOVB @PRINTWS+1,@VDPWA ;* Send low byte of VDP RAM write address
+     059A 8321 
+     059C 8C02 
+0674 059E 0260  22        ORI  R0,>4000          * Set read/write bits 14 and 15 to write (01)
+     05A0 4000 
+0675 05A2 D800  38        MOVB R0,@VDPWA         * Send high byte of VDP RAM write address
+     05A4 8C02 
+0676               
+0677 05A6 D801  38 !      MOVB R1,@VDPWD         * Write byte to VDP RAM
+     05A8 8C00 
+0678 05AA 0602  14        DEC  R2                * Byte counter
+0679 05AC 16FC  14        JNE  -!                * Check if done
 0680               
-0681                     EVEN
-0682               CHARS
-0683 0574 0000           BYTE  0,0,0,0,0,0,0,0
-     0576 0000 
-     0578 0000 
-     057A 0000 
-0684 057C 0018           BYTE  >00,>18,>24,>42,>42,>7E,>42,>42
-     057E 2442 
-     0580 427E 
-     0582 4242 
-0685 0584 8080           BYTE  >80,>80,>80,>80,>80,>80,>80,>80
-     0586 8080 
-     0588 8080 
-     058A 8080 
-0686 058C 0103           BYTE  >01,>03,>01,>01,>01,>01,>01,>01
-     058E 0101 
-     0590 0101 
-     0592 0101 
-0687                     EVEN
-0688               ENDCHARS
-0689               ; Initial VDP register values
-0690               VDPSEQ
-0691 0594 00E0           BYTE  >00,>E0,>00,>0E    ; Interrupts enabled
-     0596 000E 
-0692               ;      BYTE  >00,>C0,>00,>0E     ; Interrupts disabled
-0693 0598 0106           BYTE  >01,>06,>00,>F7
-     059A 00F7 
-0694               TXTCRLF
-0695 059C 0D0A     		BYTE >0D,>0A
-0696 059E 0000     		BYTE >00
-0697                   EVEN
-0698               
-0699               TESTK
-0700 05A0 8090       DATA >8090
-0701               
-0702               
-0703 05A2 AA02     GROM0 BCOPY "GROMSMAL.BIN"
-     05A4 0000 
-     05A6 0000 
-     05A8 0000 
-     05AA 1310 
-     05AC 1320 
-     05AE 0000 
-     05B0 0000 
-     05B2 43DC 
-     05B4 443C 
-     05B6 49A9 
-     05B8 4396 
-     05BA 439E 
-     05BC 4446 
-     05BE 4449 
-     05C0 444C 
-     05C2 4052 
-     05C4 51FE 
-     05C6 4C82 
-     05C8 4D59 
-     05CA 4DB4 
-     05CC 4E64 
-     05CE 4EF9 
-     05D0 4F01 
-     05D2 4F5F 
-     05D4 4F80 
-     05D6 43CE 
-     05D8 43D6 
-     05DA 054D 
-     05DC 1252 
-     05DE 5E44 
-     05E0 1705 
-     05E2 2844 
-     05E4 0537 
-     05E6 B460 
-     05E8 0D00 
-     05EA 1100 
-     05EC 43C2 
-     05EE 04B4 
-     05F0 06B4 
-     05F2 0874 
-     05F4 8780 
-     05F6 CEBE 
-     05F8 8F11 
-     05FA 0070 
-     05FC BE81 
-     05FE 009F 
-     0600 BE81 
-     0602 00BF 
-     0604 BE81 
-     0606 00DF 
-     0608 BE81 
-     060A 00FF 
-     060C BF72 
-     060E FF7E 
-     0610 3900 
-     0612 0800 
-     0614 0451 
-     0616 8600 
-     0618 3500 
-     061A 7101 
-     061C 0035 
-     061E 003E 
-     0620 8082 
-     0622 0035 
-     0624 000B 
-     0626 7400 
-     0628 3500 
-     062A 0880 
-     062C C200 
-     062E BF03 
-     0630 0308 
-     0632 F602 
-     0634 03BF 
-     0636 0310 
-     0638 01F6 
-     063A 0203 
-     063C BE03 
-     063E 18F6 
-     0640 0203 
-     0642 8400 
-     0644 BE03 
-     0646 02F6 
-     0648 0203 
-     064A BE03 
-     064C 01F6 
-     064E 0203 
-     0650 BF03 
-     0652 1602 
-     0654 F602 
-     0656 0306 
-     0658 03CE 
-     065A 86A0 
-     065C 00BE 
-     065E 7010 
-     0660 BEB0 
-     0662 70A0 
-     0664 8EA0 
-     0666 0040 
-     0668 DC39 
-     066A 0001 
-     066C 0104 
-     066E 4F86 
-     0670 B070 
-     0672 A070 
-     0674 70D6 
-     0676 7040 
-     0678 40BE 
-     067A BE80 
-     067C FD08 
-     067E 9370 
-     0680 3900 
-     0682 0101 
-     0684 0244 
-     0686 86A0 
+0681 05AE 0200  20        LI   R0,1              * second column
+     05B0 0001 
+0682 05B2 06A0  32        BL   @SETUPVDPA
+     05B4 0468r
+0683 05B6 0380  18        RTWP
+0684               
+0685               *--------------------------------------------
+0686               * DELAY that takes enough time for a human
+0687               * to see something on the screen.
+0688               * Enter with BLWP
+0689               *--------------------------------------------
+0690               GODELAY
+0691               ; Stop here for a while
+0692 05B8 04C0  14       CLR   R0
+0693 05BA 0201  20       LI    R1,10
+     05BC 000A 
+0694               !mydelay
+0695 05BE 0600  14       DEC   R0
+0696 05C0 16FE  14       JNE   -!mydelay
+0697 05C2 0601  14       DEC   R1
+0698 05C4 16FC  14       JNE   -!mydelay
+0699               ; Next scroll the screen up
+0700 05C6 06A0  32       BL    @SCROLLUP
+     05C8 047Er
+0701               ; Stop here for a while
+0702 05CA 04C0  14       CLR   R0
+0703 05CC 0201  20       LI    R1,10
+     05CE 000A 
+0704               !mydelay
+0705 05D0 0600  14       DEC   R0
+0706 05D2 16FE  14       JNE   -!mydelay
+0707 05D4 0601  14       DEC   R1
+0708 05D6 16FC  14       JNE   -!mydelay
+0709 05D8 0380  18 			RTWP
+0710               
+0711                     EVEN
+0712               CHARS
+0713 05DA 0000           BYTE  0,0,0,0,0,0,0,0
+     05DC 0000 
+     05DE 0000 
+     05E0 0000 
+0714 05E2 0018           BYTE  >00,>18,>24,>42,>42,>7E,>42,>42
+     05E4 2442 
+     05E6 427E 
+     05E8 4242 
+0715 05EA 8080           BYTE  >80,>80,>80,>80,>80,>80,>80,>80
+     05EC 8080 
+     05EE 8080 
+     05F0 8080 
+0716 05F2 0103           BYTE  >01,>03,>01,>01,>01,>01,>01,>01
+     05F4 0101 
+     05F6 0101 
+     05F8 0101 
+0717                     EVEN
+0718               ENDCHARS
+0719               ; Initial VDP register values
+0720               VDPSEQ
+0721 05FA 00E0           BYTE  >00,>E0,>00,>0E    ; Interrupts enabled
+     05FC 000E 
+0722               ;      BYTE  >00,>C0,>00,>0E     ; Interrupts disabled
+0723 05FE 0106           BYTE  >01,>06,>00,>F7
+     0600 00F7 
+0724               TXTCRLF
+0725 0602 0D0A     		BYTE >0D,>0A
+0726 0604 0000     		BYTE >00
+0727                   EVEN
+0728               
+0729               TESTK
+0730 0606 8090       DATA >8090
+0731               
+0732               
+0733 0608 AA02     GROM0 BCOPY "GROMSMAL.BIN"
+     060A 0000 
+     060C 0000 
+     060E 0000 
+     0610 1310 
+     0612 1320 
+     0614 0000 
+     0616 0000 
+     0618 43DC 
+     061A 443C 
+     061C 49A9 
+     061E 4396 
+     0620 439E 
+     0622 4446 
+     0624 4449 
+     0626 444C 
+     0628 4052 
+     062A 51FE 
+     062C 4C82 
+     062E 4D59 
+     0630 4DB4 
+     0632 4E64 
+     0634 4EF9 
+     0636 4F01 
+     0638 4F5F 
+     063A 4F80 
+     063C 43CE 
+     063E 43D6 
+     0640 054D 
+     0642 1252 
+     0644 5E44 
+     0646 1705 
+     0648 2844 
+     064A 0537 
+     064C B460 
+     064E 0D00 
+     0650 1100 
+     0652 43C2 
+     0654 04B4 
+     0656 06B4 
+     0658 0874 
+     065A 8780 
+     065C CEBE 
+     065E 8F11 
+     0660 0070 
+     0662 BE81 
+     0664 009F 
+     0666 BE81 
+     0668 00BF 
+     066A BE81 
+     066C 00DF 
+     066E BE81 
+     0670 00FF 
+     0672 BF72 
+     0674 FF7E 
+     0676 3900 
+     0678 0800 
+     067A 0451 
+     067C 8600 
+     067E 3500 
+     0680 7101 
+     0682 0035 
+     0684 003E 
+     0686 8082 
      0688 0035 
-     068A 0FFF 
-     068C A001 
-     068E A000 
-     0690 3100 
-     0692 20A3 
-     0694 8004 
-     0696 5931 
-     0698 0200 
-     069A A900 
-     069C 04B4 
-     069E 3100 
-     06A0 50A8 
-     06A2 0809 
-     06A4 5007 
-     06A6 20BE 
-     06A8 7E05 
-     06AA BC74 
-     06AC 7E03 
-     06AE 927E 
-     06B0 4108 
-     06B2 877E 
-     06B4 BE75 
-     06B6 6008 
-     06B8 C1E0 
-     06BA 75FB 
-     06BC 0117 
-     06BE B09D 
-     06C0 C1E0 
-     06C2 75FB 
-     06C4 011F 
-     06C6 FBA6 
-     06C8 7E12 
-     06CA A275 
-     06CC 08D6 
-     06CE 75E0 
-     06D0 4115 
-     06D2 D67E 
-     06D4 0341 
-     06D6 1287 
-     06D8 7E08 
-     06DA A48E 
-     06DC 0201 
-     06DE 0203 
-     06E0 9C02 
-     06E2 0405 
-     06E4 069C 
-     06E6 0207 
-     06E8 0809 
-     06EA A78F 
-     06EC 1B52 
-     06EE 4541 
-     06F0 4459 
-     06F2 2D50 
-     06F4 5245 
-     06F6 5353 
-     06F8 2041 
-     06FA 4E59 
-     06FC 204B 
-     06FE 4559 
-     0700 2054 
-     0702 4F20 
-     0704 4245 
-     0706 4749 
-     0708 4EFB 
-     070A 3100 
-     070C 11A1 
-     070E 2804 
-     0710 9631 
-     0712 0018 
-     0714 A2C4 
-     0716 048F 
-     0718 3100 
-     071A 0DA1 
-     071C 6A04 
-     071E A7BE 
-     0720 4310 
-     0722 0603 
-     0724 7C87 
-     0726 80D0 
-     0728 8655 
-     072A BE6D 
-     072C 040F 
-     072E 1961 
-     0730 8BBF 
-     0732 7200 
-     0734 80BF 
-     0736 9072 
-     0738 01A2 
-     073A 0F1A 
-     073C BD90 
-     073E 7390 
-     0740 7296 
-     0742 7200 
-     0744 8F80 
-     0746 D041 
-     0748 8F39 
-     074A 0001 
-     074C 0104 
-     074E 5086 
-     0750 7402 
-     0752 FF03 
-     0754 41AF 
-     0756 0603 
-     0758 CE07 
-     075A 20BE 
-     075C 72FE 
-     075E BE6D 
-     0760 0686 
-     0762 6C86 
-     0764 80FB 
-     0766 3100 
-     0768 1EA4 
-     076A 0060 
-     076C 00BE 
-     076E 80FB 
-     0770 0431 
-     0772 001E 
-     0774 A420 
-     0776 6000 
-     0778 8658 
-     077A 8659 
-     077C 0501 
-     077E DF90 
-     0780 59CE 
-     0782 591D 
-     0784 61F0 
-     0786 D4E4 
-     0788 0058 
-     078A E420 
-     078C 5841 
-     078E F205 
-     0790 01DD 
-     0792 4200 
-     0794 9472 
-     0796 8790 
-     0798 7294 
-     079A 72BF 
+     068A 000B 
+     068C 7400 
+     068E 3500 
+     0690 0880 
+     0692 C200 
+     0694 BF03 
+     0696 0308 
+     0698 F602 
+     069A 03BF 
+     069C 0310 
+     069E 01F6 
+     06A0 0203 
+     06A2 BE03 
+     06A4 18F6 
+     06A6 0203 
+     06A8 8400 
+     06AA BE03 
+     06AC 02F6 
+     06AE 0203 
+     06B0 BE03 
+     06B2 01F6 
+     06B4 0203 
+     06B6 BF03 
+     06B8 1602 
+     06BA F602 
+     06BC 0306 
+     06BE 03CE 
+     06C0 86A0 
+     06C2 00BE 
+     06C4 7010 
+     06C6 BEB0 
+     06C8 70A0 
+     06CA 8EA0 
+     06CC 0040 
+     06CE DC39 
+     06D0 0001 
+     06D2 0104 
+     06D4 4F86 
+     06D6 B070 
+     06D8 A070 
+     06DA 70D6 
+     06DC 7040 
+     06DE 40BE 
+     06E0 BE80 
+     06E2 FD08 
+     06E4 9370 
+     06E6 3900 
+     06E8 0101 
+     06EA 0244 
+     06EC 86A0 
+     06EE 0035 
+     06F0 0FFF 
+     06F2 A001 
+     06F4 A000 
+     06F6 3100 
+     06F8 20A3 
+     06FA 8004 
+     06FC 5931 
+     06FE 0200 
+     0700 A900 
+     0702 04B4 
+     0704 3100 
+     0706 50A8 
+     0708 0809 
+     070A 5007 
+     070C 20BE 
+     070E 7E05 
+     0710 BC74 
+     0712 7E03 
+     0714 927E 
+     0716 4108 
+     0718 877E 
+     071A BE75 
+     071C 6008 
+     071E C1E0 
+     0720 75FB 
+     0722 0117 
+     0724 B09D 
+     0726 C1E0 
+     0728 75FB 
+     072A 011F 
+     072C FBA6 
+     072E 7E12 
+     0730 A275 
+     0732 08D6 
+     0734 75E0 
+     0736 4115 
+     0738 D67E 
+     073A 0341 
+     073C 1287 
+     073E 7E08 
+     0740 A48E 
+     0742 0201 
+     0744 0203 
+     0746 9C02 
+     0748 0405 
+     074A 069C 
+     074C 0207 
+     074E 0809 
+     0750 A78F 
+     0752 1B52 
+     0754 4541 
+     0756 4459 
+     0758 2D50 
+     075A 5245 
+     075C 5353 
+     075E 2041 
+     0760 4E59 
+     0762 204B 
+     0764 4559 
+     0766 2054 
+     0768 4F20 
+     076A 4245 
+     076C 4749 
+     076E 4EFB 
+     0770 3100 
+     0772 11A1 
+     0774 2804 
+     0776 9631 
+     0778 0018 
+     077A A2C4 
+     077C 048F 
+     077E 3100 
+     0780 0DA1 
+     0782 6A04 
+     0784 A7BE 
+     0786 4310 
+     0788 0603 
+     078A 7C87 
+     078C 80D0 
+     078E 8655 
+     0790 BE6D 
+     0792 040F 
+     0794 1961 
+     0796 8BBF 
+     0798 7200 
+     079A 80BF 
      079C 9072 
-     079E 12A5 
-     07A0 906C 
-     07A2 D68F 
-     07A4 DD00 
-     07A6 AA42 
-     07A8 27BD 
-     07AA 588F 
-     07AC DD06 
-     07AE 8F58 
-     07B0 6227 
-     07B2 9472 
-     07B4 BF90 
-     07B6 72FF 
-     07B8 FF94 
-     07BA 72BD 
-     07BC 9072 
-     07BE 5890 
-     07C0 6CBD 
-     07C2 58CF 
-     07C4 7D00 
-     07C6 5842 
-     07C8 0C94 
-     07CA 7287 
-     07CC 9072 
-     07CE 0F1A 
-     07D0 6227 
-     07D2 9672 
-     07D4 D702 
-     07D6 12A5 
-     07D8 4243 
-     07DA 3100 
-     07DC 0159 
-     07DE 6000 
-     07E0 D659 
-     07E2 AA41 
-     07E4 B939 
-     07E6 0001 
-     07E8 0104 
-     07EA 5108 
-     07EC A081 
-     07EE 0201 
-     07F0 0203 
-     07F2 9C02 
-     07F4 0405 
-     07F6 069C 
-     07F8 0207 
-     07FA 0809 
-     07FC A09E 
-     07FE 0450 
-     0800 5245 
-     0802 5353 
-     0804 FB31 
-     0806 0011 
-     0808 A028 
-     080A 0496 
-     080C 3100 
-     080E 0DA0 
-     0810 6804 
-     0812 A7BF 
-     0814 5200 
-     0816 E4BE 
-     0818 5830 
-     081A 8E6C 
-     081C 4293 
-     081E 08FF 
-     0820 020F 
-     0822 494E 
-     0824 5345 
-     0826 5254 
-     0828 2043 
-     082A 4152 
-     082C 5452 
-     082E 4944 
-     0830 4745 
-     0832 FB42 
-     0834 EF90 
-     0836 58BC 
-     0838 B052 
-     083A 5895 
-     083C 5231 
-     083E 0003 
-     0840 B052 
-     0842 094D 
-     0844 A352 
-     0846 0004 
-     0848 BD6A 
-     084A 9072 
-     084C 9672 
-     084E BD5C 
-     0850 9072 
-     0852 9672 
-     0854 A36A 
-     0856 0004 
-     0858 865E 
-     085A 8E5C 
-     085C 62D0 
-     085E 3500 
-     0860 015F 
-     0862 CF7D 
-     0864 006A 
-     0866 916A 
-     0868 345E 
-     086A B052 
-     086C CF7D 
-     086E 006A 
-     0870 42E0 
-     0872 3300 
-     0874 015F 
-     0876 0000 
-     0878 6A91 
-     087A 6A32 
-     087C 5EB0 
-     087E 5200 
-     0880 006A 
-     0882 A352 
-     0884 003A 
-     0886 D272 
-     0888 0062 
-     088A 93BE 
-     088C 4313 
-     088E 0603 
-     0890 7C39 
-     0892 0001 
-     0894 0104 
-     0896 5086 
-     0898 7402 
-     089A FF03 
-     089C 42F7 
-     089E A675 
-     08A0 31C8 
-     08A2 756C 
-     08A4 430A 
-     08A6 0603 
-     08A8 D605 
-     08AA 02F7 
-     08AC 0603 
-     08AE CEA4 
-     08B0 6C75 
-     08B2 926C 
-     08B4 E26C 
-     08B6 02BC 
-     08B8 7890 
-     08BA 6C94 
-     08BC 6CBD 
-     08BE 5C90 
-     08C0 6C95 
-     08C2 5CBF 
-     08C4 729E 
-     08C6 808E 
-     08C8 7863 
-     08CA 32BD 
-     08CC 8080 
-     08CE CF7D 
-     08D0 005C 
-     08D2 433A 
-     08D4 3300 
-     08D6 0280 
-     08D8 8000 
-     08DA 005C 
-     08DC 0720 
-     08DE 8F80 
-     08E0 CE43 
-     08E2 3CCF 
-     08E4 7010 
-     08E6 0043 
-     08E8 56BD 
-     08EA 0070 
-     08EC A700 
-     08EE 0FFF 
-     08F0 3400 
-     08F2 AF10 
-     08F4 00AF 
-     08F6 0FFF 
-     08F8 8600 
-     08FA 3500 
-     08FC 6F01 
-     08FE 0035 
-     0900 003C 
-     0902 8084 
-     0904 0086 
-     0906 7435 
-     0908 001F 
-     090A A381 
-     090C A380 
-     090E 8780 
-     0910 828E 
-     0912 7863 
-     0914 7B96 
-     0916 73BD 
-     0918 0080 
-     091A 800F 
-     091C F000 
-     091E BE42 
-     0920 6031 
-     0922 0002 
-     0924 2860 
-     0926 00D6 
-     0928 28AA 
-     092A 4395 
-     092C D229 
-     092E 0063 
-     0930 9594 
-     0932 73BD 
-     0934 9073 
-     0936 4200 
-     0938 3102 
-     093A 00B0 
-     093C 4A04 
-     093E B400 
-     0940 BF80 
-     0942 D006 
-     0944 B4BE 
-     0946 80D2 
-     0948 4086 
-     094A B04A 
-     094C 3300 
-     094E 07E0 
-     0950 014A 
-     0952 0000 
-     0954 D0A3 
-     0956 4A00 
-     0958 08A3 
-     095A 80D0 
-     095C 0007 
-     095E 9280 
-     0960 D243 
-     0962 A700 
-     0964 BF80 
-     0966 D008 
-     0968 74BE 
-     096A 80D2 
-     096C 1F05 
-     096E 03A7 
-     0970 BF58 
-     0972 0479 
-     0974 F658 
-     0976 0000 
-     0978 BF58 
-     097A 0484 
-     097C 43D2 
-     097E 886D 
-     0980 8654 
-     0982 BC55 
-     0984 B056 
-     0986 8658 
-     0988 BD52 
-     098A 5691 
-     098C 52D4 
-     098E 5855 
-     0990 63FA 
-     0992 D6B0 
-     0994 522E 
-     0996 63FA 
-     0998 9058 
-     099A 43E9 
-     099C 8E58 
-     099E 6438 
-     09A0 BC55 
-     09A2 58D2 
-     09A4 5508 
-     09A6 6438 
-     09A8 8654 
-     09AA 8780 
-     09AC D091 
-     09AE 5634 
-     09B0 544A 
-     09B2 B056 
-     09B4 A156 
-     09B6 540F 
-     09B8 1994 
-     09BA 73BD 
-     09BC 9073 
-     09BE 80FA 
-     09C0 0F1A 
-     09C2 442C 
-     09C4 9473 
-     09C6 BD90 
-     09C8 7390 
-     09CA 7296 
-     09CC 7200 
-     09CE 8F80 
-     09D0 D044 
-     09D2 1EBD 
-     09D4 80FA 
-     09D6 9073 
-     09D8 9673 
-     09DA D400 
-     09DC 0001 
-     09DE 9673 
-     09E0 BD80 
-     09E2 FA90 
-     09E4 7396 
-     09E6 7300 
-     09E8 0528 
-     09EA 4C05 
-     09EC 284E 
-     09EE 0520 
-     09F0 1080 
-     09F2 6000 
-     09F4 20F0 
-     09F6 0EF9 
-     09F8 86F8 
-     09FA F717 
-     09FC 1717 
-     09FE 1717 
-     0A00 1717 
-     0A02 1717 
-     0A04 1717 
-     0A06 1706 
-     0A08 0301 
-     0A0A 0B0C 
-     0A0C 0D0F 
-     0A0E 0402 
-     0A10 0D08 
-     0A12 0E05 
-     0A14 090A 
-     0A16 0627 
-     0A18 2722 
-     0A1A 2206 
-     0A1C BFDF 
-     0A1E FF80 
-     0A20 0592 
-     0A22 0A01 
-     0A24 9F00 
-     0A26 06BF 
-     0A28 DFFF 
-     0A2A 8020 
-     0A2C 900A 
-     0A2E 019F 
-     0A30 000A 
-     0A32 3139 
-     0A34 3831 
-     0A36 2020 
-     0A38 5445 
-     0A3A 5841 
-     0A3C 5320 
-     0A3E 494E 
-     0A40 5354 
-     0A42 5255 
-     0A44 4D45 
-     0A46 4E54 
-     0A48 5348 
-     0A4A 4F4D 
-     0A4C 4520 
-     0A4E 434F 
-     0A50 4D50 
-     0A52 5554 
-     0A54 4552 
-     0A56 0000 
-     0A58 0000 
-     0A5A 0000 
-     0A5C 0000 
-     0A5E 2020 
-     0A60 2020 
-     0A62 2020 
-     0A64 0020 
-     0A66 4848 
-     0A68 4800 
-     0A6A 0000 
-     0A6C 0000 
-     0A6E 0048 
-     0A70 FC48 
-     0A72 48FC 
-     0A74 4800 
-     0A76 103C 
-     0A78 5038 
-     0A7A 1478 
-     0A7C 1000 
-     0A7E C0C4 
-     0A80 0810 
-     0A82 2040 
-     0A84 8C0C 
-     0A86 6090 
-     0A88 9060 
-     0A8A 6094 
-     0A8C 8874 
-     0A8E 0810 
-     0A90 2000 
-     0A92 0000 
-     0A94 0000 
-     0A96 0810 
-     0A98 2020 
-     0A9A 2020 
-     0A9C 1008 
-     0A9E 4020 
-     0AA0 1010 
-     0AA2 1010 
-     0AA4 2040 
-     0AA6 0000 
-     0AA8 4830 
-     0AAA CC30 
-     0AAC 4800 
-     0AAE 0000 
-     0AB0 1010 
-     0AB2 7C10 
-     0AB4 1000 
-     0AB6 0000 
-     0AB8 0000 
-     0ABA 0030 
-     0ABC 1020 
+     079E 01A2 
+     07A0 0F1A 
+     07A2 BD90 
+     07A4 7390 
+     07A6 7296 
+     07A8 7200 
+     07AA 8F80 
+     07AC D041 
+     07AE 8F39 
+     07B0 0001 
+     07B2 0104 
+     07B4 5086 
+     07B6 7402 
+     07B8 FF03 
+     07BA 41AF 
+     07BC 0603 
+     07BE CE07 
+     07C0 20BE 
+     07C2 72FE 
+     07C4 BE6D 
+     07C6 0686 
+     07C8 6C86 
+     07CA 80FB 
+     07CC 3100 
+     07CE 1EA4 
+     07D0 0060 
+     07D2 00BE 
+     07D4 80FB 
+     07D6 0431 
+     07D8 001E 
+     07DA A420 
+     07DC 6000 
+     07DE 8658 
+     07E0 8659 
+     07E2 0501 
+     07E4 DF90 
+     07E6 59CE 
+     07E8 591D 
+     07EA 61F0 
+     07EC D4E4 
+     07EE 0058 
+     07F0 E420 
+     07F2 5841 
+     07F4 F205 
+     07F6 01DD 
+     07F8 4200 
+     07FA 9472 
+     07FC 8790 
+     07FE 7294 
+     0800 72BF 
+     0802 9072 
+     0804 12A5 
+     0806 906C 
+     0808 D68F 
+     080A DD00 
+     080C AA42 
+     080E 27BD 
+     0810 588F 
+     0812 DD06 
+     0814 8F58 
+     0816 6227 
+     0818 9472 
+     081A BF90 
+     081C 72FF 
+     081E FF94 
+     0820 72BD 
+     0822 9072 
+     0824 5890 
+     0826 6CBD 
+     0828 58CF 
+     082A 7D00 
+     082C 5842 
+     082E 0C94 
+     0830 7287 
+     0832 9072 
+     0834 0F1A 
+     0836 6227 
+     0838 9672 
+     083A D702 
+     083C 12A5 
+     083E 4243 
+     0840 3100 
+     0842 0159 
+     0844 6000 
+     0846 D659 
+     0848 AA41 
+     084A B939 
+     084C 0001 
+     084E 0104 
+     0850 5108 
+     0852 A081 
+     0854 0201 
+     0856 0203 
+     0858 9C02 
+     085A 0405 
+     085C 069C 
+     085E 0207 
+     0860 0809 
+     0862 A09E 
+     0864 0450 
+     0866 5245 
+     0868 5353 
+     086A FB31 
+     086C 0011 
+     086E A028 
+     0870 0496 
+     0872 3100 
+     0874 0DA0 
+     0876 6804 
+     0878 A7BF 
+     087A 5200 
+     087C E4BE 
+     087E 5830 
+     0880 8E6C 
+     0882 4293 
+     0884 08FF 
+     0886 020F 
+     0888 494E 
+     088A 5345 
+     088C 5254 
+     088E 2043 
+     0890 4152 
+     0892 5452 
+     0894 4944 
+     0896 4745 
+     0898 FB42 
+     089A EF90 
+     089C 58BC 
+     089E B052 
+     08A0 5895 
+     08A2 5231 
+     08A4 0003 
+     08A6 B052 
+     08A8 094D 
+     08AA A352 
+     08AC 0004 
+     08AE BD6A 
+     08B0 9072 
+     08B2 9672 
+     08B4 BD5C 
+     08B6 9072 
+     08B8 9672 
+     08BA A36A 
+     08BC 0004 
+     08BE 865E 
+     08C0 8E5C 
+     08C2 62D0 
+     08C4 3500 
+     08C6 015F 
+     08C8 CF7D 
+     08CA 006A 
+     08CC 916A 
+     08CE 345E 
+     08D0 B052 
+     08D2 CF7D 
+     08D4 006A 
+     08D6 42E0 
+     08D8 3300 
+     08DA 015F 
+     08DC 0000 
+     08DE 6A91 
+     08E0 6A32 
+     08E2 5EB0 
+     08E4 5200 
+     08E6 006A 
+     08E8 A352 
+     08EA 003A 
+     08EC D272 
+     08EE 0062 
+     08F0 93BE 
+     08F2 4313 
+     08F4 0603 
+     08F6 7C39 
+     08F8 0001 
+     08FA 0104 
+     08FC 5086 
+     08FE 7402 
+     0900 FF03 
+     0902 42F7 
+     0904 A675 
+     0906 31C8 
+     0908 756C 
+     090A 430A 
+     090C 0603 
+     090E D605 
+     0910 02F7 
+     0912 0603 
+     0914 CEA4 
+     0916 6C75 
+     0918 926C 
+     091A E26C 
+     091C 02BC 
+     091E 7890 
+     0920 6C94 
+     0922 6CBD 
+     0924 5C90 
+     0926 6C95 
+     0928 5CBF 
+     092A 729E 
+     092C 808E 
+     092E 7863 
+     0930 32BD 
+     0932 8080 
+     0934 CF7D 
+     0936 005C 
+     0938 433A 
+     093A 3300 
+     093C 0280 
+     093E 8000 
+     0940 005C 
+     0942 0720 
+     0944 8F80 
+     0946 CE43 
+     0948 3CCF 
+     094A 7010 
+     094C 0043 
+     094E 56BD 
+     0950 0070 
+     0952 A700 
+     0954 0FFF 
+     0956 3400 
+     0958 AF10 
+     095A 00AF 
+     095C 0FFF 
+     095E 8600 
+     0960 3500 
+     0962 6F01 
+     0964 0035 
+     0966 003C 
+     0968 8084 
+     096A 0086 
+     096C 7435 
+     096E 001F 
+     0970 A381 
+     0972 A380 
+     0974 8780 
+     0976 828E 
+     0978 7863 
+     097A 7B96 
+     097C 73BD 
+     097E 0080 
+     0980 800F 
+     0982 F000 
+     0984 BE42 
+     0986 6031 
+     0988 0002 
+     098A 2860 
+     098C 00D6 
+     098E 28AA 
+     0990 4395 
+     0992 D229 
+     0994 0063 
+     0996 9594 
+     0998 73BD 
+     099A 9073 
+     099C 4200 
+     099E 3102 
+     09A0 00B0 
+     09A2 4A04 
+     09A4 B400 
+     09A6 BF80 
+     09A8 D006 
+     09AA B4BE 
+     09AC 80D2 
+     09AE 4086 
+     09B0 B04A 
+     09B2 3300 
+     09B4 07E0 
+     09B6 014A 
+     09B8 0000 
+     09BA D0A3 
+     09BC 4A00 
+     09BE 08A3 
+     09C0 80D0 
+     09C2 0007 
+     09C4 9280 
+     09C6 D243 
+     09C8 A700 
+     09CA BF80 
+     09CC D008 
+     09CE 74BE 
+     09D0 80D2 
+     09D2 1F05 
+     09D4 03A7 
+     09D6 BF58 
+     09D8 0479 
+     09DA F658 
+     09DC 0000 
+     09DE BF58 
+     09E0 0484 
+     09E2 43D2 
+     09E4 886D 
+     09E6 8654 
+     09E8 BC55 
+     09EA B056 
+     09EC 8658 
+     09EE BD52 
+     09F0 5691 
+     09F2 52D4 
+     09F4 5855 
+     09F6 63FA 
+     09F8 D6B0 
+     09FA 522E 
+     09FC 63FA 
+     09FE 9058 
+     0A00 43E9 
+     0A02 8E58 
+     0A04 6438 
+     0A06 BC55 
+     0A08 58D2 
+     0A0A 5508 
+     0A0C 6438 
+     0A0E 8654 
+     0A10 8780 
+     0A12 D091 
+     0A14 5634 
+     0A16 544A 
+     0A18 B056 
+     0A1A A156 
+     0A1C 540F 
+     0A1E 1994 
+     0A20 73BD 
+     0A22 9073 
+     0A24 80FA 
+     0A26 0F1A 
+     0A28 442C 
+     0A2A 9473 
+     0A2C BD90 
+     0A2E 7390 
+     0A30 7296 
+     0A32 7200 
+     0A34 8F80 
+     0A36 D044 
+     0A38 1EBD 
+     0A3A 80FA 
+     0A3C 9073 
+     0A3E 9673 
+     0A40 D400 
+     0A42 0001 
+     0A44 9673 
+     0A46 BD80 
+     0A48 FA90 
+     0A4A 7396 
+     0A4C 7300 
+     0A4E 0528 
+     0A50 4C05 
+     0A52 284E 
+     0A54 0520 
+     0A56 1080 
+     0A58 6000 
+     0A5A 20F0 
+     0A5C 0EF9 
+     0A5E 86F8 
+     0A60 F717 
+     0A62 1717 
+     0A64 1717 
+     0A66 1717 
+     0A68 1717 
+     0A6A 1717 
+     0A6C 1706 
+     0A6E 0301 
+     0A70 0B0C 
+     0A72 0D0F 
+     0A74 0402 
+     0A76 0D08 
+     0A78 0E05 
+     0A7A 090A 
+     0A7C 0627 
+     0A7E 2722 
+     0A80 2206 
+     0A82 BFDF 
+     0A84 FF80 
+     0A86 0592 
+     0A88 0A01 
+     0A8A 9F00 
+     0A8C 06BF 
+     0A8E DFFF 
+     0A90 8020 
+     0A92 900A 
+     0A94 019F 
+     0A96 000A 
+     0A98 3139 
+     0A9A 3831 
+     0A9C 2020 
+     0A9E 5445 
+     0AA0 5841 
+     0AA2 5320 
+     0AA4 494E 
+     0AA6 5354 
+     0AA8 5255 
+     0AAA 4D45 
+     0AAC 4E54 
+     0AAE 5348 
+     0AB0 4F4D 
+     0AB2 4520 
+     0AB4 434F 
+     0AB6 4D50 
+     0AB8 5554 
+     0ABA 4552 
+     0ABC 0000 
      0ABE 0000 
      0AC0 0000 
-     0AC2 7C00 
-     0AC4 0000 
-     0AC6 0000 
-     0AC8 0000 
-     0ACA 0000 
-     0ACC 3030 
-     0ACE 0004 
-     0AD0 0810 
-     0AD2 2040 
-     0AD4 8000 
-     0AD6 3844 
-     0AD8 4444 
-     0ADA 4444 
-     0ADC 4438 
-     0ADE 1030 
-     0AE0 5010 
-     0AE2 1010 
-     0AE4 107C 
-     0AE6 7884 
-     0AE8 0408 
-     0AEA 1020 
-     0AEC 40FC 
-     0AEE 7884 
-     0AF0 0438 
-     0AF2 0404 
-     0AF4 8478 
-     0AF6 0C14 
-     0AF8 2444 
-     0AFA 84FC 
-     0AFC 0404 
-     0AFE F880 
-     0B00 80F8 
-     0B02 0404 
-     0B04 8478 
-     0B06 7880 
-     0B08 80F8 
-     0B0A 8484 
-     0B0C 8478 
-     0B0E FC04 
-     0B10 0408 
-     0B12 1020 
-     0B14 4040 
-     0B16 7884 
-     0B18 8478 
-     0B1A 8484 
-     0B1C 8478 
-     0B1E 7884 
-     0B20 8484 
-     0B22 7C04 
-     0B24 0478 
-     0B26 0030 
-     0B28 3000 
-     0B2A 0030 
-     0B2C 3000 
-     0B2E 0030 
-     0B30 3000 
-     0B32 0030 
-     0B34 1020 
-     0B36 0008 
-     0B38 1020 
-     0B3A 4020 
-     0B3C 1008 
-     0B3E 0000 
-     0B40 007C 
-     0B42 007C 
-     0B44 0000 
-     0B46 0040 
-     0B48 2010 
-     0B4A 0810 
-     0B4C 2040 
-     0B4E 3844 
-     0B50 0408 
-     0B52 1010 
-     0B54 0010 
-     0B56 0078 
-     0B58 849C 
-     0B5A A498 
-     0B5C 807C 
-     0B5E 7884 
-     0B60 8484 
-     0B62 FC84 
-     0B64 8484 
-     0B66 F844 
-     0B68 4478 
-     0B6A 4444 
-     0B6C 44F8 
-     0B6E 7884 
-     0B70 8080 
-     0B72 8080 
-     0B74 8478 
-     0B76 F844 
-     0B78 4444 
-     0B7A 4444 
-     0B7C 44F8 
-     0B7E FC80 
-     0B80 80F0 
-     0B82 8080 
-     0B84 80FC 
-     0B86 FC80 
-     0B88 80F0 
-     0B8A 8080 
-     0B8C 8080 
-     0B8E 7884 
-     0B90 8080 
-     0B92 9C84 
-     0B94 8478 
-     0B96 8484 
-     0B98 84FC 
-     0B9A 8484 
-     0B9C 8484 
-     0B9E 7C10 
-     0BA0 1010 
-     0BA2 1010 
-     0BA4 107C 
-     0BA6 0404 
-     0BA8 0404 
-     0BAA 0484 
-     0BAC 8478 
-     0BAE 8890 
-     0BB0 A0C0 
-     0BB2 A090 
-     0BB4 8884 
-     0BB6 4040 
-     0BB8 4040 
-     0BBA 4040 
-     0BBC 407C 
-     0BBE 84CC 
-     0BC0 B484 
-     0BC2 8484 
-     0BC4 8484 
-     0BC6 84C4 
-     0BC8 A494 
-     0BCA 8C84 
-     0BCC 8484 
-     0BCE FC84 
-     0BD0 8484 
-     0BD2 8484 
-     0BD4 84FC 
-     0BD6 F884 
-     0BD8 8484 
-     0BDA F880 
-     0BDC 8080 
-     0BDE 7884 
-     0BE0 8484 
-     0BE2 8494 
-     0BE4 8874 
-     0BE6 F884 
-     0BE8 8484 
-     0BEA F890 
-     0BEC 8884 
-     0BEE 7884 
-     0BF0 8078 
-     0BF2 0404 
-     0BF4 8478 
-     0BF6 7C10 
-     0BF8 1010 
-     0BFA 1010 
-     0BFC 1010 
-     0BFE 8484 
+     0AC2 0000 
+     0AC4 2020 
+     0AC6 2020 
+     0AC8 2020 
+     0ACA 0020 
+     0ACC 4848 
+     0ACE 4800 
+     0AD0 0000 
+     0AD2 0000 
+     0AD4 0048 
+     0AD6 FC48 
+     0AD8 48FC 
+     0ADA 4800 
+     0ADC 103C 
+     0ADE 5038 
+     0AE0 1478 
+     0AE2 1000 
+     0AE4 C0C4 
+     0AE6 0810 
+     0AE8 2040 
+     0AEA 8C0C 
+     0AEC 6090 
+     0AEE 9060 
+     0AF0 6094 
+     0AF2 8874 
+     0AF4 0810 
+     0AF6 2000 
+     0AF8 0000 
+     0AFA 0000 
+     0AFC 0810 
+     0AFE 2020 
+     0B00 2020 
+     0B02 1008 
+     0B04 4020 
+     0B06 1010 
+     0B08 1010 
+     0B0A 2040 
+     0B0C 0000 
+     0B0E 4830 
+     0B10 CC30 
+     0B12 4800 
+     0B14 0000 
+     0B16 1010 
+     0B18 7C10 
+     0B1A 1000 
+     0B1C 0000 
+     0B1E 0000 
+     0B20 0030 
+     0B22 1020 
+     0B24 0000 
+     0B26 0000 
+     0B28 7C00 
+     0B2A 0000 
+     0B2C 0000 
+     0B2E 0000 
+     0B30 0000 
+     0B32 3030 
+     0B34 0004 
+     0B36 0810 
+     0B38 2040 
+     0B3A 8000 
+     0B3C 3844 
+     0B3E 4444 
+     0B40 4444 
+     0B42 4438 
+     0B44 1030 
+     0B46 5010 
+     0B48 1010 
+     0B4A 107C 
+     0B4C 7884 
+     0B4E 0408 
+     0B50 1020 
+     0B52 40FC 
+     0B54 7884 
+     0B56 0438 
+     0B58 0404 
+     0B5A 8478 
+     0B5C 0C14 
+     0B5E 2444 
+     0B60 84FC 
+     0B62 0404 
+     0B64 F880 
+     0B66 80F8 
+     0B68 0404 
+     0B6A 8478 
+     0B6C 7880 
+     0B6E 80F8 
+     0B70 8484 
+     0B72 8478 
+     0B74 FC04 
+     0B76 0408 
+     0B78 1020 
+     0B7A 4040 
+     0B7C 7884 
+     0B7E 8478 
+     0B80 8484 
+     0B82 8478 
+     0B84 7884 
+     0B86 8484 
+     0B88 7C04 
+     0B8A 0478 
+     0B8C 0030 
+     0B8E 3000 
+     0B90 0030 
+     0B92 3000 
+     0B94 0030 
+     0B96 3000 
+     0B98 0030 
+     0B9A 1020 
+     0B9C 0008 
+     0B9E 1020 
+     0BA0 4020 
+     0BA2 1008 
+     0BA4 0000 
+     0BA6 007C 
+     0BA8 007C 
+     0BAA 0000 
+     0BAC 0040 
+     0BAE 2010 
+     0BB0 0810 
+     0BB2 2040 
+     0BB4 3844 
+     0BB6 0408 
+     0BB8 1010 
+     0BBA 0010 
+     0BBC 0078 
+     0BBE 849C 
+     0BC0 A498 
+     0BC2 807C 
+     0BC4 7884 
+     0BC6 8484 
+     0BC8 FC84 
+     0BCA 8484 
+     0BCC F844 
+     0BCE 4478 
+     0BD0 4444 
+     0BD2 44F8 
+     0BD4 7884 
+     0BD6 8080 
+     0BD8 8080 
+     0BDA 8478 
+     0BDC F844 
+     0BDE 4444 
+     0BE0 4444 
+     0BE2 44F8 
+     0BE4 FC80 
+     0BE6 80F0 
+     0BE8 8080 
+     0BEA 80FC 
+     0BEC FC80 
+     0BEE 80F0 
+     0BF0 8080 
+     0BF2 8080 
+     0BF4 7884 
+     0BF6 8080 
+     0BF8 9C84 
+     0BFA 8478 
+     0BFC 8484 
+     0BFE 84FC 
      0C00 8484 
      0C02 8484 
-     0C04 8478 
-     0C06 4444 
-     0C08 4444 
-     0C0A 2828 
-     0C0C 1010 
-     0C0E 8484 
-     0C10 8484 
-     0C12 84B4 
-     0C14 CC84 
-     0C16 8484 
-     0C18 4830 
-     0C1A 3048 
-     0C1C 8484 
-     0C1E 4444 
-     0C20 4428 
-     0C22 1010 
-     0C24 1010 
-     0C26 FC04 
-     0C28 0810 
-     0C2A 2040 
-     0C2C 80FC 
-     0C2E 3820 
-     0C30 2020 
-     0C32 2020 
-     0C34 2038 
-     0C36 0080 
-     0C38 4020 
-     0C3A 1008 
-     0C3C 0400 
-     0C3E 7010 
-     0C40 1010 
-     0C42 1010 
-     0C44 1070 
-     0C46 1028 
-     0C48 4482 
-     0C4A 0000 
-     0C4C 0000 
-     0C4E 0000 
-     0C50 0000 
-     0C52 0000 
-     0C54 00FC 
-     0C56 0000 
-     0C58 0000 
-     0C5A 0000 
-     0C5C 0010 
+     0C04 7C10 
+     0C06 1010 
+     0C08 1010 
+     0C0A 107C 
+     0C0C 0404 
+     0C0E 0404 
+     0C10 0484 
+     0C12 8478 
+     0C14 8890 
+     0C16 A0C0 
+     0C18 A090 
+     0C1A 8884 
+     0C1C 4040 
+     0C1E 4040 
+     0C20 4040 
+     0C22 407C 
+     0C24 84CC 
+     0C26 B484 
+     0C28 8484 
+     0C2A 8484 
+     0C2C 84C4 
+     0C2E A494 
+     0C30 8C84 
+     0C32 8484 
+     0C34 FC84 
+     0C36 8484 
+     0C38 8484 
+     0C3A 84FC 
+     0C3C F884 
+     0C3E 8484 
+     0C40 F880 
+     0C42 8080 
+     0C44 7884 
+     0C46 8484 
+     0C48 8494 
+     0C4A 8874 
+     0C4C F884 
+     0C4E 8484 
+     0C50 F890 
+     0C52 8884 
+     0C54 7884 
+     0C56 8078 
+     0C58 0404 
+     0C5A 8478 
+     0C5C 7C10 
      0C5E 1010 
      0C60 1010 
-     0C62 0010 
-     0C64 2828 
-     0C66 2800 
-     0C68 0000 
-     0C6A 0028 
-     0C6C 287C 
-     0C6E 287C 
+     0C62 1010 
+     0C64 8484 
+     0C66 8484 
+     0C68 8484 
+     0C6A 8478 
+     0C6C 4444 
+     0C6E 4444 
      0C70 2828 
-     0C72 3854 
-     0C74 5038 
-     0C76 1454 
-     0C78 3860 
-     0C7A 6408 
-     0C7C 1020 
-     0C7E 4C0C 
-     0C80 2050 
-     0C82 5020 
-     0C84 5448 
-     0C86 3408 
-     0C88 0810 
-     0C8A 0000 
-     0C8C 0000 
+     0C72 1010 
+     0C74 8484 
+     0C76 8484 
+     0C78 84B4 
+     0C7A CC84 
+     0C7C 8484 
+     0C7E 4830 
+     0C80 3048 
+     0C82 8484 
+     0C84 4444 
+     0C86 4428 
+     0C88 1010 
+     0C8A 1010 
+     0C8C FC04 
      0C8E 0810 
-     0C90 2020 
-     0C92 2010 
-     0C94 0820 
-     0C96 1008 
-     0C98 0808 
-     0C9A 1020 
-     0C9C 0028 
-     0C9E 107C 
-     0CA0 1028 
-     0CA2 0000 
-     0CA4 1010 
-     0CA6 7C10 
-     0CA8 1000 
-     0CAA 0000 
-     0CAC 0000 
-     0CAE 3010 
-     0CB0 2000 
+     0C90 2040 
+     0C92 80FC 
+     0C94 3820 
+     0C96 2020 
+     0C98 2020 
+     0C9A 2038 
+     0C9C 0080 
+     0C9E 4020 
+     0CA0 1008 
+     0CA2 0400 
+     0CA4 7010 
+     0CA6 1010 
+     0CA8 1010 
+     0CAA 1070 
+     0CAC 1028 
+     0CAE 4482 
+     0CB0 0000 
      0CB2 0000 
-     0CB4 7C00 
+     0CB4 0000 
      0CB6 0000 
      0CB8 0000 
-     0CBA 0000 
-     0CBC 0030 
-     0CBE 3000 
-     0CC0 0408 
-     0CC2 1020 
-     0CC4 4000 
-     0CC6 3844 
-     0CC8 4444 
-     0CCA 4444 
-     0CCC 3810 
-     0CCE 3010 
-     0CD0 1010 
-     0CD2 1038 
-     0CD4 3844 
-     0CD6 0408 
-     0CD8 1020 
-     0CDA 7C38 
-     0CDC 4404 
-     0CDE 1804 
-     0CE0 4438 
-     0CE2 0818 
-     0CE4 2848 
-     0CE6 7C08 
-     0CE8 087C 
-     0CEA 4078 
-     0CEC 0404 
-     0CEE 4438 
-     0CF0 1820 
-     0CF2 4078 
-     0CF4 4444 
-     0CF6 387C 
-     0CF8 0408 
-     0CFA 1020 
-     0CFC 2020 
-     0CFE 3844 
-     0D00 4438 
-     0D02 4444 
-     0D04 3838 
-     0D06 4444 
-     0D08 3C04 
-     0D0A 0830 
-     0D0C 0030 
-     0D0E 3000 
-     0D10 3030 
+     0CBA 00FC 
+     0CBC 0000 
+     0CBE 0000 
+     0CC0 0000 
+     0CC2 0010 
+     0CC4 1010 
+     0CC6 1010 
+     0CC8 0010 
+     0CCA 2828 
+     0CCC 2800 
+     0CCE 0000 
+     0CD0 0028 
+     0CD2 287C 
+     0CD4 287C 
+     0CD6 2828 
+     0CD8 3854 
+     0CDA 5038 
+     0CDC 1454 
+     0CDE 3860 
+     0CE0 6408 
+     0CE2 1020 
+     0CE4 4C0C 
+     0CE6 2050 
+     0CE8 5020 
+     0CEA 5448 
+     0CEC 3408 
+     0CEE 0810 
+     0CF0 0000 
+     0CF2 0000 
+     0CF4 0810 
+     0CF6 2020 
+     0CF8 2010 
+     0CFA 0820 
+     0CFC 1008 
+     0CFE 0808 
+     0D00 1020 
+     0D02 0028 
+     0D04 107C 
+     0D06 1028 
+     0D08 0000 
+     0D0A 1010 
+     0D0C 7C10 
+     0D0E 1000 
+     0D10 0000 
      0D12 0000 
-     0D14 3030 
-     0D16 0030 
-     0D18 1020 
-     0D1A 0810 
-     0D1C 2040 
-     0D1E 2010 
-     0D20 0800 
-     0D22 007C 
-     0D24 007C 
-     0D26 0000 
-     0D28 2010 
-     0D2A 0804 
-     0D2C 0810 
-     0D2E 2038 
-     0D30 4404 
-     0D32 0810 
-     0D34 0010 
-     0D36 3844 
-     0D38 5C54 
-     0D3A 5C40 
-     0D3C 3838 
-     0D3E 4444 
-     0D40 7C44 
-     0D42 4444 
-     0D44 7824 
-     0D46 2438 
-     0D48 2424 
-     0D4A 7838 
-     0D4C 4440 
-     0D4E 4040 
-     0D50 4438 
-     0D52 7824 
-     0D54 2424 
-     0D56 2424 
-     0D58 787C 
-     0D5A 4040 
-     0D5C 7840 
-     0D5E 407C 
-     0D60 7C40 
-     0D62 4078 
-     0D64 4040 
-     0D66 403C 
-     0D68 4040 
-     0D6A 5C44 
-     0D6C 4438 
-     0D6E 4444 
-     0D70 447C 
-     0D72 4444 
-     0D74 4438 
-     0D76 1010 
-     0D78 1010 
-     0D7A 1038 
-     0D7C 0404 
-     0D7E 0404 
-     0D80 0444 
-     0D82 3844 
-     0D84 4850 
-     0D86 6050 
-     0D88 4844 
-     0D8A 4040 
-     0D8C 4040 
-     0D8E 4040 
-     0D90 7C44 
-     0D92 6C54 
-     0D94 5444 
-     0D96 4444 
-     0D98 4464 
-     0D9A 6454 
-     0D9C 4C4C 
-     0D9E 447C 
-     0DA0 4444 
-     0DA2 4444 
-     0DA4 447C 
-     0DA6 7844 
-     0DA8 4478 
-     0DAA 4040 
-     0DAC 4038 
-     0DAE 4444 
-     0DB0 4454 
-     0DB2 4834 
-     0DB4 7844 
-     0DB6 4478 
-     0DB8 5048 
-     0DBA 4438 
-     0DBC 4440 
-     0DBE 3804 
-     0DC0 4438 
-     0DC2 7C10 
-     0DC4 1010 
-     0DC6 1010 
-     0DC8 1044 
-     0DCA 4444 
-     0DCC 4444 
-     0DCE 4438 
-     0DD0 4444 
-     0DD2 4428 
-     0DD4 2810 
-     0DD6 1044 
+     0D14 3010 
+     0D16 2000 
+     0D18 0000 
+     0D1A 7C00 
+     0D1C 0000 
+     0D1E 0000 
+     0D20 0000 
+     0D22 0030 
+     0D24 3000 
+     0D26 0408 
+     0D28 1020 
+     0D2A 4000 
+     0D2C 3844 
+     0D2E 4444 
+     0D30 4444 
+     0D32 3810 
+     0D34 3010 
+     0D36 1010 
+     0D38 1038 
+     0D3A 3844 
+     0D3C 0408 
+     0D3E 1020 
+     0D40 7C38 
+     0D42 4404 
+     0D44 1804 
+     0D46 4438 
+     0D48 0818 
+     0D4A 2848 
+     0D4C 7C08 
+     0D4E 087C 
+     0D50 4078 
+     0D52 0404 
+     0D54 4438 
+     0D56 1820 
+     0D58 4078 
+     0D5A 4444 
+     0D5C 387C 
+     0D5E 0408 
+     0D60 1020 
+     0D62 2020 
+     0D64 3844 
+     0D66 4438 
+     0D68 4444 
+     0D6A 3838 
+     0D6C 4444 
+     0D6E 3C04 
+     0D70 0830 
+     0D72 0030 
+     0D74 3000 
+     0D76 3030 
+     0D78 0000 
+     0D7A 3030 
+     0D7C 0030 
+     0D7E 1020 
+     0D80 0810 
+     0D82 2040 
+     0D84 2010 
+     0D86 0800 
+     0D88 007C 
+     0D8A 007C 
+     0D8C 0000 
+     0D8E 2010 
+     0D90 0804 
+     0D92 0810 
+     0D94 2038 
+     0D96 4404 
+     0D98 0810 
+     0D9A 0010 
+     0D9C 3844 
+     0D9E 5C54 
+     0DA0 5C40 
+     0DA2 3838 
+     0DA4 4444 
+     0DA6 7C44 
+     0DA8 4444 
+     0DAA 7824 
+     0DAC 2438 
+     0DAE 2424 
+     0DB0 7838 
+     0DB2 4440 
+     0DB4 4040 
+     0DB6 4438 
+     0DB8 7824 
+     0DBA 2424 
+     0DBC 2424 
+     0DBE 787C 
+     0DC0 4040 
+     0DC2 7840 
+     0DC4 407C 
+     0DC6 7C40 
+     0DC8 4078 
+     0DCA 4040 
+     0DCC 403C 
+     0DCE 4040 
+     0DD0 5C44 
+     0DD2 4438 
+     0DD4 4444 
+     0DD6 447C 
      0DD8 4444 
-     0DDA 5454 
-     0DDC 5428 
-     0DDE 4444 
-     0DE0 2810 
-     0DE2 2844 
-     0DE4 4444 
-     0DE6 4428 
-     0DE8 1010 
-     0DEA 1010 
-     0DEC 7C04 
-     0DEE 0810 
-     0DF0 2040 
-     0DF2 7C38 
-     0DF4 2020 
-     0DF6 2020 
-     0DF8 2038 
-     0DFA 0040 
-     0DFC 2010 
-     0DFE 0804 
-     0E00 0038 
-     0E02 0808 
-     0E04 0808 
-     0E06 0838 
-     0E08 0010 
-     0E0A 2844 
-     0E0C 0000 
-     0E0E 0000 
-     0E10 0000 
-     0E12 0000 
-     0E14 007C 
-     0E16 0020 
-     0E18 1008 
-     0E1A 0000 
-     0E1C 0000 
-     0E1E 0038 
-     0E20 447C 
-     0E22 4444 
-     0E24 0000 
-     0E26 7824 
-     0E28 3824 
-     0E2A 7800 
-     0E2C 003C 
-     0E2E 4040 
-     0E30 403C 
-     0E32 0000 
-     0E34 7824 
-     0E36 2424 
-     0E38 7800 
-0704                   EVEN
-0705 0E3A 6060     VDPDUMP BCOPY "vdp-raw.bin"
-     0E3C 6868 
-     0E3E 7070 
-     0E40 7878 
-     0E42 8080 
-     0E44 8888 
-     0E46 9090 
-     0E48 9898 
-     0E4A A0A0 
-     0E4C A8A8 
-     0E4E B0B0 
-     0E50 B8B8 
-     0E52 C0C0 
-     0E54 C8C8 
-     0E56 D0D0 
-     0E58 D8D8 
-     0E5A 6060 
-     0E5C 6868 
-     0E5E 7070 
-     0E60 7878 
-     0E62 8080 
-     0E64 8888 
-     0E66 9090 
-     0E68 9898 
-     0E6A A0A0 
-     0E6C A8A8 
-     0E6E B0B0 
-     0E70 B8B8 
-     0E72 C0C0 
-     0E74 C8C8 
-     0E76 D0D0 
-     0E78 D8D8 
-     0E7A 6060 
-     0E7C 6868 
-     0E7E 7070 
-     0E80 7878 
-     0E82 8080 
-     0E84 8888 
-     0E86 9090 
-     0E88 9898 
-     0E8A A0A0 
-     0E8C A8A8 
-     0E8E B0B0 
-     0E90 B8B8 
-     0E92 C0C0 
-     0E94 C8C8 
-     0E96 D0D0 
-     0E98 D8D8 
-     0E9A 2020 
-     0E9C 2020 
-     0E9E 2020 
-     0EA0 2020 
-     0EA2 2020 
-     0EA4 2020 
-     0EA6 2020 
-     0EA8 2020 
-     0EAA 2020 
-     0EAC 2020 
-     0EAE 2020 
-     0EB0 2020 
-     0EB2 2020 
-     0EB4 2020 
-     0EB6 2020 
-     0EB8 2020 
-     0EBA 2020 
-     0EBC 2020 
-     0EBE 2020 
-     0EC0 2020 
-     0EC2 2020 
-     0EC4 2020 
-     0EC6 2020 
-     0EC8 2020 
-     0ECA 2020 
-     0ECC 2020 
-     0ECE 2020 
-     0ED0 2020 
-     0ED2 2020 
-     0ED4 2020 
-     0ED6 2020 
-     0ED8 2020 
-     0EDA 2020 
-     0EDC 2020 
-     0EDE 2020 
-     0EE0 2020 
-     0EE2 2020 
-     0EE4 2020 
-     0EE6 2020 
-     0EE8 2001 
-     0EEA 0203 
-     0EEC 2020 
-     0EEE 2020 
-     0EF0 2020 
-     0EF2 2020 
-     0EF4 2020 
-     0EF6 2020 
-     0EF8 2020 
-     0EFA 2020 
-     0EFC 2020 
-     0EFE 2020 
+     0DDA 4438 
+     0DDC 1010 
+     0DDE 1010 
+     0DE0 1038 
+     0DE2 0404 
+     0DE4 0404 
+     0DE6 0444 
+     0DE8 3844 
+     0DEA 4850 
+     0DEC 6050 
+     0DEE 4844 
+     0DF0 4040 
+     0DF2 4040 
+     0DF4 4040 
+     0DF6 7C44 
+     0DF8 6C54 
+     0DFA 5444 
+     0DFC 4444 
+     0DFE 4464 
+     0E00 6454 
+     0E02 4C4C 
+     0E04 447C 
+     0E06 4444 
+     0E08 4444 
+     0E0A 447C 
+     0E0C 7844 
+     0E0E 4478 
+     0E10 4040 
+     0E12 4038 
+     0E14 4444 
+     0E16 4454 
+     0E18 4834 
+     0E1A 7844 
+     0E1C 4478 
+     0E1E 5048 
+     0E20 4438 
+     0E22 4440 
+     0E24 3804 
+     0E26 4438 
+     0E28 7C10 
+     0E2A 1010 
+     0E2C 1010 
+     0E2E 1044 
+     0E30 4444 
+     0E32 4444 
+     0E34 4438 
+     0E36 4444 
+     0E38 4428 
+     0E3A 2810 
+     0E3C 1044 
+     0E3E 4444 
+     0E40 5454 
+     0E42 5428 
+     0E44 4444 
+     0E46 2810 
+     0E48 2844 
+     0E4A 4444 
+     0E4C 4428 
+     0E4E 1010 
+     0E50 1010 
+     0E52 7C04 
+     0E54 0810 
+     0E56 2040 
+     0E58 7C38 
+     0E5A 2020 
+     0E5C 2020 
+     0E5E 2038 
+     0E60 0040 
+     0E62 2010 
+     0E64 0804 
+     0E66 0038 
+     0E68 0808 
+     0E6A 0808 
+     0E6C 0838 
+     0E6E 0010 
+     0E70 2844 
+     0E72 0000 
+     0E74 0000 
+     0E76 0000 
+     0E78 0000 
+     0E7A 007C 
+     0E7C 0020 
+     0E7E 1008 
+     0E80 0000 
+     0E82 0000 
+     0E84 0038 
+     0E86 447C 
+     0E88 4444 
+     0E8A 0000 
+     0E8C 7824 
+     0E8E 3824 
+     0E90 7800 
+     0E92 003C 
+     0E94 4040 
+     0E96 403C 
+     0E98 0000 
+     0E9A 7824 
+     0E9C 2424 
+     0E9E 7800 
+0734                   EVEN
+0735 0EA0 6060     VDPDUMP BCOPY "vdp-raw.bin"
+     0EA2 6868 
+     0EA4 7070 
+     0EA6 7878 
+     0EA8 8080 
+     0EAA 8888 
+     0EAC 9090 
+     0EAE 9898 
+     0EB0 A0A0 
+     0EB2 A8A8 
+     0EB4 B0B0 
+     0EB6 B8B8 
+     0EB8 C0C0 
+     0EBA C8C8 
+     0EBC D0D0 
+     0EBE D8D8 
+     0EC0 6060 
+     0EC2 6868 
+     0EC4 7070 
+     0EC6 7878 
+     0EC8 8080 
+     0ECA 8888 
+     0ECC 9090 
+     0ECE 9898 
+     0ED0 A0A0 
+     0ED2 A8A8 
+     0ED4 B0B0 
+     0ED6 B8B8 
+     0ED8 C0C0 
+     0EDA C8C8 
+     0EDC D0D0 
+     0EDE D8D8 
+     0EE0 6060 
+     0EE2 6868 
+     0EE4 7070 
+     0EE6 7878 
+     0EE8 8080 
+     0EEA 8888 
+     0EEC 9090 
+     0EEE 9898 
+     0EF0 A0A0 
+     0EF2 A8A8 
+     0EF4 B0B0 
+     0EF6 B8B8 
+     0EF8 C0C0 
+     0EFA C8C8 
+     0EFC D0D0 
+     0EFE D8D8 
      0F00 2020 
      0F02 2020 
      0F04 2020 
      0F06 2020 
-     0F08 2004 
-     0F0A 0506 
+     0F08 2020 
+     0F0A 2020 
      0F0C 2020 
      0F0E 2020 
      0F10 2020 
@@ -2208,8 +2219,8 @@ XAS99 CROSS-ASSEMBLER   VERSION 1.5.3
      0F22 2020 
      0F24 2020 
      0F26 2020 
-     0F28 2007 
-     0F2A 0809 
+     0F28 2020 
+     0F2A 2020 
      0F2C 2020 
      0F2E 2020 
      0F30 2020 
@@ -2227,8 +2238,8 @@ XAS99 CROSS-ASSEMBLER   VERSION 1.5.3
      0F48 2020 
      0F4A 2020 
      0F4C 2020 
-     0F4E 2020 
-     0F50 2020 
+     0F4E 2001 
+     0F50 0203 
      0F52 2020 
      0F54 2020 
      0F56 2020 
@@ -2237,15 +2248,15 @@ XAS99 CROSS-ASSEMBLER   VERSION 1.5.3
      0F5C 2020 
      0F5E 2020 
      0F60 2020 
-     0F62 5445 
-     0F64 5841 
-     0F66 5320 
-     0F68 494E 
-     0F6A 5354 
-     0F6C 5255 
-     0F6E 4D45 
-     0F70 4E54 
-     0F72 5320 
+     0F62 2020 
+     0F64 2020 
+     0F66 2020 
+     0F68 2020 
+     0F6A 2020 
+     0F6C 2020 
+     0F6E 2004 
+     0F70 0506 
+     0F72 2020 
      0F74 2020 
      0F76 2020 
      0F78 2020 
@@ -2259,8 +2270,8 @@ XAS99 CROSS-ASSEMBLER   VERSION 1.5.3
      0F88 2020 
      0F8A 2020 
      0F8C 2020 
-     0F8E 2020 
-     0F90 2020 
+     0F8E 2007 
+     0F90 0809 
      0F92 2020 
      0F94 2020 
      0F96 2020 
@@ -2270,13 +2281,13 @@ XAS99 CROSS-ASSEMBLER   VERSION 1.5.3
      0F9E 2020 
      0FA0 2020 
      0FA2 2020 
-     0FA4 484F 
-     0FA6 4D45 
-     0FA8 2043 
-     0FAA 4F4D 
-     0FAC 5055 
-     0FAE 5445 
-     0FB0 5220 
+     0FA4 2020 
+     0FA6 2020 
+     0FA8 2020 
+     0FAA 2020 
+     0FAC 2020 
+     0FAE 2020 
+     0FB0 2020 
      0FB2 2020 
      0FB4 2020 
      0FB6 2020 
@@ -2288,15 +2299,15 @@ XAS99 CROSS-ASSEMBLER   VERSION 1.5.3
      0FC2 2020 
      0FC4 2020 
      0FC6 2020 
-     0FC8 2020 
-     0FCA 2020 
-     0FCC 2020 
-     0FCE 2020 
-     0FD0 2020 
-     0FD2 2020 
-     0FD4 2020 
-     0FD6 2020 
-     0FD8 2020 
+     0FC8 5445 
+     0FCA 5841 
+     0FCC 5320 
+     0FCE 494E 
+     0FD0 5354 
+     0FD2 5255 
+     0FD4 4D45 
+     0FD6 4E54 
+     0FD8 5320 
      0FDA 2020 
      0FDC 2020 
      0FDE 2020 
@@ -2321,13 +2332,13 @@ XAS99 CROSS-ASSEMBLER   VERSION 1.5.3
      1004 2020 
      1006 2020 
      1008 2020 
-     100A 2020 
-     100C 2020 
-     100E 2020 
-     1010 2020 
-     1012 2020 
-     1014 2020 
-     1016 2020 
+     100A 484F 
+     100C 4D45 
+     100E 2043 
+     1010 4F4D 
+     1012 5055 
+     1014 5445 
+     1016 5220 
      1018 2020 
      101A 2020 
      101C 2020 
@@ -2346,20 +2357,20 @@ XAS99 CROSS-ASSEMBLER   VERSION 1.5.3
      1036 2020 
      1038 2020 
      103A 2020 
-     103C 5245 
-     103E 4144 
-     1040 592D 
-     1042 5052 
-     1044 4553 
-     1046 5320 
-     1048 414E 
-     104A 5920 
-     104C 4B45 
-     104E 5920 
-     1050 544F 
-     1052 2042 
-     1054 4547 
-     1056 494E 
+     103C 2020 
+     103E 2020 
+     1040 2020 
+     1042 2020 
+     1044 2020 
+     1046 2020 
+     1048 2020 
+     104A 2020 
+     104C 2020 
+     104E 2020 
+     1050 2020 
+     1052 2020 
+     1054 2020 
+     1056 2020 
      1058 2020 
      105A 2020 
      105C 2020 
@@ -2377,153 +2388,153 @@ XAS99 CROSS-ASSEMBLER   VERSION 1.5.3
      1074 2020 
      1076 2020 
      1078 2020 
-     107A 6060 
-     107C 6868 
-     107E 7070 
-     1080 7878 
-     1082 8080 
-     1084 8888 
-     1086 9090 
-     1088 9898 
-     108A A0A0 
-     108C A8A8 
-     108E B0B0 
-     1090 B8B8 
-     1092 C0C0 
-     1094 C8C8 
-     1096 D0D0 
-     1098 D8D8 
-     109A 6060 
-     109C 6868 
-     109E 7070 
-     10A0 7878 
-     10A2 8080 
-     10A4 8888 
-     10A6 9090 
-     10A8 9898 
-     10AA A0A0 
-     10AC A8A8 
-     10AE B0B0 
-     10B0 B8B8 
-     10B2 C0C0 
-     10B4 C8C8 
-     10B6 D0D0 
-     10B8 D8D8 
-     10BA 6060 
-     10BC 6868 
-     10BE 7070 
-     10C0 7878 
-     10C2 8080 
-     10C4 8888 
-     10C6 9090 
-     10C8 9898 
-     10CA A0A0 
-     10CC A8A8 
-     10CE B0B0 
-     10D0 B8B8 
-     10D2 C0C0 
-     10D4 C8C8 
-     10D6 D0D0 
-     10D8 D8D8 
+     107A 2020 
+     107C 2020 
+     107E 2020 
+     1080 2020 
+     1082 2020 
+     1084 2020 
+     1086 2020 
+     1088 2020 
+     108A 2020 
+     108C 2020 
+     108E 2020 
+     1090 2020 
+     1092 2020 
+     1094 2020 
+     1096 2020 
+     1098 2020 
+     109A 2020 
+     109C 2020 
+     109E 2020 
+     10A0 2020 
+     10A2 5245 
+     10A4 4144 
+     10A6 592D 
+     10A8 5052 
+     10AA 4553 
+     10AC 5320 
+     10AE 414E 
+     10B0 5920 
+     10B2 4B45 
+     10B4 5920 
+     10B6 544F 
+     10B8 2042 
+     10BA 4547 
+     10BC 494E 
+     10BE 2020 
+     10C0 2020 
+     10C2 2020 
+     10C4 2020 
+     10C6 2020 
+     10C8 2020 
+     10CA 2020 
+     10CC 2020 
+     10CE 2020 
+     10D0 2020 
+     10D2 2020 
+     10D4 2020 
+     10D6 2020 
+     10D8 2020 
      10DA 2020 
      10DC 2020 
      10DE 2020 
-     10E0 2020 
-     10E2 2020 
-     10E4 2020 
-     10E6 2020 
-     10E8 2020 
-     10EA 2020 
-     10EC 2020 
-     10EE 2020 
-     10F0 2020 
-     10F2 2020 
-     10F4 2020 
-     10F6 2020 
-     10F8 2020 
-     10FA 2020 
-     10FC 2020 
-     10FE 0A31 
-     1100 3938 
-     1102 3120 
-     1104 2054 
-     1106 4558 
-     1108 4153 
-     110A 2049 
-     110C 4E53 
-     110E 5452 
-     1110 554D 
-     1112 454E 
-     1114 5453 
-     1116 2020 
-     1118 2020 
-     111A 2020 
-     111C 2020 
-     111E 2020 
-     1120 2020 
-     1122 2020 
-     1124 2020 
-     1126 2020 
-     1128 2020 
-     112A 2020 
-     112C 2020 
-     112E 2020 
-     1130 2020 
-     1132 2020 
-     1134 2020 
-     1136 2020 
-     1138 2020 
-     113A 0000 
-     113C 0000 
-     113E 0000 
-     1140 0000 
-     1142 0000 
-     1144 0000 
-     1146 0000 
-     1148 0000 
-     114A 0000 
-     114C 0000 
-     114E 0000 
-     1150 0000 
-     1152 0000 
-     1154 0000 
-     1156 0000 
-     1158 0000 
-     115A 0000 
-     115C 0000 
-     115E 0000 
-     1160 0000 
-     1162 0000 
-     1164 0000 
-     1166 0000 
-     1168 0000 
-     116A 0000 
-     116C 0000 
-     116E 0000 
-     1170 0000 
-     1172 0000 
-     1174 0000 
-     1176 0000 
-     1178 0000 
-     117A 0000 
-     117C 0000 
-     117E 0000 
-     1180 0000 
-     1182 0000 
-     1184 0000 
-     1186 0000 
-     1188 0000 
-     118A 0000 
-     118C 0000 
-     118E 0000 
-     1190 0000 
-     1192 0000 
-     1194 0000 
-     1196 0000 
-     1198 0000 
-     119A 0000 
-     119C 0000 
-     119E 0000 
+     10E0 6060 
+     10E2 6868 
+     10E4 7070 
+     10E6 7878 
+     10E8 8080 
+     10EA 8888 
+     10EC 9090 
+     10EE 9898 
+     10F0 A0A0 
+     10F2 A8A8 
+     10F4 B0B0 
+     10F6 B8B8 
+     10F8 C0C0 
+     10FA C8C8 
+     10FC D0D0 
+     10FE D8D8 
+     1100 6060 
+     1102 6868 
+     1104 7070 
+     1106 7878 
+     1108 8080 
+     110A 8888 
+     110C 9090 
+     110E 9898 
+     1110 A0A0 
+     1112 A8A8 
+     1114 B0B0 
+     1116 B8B8 
+     1118 C0C0 
+     111A C8C8 
+     111C D0D0 
+     111E D8D8 
+     1120 6060 
+     1122 6868 
+     1124 7070 
+     1126 7878 
+     1128 8080 
+     112A 8888 
+     112C 9090 
+     112E 9898 
+     1130 A0A0 
+     1132 A8A8 
+     1134 B0B0 
+     1136 B8B8 
+     1138 C0C0 
+     113A C8C8 
+     113C D0D0 
+     113E D8D8 
+     1140 2020 
+     1142 2020 
+     1144 2020 
+     1146 2020 
+     1148 2020 
+     114A 2020 
+     114C 2020 
+     114E 2020 
+     1150 2020 
+     1152 2020 
+     1154 2020 
+     1156 2020 
+     1158 2020 
+     115A 2020 
+     115C 2020 
+     115E 2020 
+     1160 2020 
+     1162 2020 
+     1164 0A31 
+     1166 3938 
+     1168 3120 
+     116A 2054 
+     116C 4558 
+     116E 4153 
+     1170 2049 
+     1172 4E53 
+     1174 5452 
+     1176 554D 
+     1178 454E 
+     117A 5453 
+     117C 2020 
+     117E 2020 
+     1180 2020 
+     1182 2020 
+     1184 2020 
+     1186 2020 
+     1188 2020 
+     118A 2020 
+     118C 2020 
+     118E 2020 
+     1190 2020 
+     1192 2020 
+     1194 2020 
+     1196 2020 
+     1198 2020 
+     119A 2020 
+     119C 2020 
+     119E 2020 
      11A0 0000 
      11A2 0000 
      11A4 0000 
@@ -2537,22 +2548,22 @@ XAS99 CROSS-ASSEMBLER   VERSION 1.5.3
      11B4 0000 
      11B6 0000 
      11B8 0000 
-     11BA 1717 
-     11BC 1717 
-     11BE 1717 
-     11C0 1717 
-     11C2 1717 
-     11C4 1717 
-     11C6 0603 
-     11C8 010B 
-     11CA 0C0D 
-     11CC 0F04 
-     11CE 020D 
-     11D0 080E 
-     11D2 0509 
-     11D4 0A06 
-     11D6 2727 
-     11D8 2222 
+     11BA 0000 
+     11BC 0000 
+     11BE 0000 
+     11C0 0000 
+     11C2 0000 
+     11C4 0000 
+     11C6 0000 
+     11C8 0000 
+     11CA 0000 
+     11CC 0000 
+     11CE 0000 
+     11D0 0000 
+     11D2 0000 
+     11D4 0000 
+     11D6 0000 
+     11D8 0000 
      11DA 0000 
      11DC 0000 
      11DE 0000 
@@ -2588,22 +2599,22 @@ XAS99 CROSS-ASSEMBLER   VERSION 1.5.3
      121A 0000 
      121C 0000 
      121E 0000 
-     1220 0000 
-     1222 0000 
-     1224 0000 
-     1226 0000 
-     1228 0000 
-     122A 0000 
-     122C 0000 
-     122E 0000 
-     1230 0000 
-     1232 0000 
-     1234 0000 
-     1236 0000 
-     1238 0000 
-     123A 0000 
-     123C 0000 
-     123E 0000 
+     1220 1717 
+     1222 1717 
+     1224 1717 
+     1226 1717 
+     1228 1717 
+     122A 1717 
+     122C 0603 
+     122E 010B 
+     1230 0C0D 
+     1232 0F04 
+     1234 020D 
+     1236 080E 
+     1238 0509 
+     123A 0A06 
+     123C 2727 
+     123E 2222 
      1240 0000 
      1242 0000 
      1244 0000 
@@ -3117,46 +3128,46 @@ XAS99 CROSS-ASSEMBLER   VERSION 1.5.3
      163C 0000 
      163E 0000 
      1640 0000 
-     1642 0103 
-     1644 0303 
-     1646 0303 
-     1648 0303 
-     164A FC04 
-     164C 0505 
-     164E 0406 
-     1650 020C 
-     1652 0080 
-     1654 4040 
-     1656 8000 
-     1658 0C12 
-     165A FF80 
-     165C C040 
-     165E 6038 
-     1660 1C0E 
-     1662 1921 
-     1664 213D 
-     1666 0505 
-     1668 05C4 
-     166A BA8A 
-     166C 8ABA 
-     166E A1A1 
-     1670 A122 
-     1672 0301 
+     1642 0000 
+     1644 0000 
+     1646 0000 
+     1648 0000 
+     164A 0000 
+     164C 0000 
+     164E 0000 
+     1650 0000 
+     1652 0000 
+     1654 0000 
+     1656 0000 
+     1658 0000 
+     165A 0000 
+     165C 0000 
+     165E 0000 
+     1660 0000 
+     1662 0000 
+     1664 0000 
+     1666 0000 
+     1668 0000 
+     166A 0000 
+     166C 0000 
+     166E 0000 
+     1670 0000 
+     1672 0000 
      1674 0000 
      1676 0000 
      1678 0000 
-     167A E231 
-     167C 1018 
-     167E 0C07 
-     1680 0300 
-     1682 4C90 
-     1684 2040 
-     1686 4020 
-     1688 E000 
-     168A 3C42 
-     168C 99A1 
-     168E A199 
-     1690 423C 
+     167A 0000 
+     167C 0000 
+     167E 0000 
+     1680 0000 
+     1682 0000 
+     1684 0000 
+     1686 0000 
+     1688 0000 
+     168A 0000 
+     168C 0000 
+     168E 0000 
+     1690 0000 
      1692 0000 
      1694 0000 
      1696 0000 
@@ -3168,46 +3179,46 @@ XAS99 CROSS-ASSEMBLER   VERSION 1.5.3
      16A2 0000 
      16A4 0000 
      16A6 0000 
-     16A8 0000 
-     16AA 0000 
-     16AC 0000 
-     16AE 0000 
-     16B0 0000 
-     16B2 0000 
-     16B4 0000 
-     16B6 0000 
-     16B8 0000 
-     16BA 0000 
-     16BC 0000 
-     16BE 0000 
-     16C0 0000 
-     16C2 0000 
-     16C4 0000 
-     16C6 0000 
-     16C8 0000 
-     16CA 0000 
-     16CC 0000 
-     16CE 0000 
-     16D0 0000 
-     16D2 0000 
-     16D4 0000 
-     16D6 0000 
-     16D8 0000 
+     16A8 0103 
+     16AA 0303 
+     16AC 0303 
+     16AE 0303 
+     16B0 FC04 
+     16B2 0505 
+     16B4 0406 
+     16B6 020C 
+     16B8 0080 
+     16BA 4040 
+     16BC 8000 
+     16BE 0C12 
+     16C0 FF80 
+     16C2 C040 
+     16C4 6038 
+     16C6 1C0E 
+     16C8 1921 
+     16CA 213D 
+     16CC 0505 
+     16CE 05C4 
+     16D0 BA8A 
+     16D2 8ABA 
+     16D4 A1A1 
+     16D6 A122 
+     16D8 0301 
      16DA 0000 
      16DC 0000 
      16DE 0000 
-     16E0 0000 
-     16E2 0000 
-     16E4 0000 
-     16E6 0000 
-     16E8 0000 
-     16EA 0000 
-     16EC 0000 
-     16EE 0000 
-     16F0 0000 
-     16F2 0000 
-     16F4 0000 
-     16F6 0000 
+     16E0 E231 
+     16E2 1018 
+     16E4 0C07 
+     16E6 0300 
+     16E8 4C90 
+     16EA 2040 
+     16EC 4020 
+     16EE E000 
+     16F0 3C42 
+     16F2 99A1 
+     16F4 A199 
+     16F6 423C 
      16F8 0000 
      16FA 0000 
      16FC 0000 
@@ -3245,285 +3256,344 @@ XAS99 CROSS-ASSEMBLER   VERSION 1.5.3
      173C 0000 
      173E 0000 
      1740 0000 
-     1742 2020 
-     1744 2020 
-     1746 2020 
-     1748 0020 
-     174A 4848 
-     174C 4800 
+     1742 0000 
+     1744 0000 
+     1746 0000 
+     1748 0000 
+     174A 0000 
+     174C 0000 
      174E 0000 
      1750 0000 
-     1752 0048 
-     1754 FC48 
-     1756 48FC 
-     1758 4800 
-     175A 103C 
-     175C 5038 
-     175E 1478 
-     1760 1000 
-     1762 C0C4 
-     1764 0810 
-     1766 2040 
-     1768 8C0C 
-     176A 6090 
-     176C 9060 
-     176E 6094 
-     1770 8874 
-     1772 0810 
-     1774 2000 
+     1752 0000 
+     1754 0000 
+     1756 0000 
+     1758 0000 
+     175A 0000 
+     175C 0000 
+     175E 0000 
+     1760 0000 
+     1762 0000 
+     1764 0000 
+     1766 0000 
+     1768 0000 
+     176A 0000 
+     176C 0000 
+     176E 0000 
+     1770 0000 
+     1772 0000 
+     1774 0000 
      1776 0000 
      1778 0000 
-     177A 0810 
-     177C 2020 
-     177E 2020 
-     1780 1008 
-     1782 4020 
-     1784 1010 
-     1786 1010 
-     1788 2040 
+     177A 0000 
+     177C 0000 
+     177E 0000 
+     1780 0000 
+     1782 0000 
+     1784 0000 
+     1786 0000 
+     1788 0000 
      178A 0000 
-     178C 4830 
-     178E CC30 
-     1790 4800 
+     178C 0000 
+     178E 0000 
+     1790 0000 
      1792 0000 
-     1794 1010 
-     1796 7C10 
-     1798 1000 
+     1794 0000 
+     1796 0000 
+     1798 0000 
      179A 0000 
      179C 0000 
-     179E 0030 
-     17A0 1020 
+     179E 0000 
+     17A0 0000 
      17A2 0000 
      17A4 0000 
-     17A6 7C00 
-     17A8 0000 
-     17AA 0000 
-     17AC 0000 
-     17AE 0000 
-     17B0 3030 
-     17B2 0004 
-     17B4 0810 
-     17B6 2040 
-     17B8 8000 
-     17BA 3844 
-     17BC 4444 
-     17BE 4444 
-     17C0 4438 
-     17C2 1030 
-     17C4 5010 
-     17C6 1010 
-     17C8 107C 
-     17CA 7884 
-     17CC 0408 
-     17CE 1020 
-     17D0 40FC 
-     17D2 7884 
-     17D4 0438 
-     17D6 0404 
-     17D8 8478 
-     17DA 0C14 
-     17DC 2444 
-     17DE 84FC 
-     17E0 0404 
-     17E2 F880 
-     17E4 80F8 
-     17E6 0404 
-     17E8 8478 
-     17EA 7880 
-     17EC 80F8 
-     17EE 8484 
-     17F0 8478 
-     17F2 FC04 
-     17F4 0408 
-     17F6 1020 
-     17F8 4040 
-     17FA 7884 
-     17FC 8478 
-     17FE 8484 
-     1800 8478 
-     1802 7884 
-     1804 8484 
-     1806 7C04 
-     1808 0478 
-     180A 0030 
-     180C 3000 
-     180E 0030 
-     1810 3000 
-     1812 0030 
-     1814 3000 
-     1816 0030 
-     1818 1020 
-     181A 0008 
-     181C 1020 
-     181E 4020 
-     1820 1008 
-     1822 0000 
-     1824 007C 
-     1826 007C 
-     1828 0000 
-     182A 0040 
-     182C 2010 
-     182E 0810 
-     1830 2040 
-     1832 3844 
-     1834 0408 
-     1836 1010 
-     1838 0010 
-     183A 0078 
-     183C 849C 
-     183E A498 
-     1840 807C 
-     1842 7884 
-     1844 8484 
-     1846 FC84 
-     1848 8484 
-     184A F844 
-     184C 4478 
-     184E 4444 
-     1850 44F8 
-     1852 7884 
-     1854 8080 
-     1856 8080 
-     1858 8478 
-     185A F844 
-     185C 4444 
-     185E 4444 
-     1860 44F8 
-     1862 FC80 
-     1864 80F0 
-     1866 8080 
-     1868 80FC 
-     186A FC80 
-     186C 80F0 
-     186E 8080 
-     1870 8080 
-     1872 7884 
-     1874 8080 
-     1876 9C84 
-     1878 8478 
-     187A 8484 
-     187C 84FC 
-     187E 8484 
-     1880 8484 
-     1882 7C10 
-     1884 1010 
-     1886 1010 
-     1888 107C 
-     188A 0404 
-     188C 0404 
-     188E 0484 
-     1890 8478 
-     1892 8890 
-     1894 A0C0 
-     1896 A090 
-     1898 8884 
-     189A 4040 
-     189C 4040 
-     189E 4040 
-     18A0 407C 
-     18A2 84CC 
-     18A4 B484 
-     18A6 8484 
-     18A8 8484 
-     18AA 84C4 
-     18AC A494 
-     18AE 8C84 
-     18B0 8484 
-     18B2 FC84 
-     18B4 8484 
-     18B6 8484 
-     18B8 84FC 
-     18BA F884 
-     18BC 8484 
-     18BE F880 
-     18C0 8080 
-     18C2 7884 
-     18C4 8484 
-     18C6 8494 
-     18C8 8874 
-     18CA F884 
-     18CC 8484 
-     18CE F890 
-     18D0 8884 
-     18D2 7884 
-     18D4 8078 
-     18D6 0404 
-     18D8 8478 
-     18DA 7C10 
-     18DC 1010 
-     18DE 1010 
-     18E0 1010 
-     18E2 8484 
+     17A6 0000 
+     17A8 2020 
+     17AA 2020 
+     17AC 2020 
+     17AE 0020 
+     17B0 4848 
+     17B2 4800 
+     17B4 0000 
+     17B6 0000 
+     17B8 0048 
+     17BA FC48 
+     17BC 48FC 
+     17BE 4800 
+     17C0 103C 
+     17C2 5038 
+     17C4 1478 
+     17C6 1000 
+     17C8 C0C4 
+     17CA 0810 
+     17CC 2040 
+     17CE 8C0C 
+     17D0 6090 
+     17D2 9060 
+     17D4 6094 
+     17D6 8874 
+     17D8 0810 
+     17DA 2000 
+     17DC 0000 
+     17DE 0000 
+     17E0 0810 
+     17E2 2020 
+     17E4 2020 
+     17E6 1008 
+     17E8 4020 
+     17EA 1010 
+     17EC 1010 
+     17EE 2040 
+     17F0 0000 
+     17F2 4830 
+     17F4 CC30 
+     17F6 4800 
+     17F8 0000 
+     17FA 1010 
+     17FC 7C10 
+     17FE 1000 
+     1800 0000 
+     1802 0000 
+     1804 0030 
+     1806 1020 
+     1808 0000 
+     180A 0000 
+     180C 7C00 
+     180E 0000 
+     1810 0000 
+     1812 0000 
+     1814 0000 
+     1816 3030 
+     1818 0004 
+     181A 0810 
+     181C 2040 
+     181E 8000 
+     1820 3844 
+     1822 4444 
+     1824 4444 
+     1826 4438 
+     1828 1030 
+     182A 5010 
+     182C 1010 
+     182E 107C 
+     1830 7884 
+     1832 0408 
+     1834 1020 
+     1836 40FC 
+     1838 7884 
+     183A 0438 
+     183C 0404 
+     183E 8478 
+     1840 0C14 
+     1842 2444 
+     1844 84FC 
+     1846 0404 
+     1848 F880 
+     184A 80F8 
+     184C 0404 
+     184E 8478 
+     1850 7880 
+     1852 80F8 
+     1854 8484 
+     1856 8478 
+     1858 FC04 
+     185A 0408 
+     185C 1020 
+     185E 4040 
+     1860 7884 
+     1862 8478 
+     1864 8484 
+     1866 8478 
+     1868 7884 
+     186A 8484 
+     186C 7C04 
+     186E 0478 
+     1870 0030 
+     1872 3000 
+     1874 0030 
+     1876 3000 
+     1878 0030 
+     187A 3000 
+     187C 0030 
+     187E 1020 
+     1880 0008 
+     1882 1020 
+     1884 4020 
+     1886 1008 
+     1888 0000 
+     188A 007C 
+     188C 007C 
+     188E 0000 
+     1890 0040 
+     1892 2010 
+     1894 0810 
+     1896 2040 
+     1898 3844 
+     189A 0408 
+     189C 1010 
+     189E 0010 
+     18A0 0078 
+     18A2 849C 
+     18A4 A498 
+     18A6 807C 
+     18A8 7884 
+     18AA 8484 
+     18AC FC84 
+     18AE 8484 
+     18B0 F844 
+     18B2 4478 
+     18B4 4444 
+     18B6 44F8 
+     18B8 7884 
+     18BA 8080 
+     18BC 8080 
+     18BE 8478 
+     18C0 F844 
+     18C2 4444 
+     18C4 4444 
+     18C6 44F8 
+     18C8 FC80 
+     18CA 80F0 
+     18CC 8080 
+     18CE 80FC 
+     18D0 FC80 
+     18D2 80F0 
+     18D4 8080 
+     18D6 8080 
+     18D8 7884 
+     18DA 8080 
+     18DC 9C84 
+     18DE 8478 
+     18E0 8484 
+     18E2 84FC 
      18E4 8484 
      18E6 8484 
-     18E8 8478 
-     18EA 4444 
-     18EC 4444 
-     18EE 2828 
-     18F0 1010 
-     18F2 8484 
-     18F4 8484 
-     18F6 84B4 
-     18F8 CC84 
-     18FA 8484 
-     18FC 4830 
-     18FE 3048 
-     1900 8484 
-     1902 4444 
-     1904 4428 
-     1906 1010 
-     1908 1010 
-     190A FC04 
-     190C 0810 
-     190E 2040 
-     1910 80FC 
-     1912 3820 
-     1914 2020 
-     1916 2020 
-     1918 2038 
-     191A 0080 
-     191C 4020 
-     191E 1008 
-     1920 0400 
-     1922 7010 
-     1924 1010 
-     1926 1010 
-     1928 1070 
-     192A 1028 
-     192C 4482 
-     192E 0000 
-     1930 0000 
-     1932 0000 
-     1934 0000 
-     1936 0000 
-     1938 00FC 
-     193A 0000 
-     193C 0000 
-     193E 0000 
-     1940 0000 
-     1942 0000 
-     1944 0000 
-     1946 0000 
-     1948 0000 
-0706               DUMPEND
-0707 194A ....     TMS99105  TEXT  'TMS99105 AND FPGA AT WORK! '
-0708                     BYTE 0
-0709                     EVEN
-0710 1966 ....     SPACES  TEXT '  '
-0711 1968 0047             BYTE 0
-0712 1969 ....     GTT		TEXT 'GROM CHECKSUM TEST:'
-0713 197C 0A0D     			BYTE 10,13,0
-     197E 0043 
-0714 197F ....     CRU0STR TEXT 'CRU FROM 0: '
-0715                     BYTE 0
-0716                     EVEN
-0717               GROMTESTS
-0718 198C ....           TEXT 'GROM READ TEST:1234>'
-0719 19A0 0000           BYTE  0
-0720                     EVEN
-0721               HELLO
-0722 19A2 ....     	  TEXT '      SOFTCPU RUNNING'
-0723               	  BYTE 0
-0724               	  EVEN
-0725               
-0726               SLAST  END  BOOT
+     18E8 7C10 
+     18EA 1010 
+     18EC 1010 
+     18EE 107C 
+     18F0 0404 
+     18F2 0404 
+     18F4 0484 
+     18F6 8478 
+     18F8 8890 
+     18FA A0C0 
+     18FC A090 
+     18FE 8884 
+     1900 4040 
+     1902 4040 
+     1904 4040 
+     1906 407C 
+     1908 84CC 
+     190A B484 
+     190C 8484 
+     190E 8484 
+     1910 84C4 
+     1912 A494 
+     1914 8C84 
+     1916 8484 
+     1918 FC84 
+     191A 8484 
+     191C 8484 
+     191E 84FC 
+     1920 F884 
+     1922 8484 
+     1924 F880 
+     1926 8080 
+     1928 7884 
+     192A 8484 
+     192C 8494 
+     192E 8874 
+     1930 F884 
+     1932 8484 
+     1934 F890 
+     1936 8884 
+     1938 7884 
+     193A 8078 
+     193C 0404 
+     193E 8478 
+     1940 7C10 
+     1942 1010 
+     1944 1010 
+     1946 1010 
+     1948 8484 
+     194A 8484 
+     194C 8484 
+     194E 8478 
+     1950 4444 
+     1952 4444 
+     1954 2828 
+     1956 1010 
+     1958 8484 
+     195A 8484 
+     195C 84B4 
+     195E CC84 
+     1960 8484 
+     1962 4830 
+     1964 3048 
+     1966 8484 
+     1968 4444 
+     196A 4428 
+     196C 1010 
+     196E 1010 
+     1970 FC04 
+     1972 0810 
+     1974 2040 
+     1976 80FC 
+     1978 3820 
+     197A 2020 
+     197C 2020 
+     197E 2038 
+     1980 0080 
+     1982 4020 
+     1984 1008 
+     1986 0400 
+     1988 7010 
+     198A 1010 
+     198C 1010 
+     198E 1070 
+     1990 1028 
+     1992 4482 
+     1994 0000 
+     1996 0000 
+     1998 0000 
+     199A 0000 
+     199C 0000 
+     199E 00FC 
+     19A0 0000 
+     19A2 0000 
+     19A4 0000 
+     19A6 0000 
+     19A8 0000 
+     19AA 0000 
+     19AC 0000 
+     19AE 0000 
+0736               DUMPEND
+0737 19B0 ....     TMS99105  TEXT  'TMS99105 AND FPGA AT WORK! '
+0738                     BYTE 0
+0739                     EVEN
+0740 19CC ....     SPACES  TEXT '  '
+0741 19CE 0047             BYTE 0
+0742 19CF ....     GTT		TEXT 'GROM CHECKSUM TEST:'
+0743 19E2 0A0D     			BYTE 10,13,0
+     19E4 0043 
+0744 19E5 ....     CRU0STR TEXT 'CRU FROM 0: '
+0745                     BYTE 0
+0746                     EVEN
+0747               GROMTESTS
+0748 19F2 ....           TEXT 'GROM READ TEST:1234>'
+0749 1A06 0000           BYTE  0
+0750                     EVEN
+0751               HELLO
+0752 1A08 ....         TEXT '      TMS99105'
+0753               ;	  TEXT '      SOFTCPU RUNNING'
+0754 1A16 0000     	  BYTE 0
+0755               	  EVEN
+0756 1A18 ....     FLAGS_STRING TEXT ' STATUS REGISTER'
+0757 1A28 0000     	  BYTE 0
+0758               	  EVEN
+0759               
+0760 1A2A ....     TEST_TMS99110 TEXT 'TESTING TMS99110 INSTRUCTION'
+0761 1A46 0000           BYTE 0
+0762                     EVEN
+0763               
+0764               SLAST  END  BOOT

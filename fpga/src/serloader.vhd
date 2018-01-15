@@ -68,13 +68,20 @@ architecture serloader_Behavioral of serloader is
 	signal mychar 			: integer;
 	signal mode				: std_logic_vector(1 downto 0);		-- repeat mode, autoincrement mode
 	signal rpt_count 		: std_logic_vector(15 downto 0);
-
-	-- uart routing
+	
+	-- general communication signals, connected to either UART or SPI
 	signal rx_data 	: STD_LOGIC_VECTOR (7 downto 0);	-- data from serial port
    signal rx_new_data: STD_LOGIC;
 	signal tx_data 	: STD_LOGIC_VECTOR (7 downto 0);	-- data to serial port
 	signal tx_now		: STD_LOGIC;							-- transmit tx_data NOW
 	signal tx_busy		: STD_LOGIC;							-- transmitter is busy
+	
+	-- uart routing
+	signal uart_rx_data 	: STD_LOGIC_VECTOR (7 downto 0);	-- data from serial port
+   signal uart_rx_new_data: STD_LOGIC;
+	signal uart_tx_data 	: STD_LOGIC_VECTOR (7 downto 0);	-- data to serial port
+	signal uart_tx_now	: STD_LOGIC;							-- transmit tx_data NOW
+	signal uart_tx_busy	: STD_LOGIC;							-- transmitter is busy
 
 	-- SPI routing
 	signal spi_rx_data 	: STD_LOGIC_VECTOR (7 downto 0);	-- data from serial port
@@ -382,22 +389,31 @@ begin
 		end if;
 	end process;
 	
+--	------------------------------
+--	-- connect to uart
+--	rx_data 		<= uart_rx_data;
+--	rx_new_data	<= uart_rx_new_data;
+--	tx_busy		<= uart_tx_busy;
+--	uart_tx_data <= tx_data;
+--	uart_tx_now  <= tx_now;		
+--	------------------------------
+	
 	uart_tx: serial_tx port map (
 		clk => clk,
 		rst => rst,
 		tx =>  tx,
 		block_tx => '0',
-		busy => tx_busy,
-		data => tx_data,
-		new_data => tx_now
+		busy => uart_tx_busy,
+		data => uart_tx_data,
+		new_data => uart_tx_now
 		);
 		
 	uart_receiver : serial_rx port map (
 		clk 	=> clk,
 		rst 	=> rst,
 		rx 	=> rx,
-		data 	=> rx_data,
-		new_data => rx_new_data
+		data 	=> uart_rx_data,
+		new_data => uart_rx_new_data
 		);
 	
 	spi_tx_data <= x"00";
@@ -412,12 +428,12 @@ begin
            miso 		=> spi_miso,
 			  spi_rq 	=> spi_rq,
 			  
-           rx_data 	=> spi_rx_data,
-			  rx_ready 	=> spi_rx_ready,
+           rx_data 	=> rx_data, -- spi_rx_data,
+			  rx_ready 	=> rx_new_data, -- spi_rx_ready,
 			  
-           tx_data 	=> spi_tx_data,
-			  tx_busy 	=> spi_tx_busy,
-			  tx_new_data => spi_tx_now -- launch transmission of new data
+           tx_data 	=> tx_data, -- spi_tx_data,
+			  tx_busy 	=> tx_busy, -- spi_tx_busy,
+			  tx_new_data => tx_now -- spi_tx_now -- launch transmission of new data
 		); 
 	
 end serloader_Behavioral;

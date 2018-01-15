@@ -53,18 +53,18 @@ architecture spi_slave_Behavioral of spi_slave is
 -- Signals for LPC1343 SPI controller receiver
 -------------------------------------------------------------------------------	
 	signal lastCS : std_logic_vector(7 downto 0) := x"00";
-	signal spi_tx_shiter : std_logic_vector(7 downto 0);
+	signal spi_tx_shifter : std_logic_vector(7 downto 0);
 	signal spi_bitcount : integer range 0 to 7;
 	signal spi_ready : boolean := false;
 	signal spi_test_count : integer range 0 to 255 := 0;
 	signal spi_clk_sampler : std_logic_vector(2 downto 0) := "000";
 	signal spi_rx_bit : std_logic;	
 	signal wait_clock : boolean := false;
+	signal transmitter_busy : std_logic;
 begin
 	spi_rq <= '1' when spi_ready else '0' ; -- indicates data well received / sent
-	miso <= spi_tx_shiter(7) when cs_n='0' else 'Z';
-	tx_busy <= '0';
-
+	miso <= spi_tx_shifter(7) when cs_n='0' else 'Z';
+	tx_busy <= transmitter_busy;
 	process(clk)
 	begin
 		if rising_edge(clk) then
@@ -74,7 +74,8 @@ begin
 				spi_test_count <= 0;
 				spi_clk_sampler <= "000";
 				wait_clock <= false;
-	
+				transmitter_busy <= '1';
+				spi_tx_shifter <= x"FF";
 			else
 				spi_clk_sampler <= spi_clk_sampler(1 downto 0) & spi_clk;
 				lastCS <= lastCS(6 downto 0) & cs_n;
@@ -83,8 +84,8 @@ begin
 					-- falling edge of CS
 						spi_bitcount <= 0;
 						spi_ready <= false;
-						spi_test_count <= spi_test_count + 1;
-						spi_tx_shiter <= std_logic_vector(to_unsigned(spi_test_count,8));
+						-- spi_test_count <= spi_test_count + 1;
+						-- spi_tx_shifter <= std_logic_vector(to_unsigned(spi_test_count,8));
 						wait_clock <= true;
 				end if;
 				if spi_clk_sampler = "011" and lastCS(0) = '0' and cs_n='0' then 
@@ -95,19 +96,26 @@ begin
 				end if;
 				if spi_clk_sampler = "110"  and lastCS(0) = '0' and cs_n='0' then 
 					-- falling edge of clock, transmit shift
-					spi_tx_shiter <= spi_tx_shiter(6 downto 0) & spi_rx_bit;
+					spi_tx_shifter <= spi_tx_shifter(6 downto 0) & spi_rx_bit;
 					spi_bitcount <= spi_bitcount + 1;
 					if spi_bitcount = 7 then
 						spi_bitcount <= 0;
 						spi_ready <= true;
 						
-						rx_data <= spi_tx_shiter(6 downto 0) & spi_rx_bit;
+						rx_data <= spi_tx_shifter(6 downto 0) & spi_rx_bit;
 						rx_ready <= '1';	-- a single clock cycle pulse
+						
+						transmitter_busy <= '0';	-- ready transmit a byte (if there are subsequent clocks)
 					end if;
 				end if;
 				
-			end if;
-		end if;
+				if transmitter_busy = '0' and tx_new_data = '1' then
+					transmitter_busy <= '1';
+					spi_tx_shifter <= tx_data;
+				end if;
+				
+			end if; -- reset
+		end if;	-- rising_edge
 	end process;
 
 end spi_slave_Behavioral;

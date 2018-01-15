@@ -221,6 +221,36 @@ GROM1
       AI    R0,>2000    ; next GROM
       DEC   R9
       JNE   -!gromloop
+; Attempt to run a TMS99110 instruction
+      LI    R1,>180     ; Halfway through the screen
+      MOV   R1,@PRINTWS   
+      .printString TEST_TMS99110
+      .printCrLf
+      LI   R5,>1234    Arbitrary integer.
+*       CIR  R5          Convert integer in R5 to real and store in FPAC (R0, R1).       
+*       Opcode in binary: 0000 1100 1000 0101
+      DATA >0C85       Opcode for CIR instruction.
+*       XOP @CRLF,14
+*       XOP R0,10        Print contents of R0 followed by CRLF.
+*       XOP @CRLF,14
+*       XOP R1,10        Print contents of R1 followed by CRLF.
+*       XOP @CRLF,14
+      .printNumber R0
+      .printNumber R1
+      .printCrLf
+* Next let's make LDS "load distant source operation"      
+      STST  R0    ; read flag register
+      .printNumber R0
+      .printString FLAGS_STRING
+      .printCrLf
+*     LDS
+      DATA >0780  ; LDS opcode
+      MOV  @>2000,R0    ; Distant load
+      MOV  @>2000,R1    ; close load
+      .printNumber R0
+      .printNumber R1
+      .printCrLf
+      
 ; Try to read keyboard button '1', but first enable VDP interrupts
       CLR   R12         ; CRU pointer
       SBZ   0           ; Make sure we are not in timer mode
@@ -719,9 +749,17 @@ GROMTESTS
       BYTE  0
       EVEN
 HELLO
-	  TEXT '      SOFTCPU RUNNING'
+    TEXT '      TMS99105'
+;	  TEXT '      SOFTCPU RUNNING'
 	  BYTE 0
 	  EVEN
+FLAGS_STRING TEXT ' STATUS REGISTER'
+	  BYTE 0
+	  EVEN
+    
+TEST_TMS99110 TEXT 'TESTING TMS99110 INSTRUCTION'
+      BYTE 0
+      EVEN
 
 SLAST  END  BOOT
 
