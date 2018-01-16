@@ -282,6 +282,9 @@ architecture Behavioral of ep994a is
 	signal cpu_mem_write_pending : std_logic;
 	-- counter of alatch pulses to produce a sign of life of the CPU
 	signal alatch_counter : std_logic_vector(19 downto 0);
+	-- macrostore detection logic
+	signal macrostore : std_logic_vector(3 downto 0) ;
+	signal macrostore_cycle : std_logic;
 
 -------------------------------------------------------------------------------	
 	component pager612
@@ -431,6 +434,9 @@ begin
 				alatch_counter <= (others => '0');
 				
 				cpu_mem_write_pending <= '0';
+				
+				 macrostore <= (others => '0');
+				 macrostore_cycle  <= '0';
 			else
 				-- processing of normal clocks here. We run at 100MHz.
 				---------------------------------------------------------
@@ -460,6 +466,12 @@ begin
 				--	the pageable RAM "under" the DSR space is available.
 				-- Thus the entire 64K is pageable.
 				---------------------------------------------------------
+				macrostore(3 downto 1) <= macrostore(2 downto 0);
+				if MEM_n = '1' and BST2='0' and BST1='0' then
+					macrostore(0) <= '1';
+				else
+					macrostore(0) <= '0';
+				end if;
 				
 				-- Drive SRAM addresses outputs synchronously 
 				if cpu_access = '1' then
@@ -468,6 +480,8 @@ begin
 					if cpu_addr(15 downto 12) = x"6" and cpu_addr(0)='1' then
 						-- Direct this access to GROM area i.e. to 0x86XXX
 						sram_addr_bus <= x"8" & cpu_addr(15 downto 1);
+					elsif macrostore_cycle = '1' then
+						sram_addr_bus <= x"A" & cpu_addr(15 downto 1);		-- macrostore memory
 					elsif cpu_addr(15 downto 8) = x"98" and cpu_addr(1)='0' then
 						sram_addr_bus <= x"8" & grom_ram_addr(15 downto 1);	-- 0x80000 GROM
 					elsif cartridge_cs='1' and sams_regs(5)='0' then
@@ -527,6 +541,15 @@ begin
 							debug_sram_ce0 <= '0';	-- init read cycle
 							debug_sram_oe <= '0';
 							mem_drive_bus <= '0';
+							macrostore_cycle <= '0';
+						elsif MEM_n = '1' and macrostore = "0111" and RD_n='0' then
+							-- make a macrostore access
+							cpu_access <= '1';	
+							mem_state <= cpu_rd0;
+							debug_sram_ce0 <= '0';	-- init read cycle
+							debug_sram_oe <= '0';
+							mem_drive_bus <= '0';
+							macrostore_cycle <= '1';
 						elsif cpu_mem_write_pending = '1' then
 							-- init CPU write cycle
 							cpu_access <= '1';
