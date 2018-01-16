@@ -245,8 +245,8 @@ GROM1
       .printCrLf
 *     LDS
       DATA >0780  ; LDS opcode
-      MOV  @>2000,R0    ; Distant load
-      MOV  @>2000,R1    ; close load
+      MOV  @>6000,R0    ; Distant load
+      MOV  @>6000,R1    ; close load
       .printNumber R0
       .printNumber R1
       .printCrLf

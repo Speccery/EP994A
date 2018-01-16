@@ -26,6 +26,7 @@ set PORT=-4
 memloader %PORT% 100008 cpu_reset_on.bin
 memloader %PORT% %CONSOLE_ROM% boot99105_0000.bin
 memloader %PORT% %CONSOLE_GROM% 994aGROM.Bin
+memloader %PORT% %CART_GROM% TI-InvaG.bin
 REM memloader %PORT% 100000 keyinit.bin
 REM  Defender
 rem memloader %PORT% %CART_ROM% Defender.C.bin
