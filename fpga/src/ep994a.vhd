@@ -382,8 +382,12 @@ begin
 						
 	sram_16bit_read_bus <= SRAM_DAT(15 downto 0) when sram_addr_bus(0)='0' else SRAM_DAT(31 downto 16);
 						
-	SRAM_CE0	<=		(debug_sram_ce0 or sram_addr_bus(0))       when cpu_access = '0' else (MEM_n or sram_addr_bus(0));
-	SRAM_CE1	<= 	(debug_sram_ce0 or (not sram_addr_bus(0))) when cpu_access = '0' else (MEM_n or (not sram_addr_bus(0)));
+	SRAM_CE0	<=		(debug_sram_ce0 or sram_addr_bus(0))       when cpu_access = '0' else 
+						(MEM_n or sram_addr_bus(0)) when macrostore_cycle='0' else
+						sram_addr_bus(0);	-- macrostore_cycle = '1'
+	SRAM_CE1	<= 	(debug_sram_ce0 or (not sram_addr_bus(0))) when cpu_access = '0' else 
+						(MEM_n or (not sram_addr_bus(0))) when macrostore_cycle='0' else
+						not sram_addr_bus(0);	-- macrostore_cycle = '1'
 	SRAM_WE	<=		debug_sram_we;  -- when cpu_access = '0' else WE_n; 
 	SRAM_OE	<=		debug_sram_oe; -- when cpu_access = '0' else RD_n; 	
 	
@@ -522,7 +526,8 @@ begin
 						mem_read_ack <= '0';
 						mem_write_ack <= '0';
 						cpu_access <= '1';		
-						DEBUG2 <= '0';						
+						DEBUG2 <= '0';	
+						macrostore_cycle <= '0';
 						if mem_write_rq = '1' and mem_addr(20)='0' and alatch_sampler(1 downto 0) = "01" then
 							-- normal memory write
 							sram_addr_bus <= mem_addr(19 downto 1);	-- setup address
@@ -542,7 +547,7 @@ begin
 							debug_sram_oe <= '0';
 							mem_drive_bus <= '0';
 							macrostore_cycle <= '0';
-						elsif MEM_n = '1' and macrostore = "0111" and RD_n='0' then
+						elsif MEM_n = '1' and rd_sampler(1 downto 0) = "10" and BST2='0' and BST1='0' then -- macrostore = "0111" and RD_n='0' then
 							-- make a macrostore access
 							cpu_access <= '1';	
 							mem_state <= cpu_rd0;
