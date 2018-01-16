@@ -221,6 +221,8 @@ GROM1
       AI    R0,>2000    ; next GROM
       DEC   R9
       JNE   -!gromloop
+      
+;-----------------------------------------------
 ; Attempt to run a TMS99110 instruction
       LI    R1,>180     ; Halfway through the screen
       MOV   R1,@PRINTWS   
@@ -250,6 +252,12 @@ GROM1
       .printNumber R0
       .printNumber R1
       .printCrLf
+; Test macrostore access with MID 0 (opcode 0)
+			DATA >0000
+			.printString GOTBACK
+      .printCrLf
+;-----------------------------------------------
+
       
 ; Try to read keyboard button '1', but first enable VDP interrupts
       CLR   R12         ; CRU pointer
@@ -760,6 +768,9 @@ FLAGS_STRING TEXT ' STATUS REGISTER'
 TEST_TMS99110 TEXT 'TESTING TMS99110 INSTRUCTION'
       BYTE 0
       EVEN
-
+GOTBACK TEXT 'RETURNED AFTER MACROSTORE TEST'
+			BYTE 0
+			EVEN
+			
 SLAST  END  BOOT
 
