@@ -885,7 +885,7 @@ architecture Behavioral of ep994a is
 				
 				-- CRU cycle to the TMS9902
 				tms9902_nCE <= '1';
-				if MEM_n='1' and cpu_addr(15 downto 8) & "01XXXXXX" =x"1340" then
+				if MEM_n='1' and cpu_addr(15 downto 8) = x"13" and cpu_addr(7 downto 6) = "01" then -- x"1340" base address
 					tms9902_nCE <= '0';
 				end if;				
 				
