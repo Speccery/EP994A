@@ -40,10 +40,10 @@ end scratchpad;
 
 architecture Behavioral of scratchpad is
 --	signal we : std_logic_vector(1 downto 0);
-	signal dip : std_logic_vector(1 downto 0);
+--	signal dip : std_logic_vector(1 downto 0);
 	signal ram_addr : std_logic_vector(9 downto 0);
 begin
-	dip <= "00";
+--	dip <= "00";
 	ram_addr <= "000" & addr;
 
 	small_ram : RAMB16_S18 port map(

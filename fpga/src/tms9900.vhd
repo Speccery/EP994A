@@ -41,7 +41,7 @@ entity tms9900 is Port (
 	data_out : out  STD_LOGIC_VECTOR (15 downto 0);
 	rd 		: out  STD_LOGIC;		-- workin read with Pepino 40ns
 	wr 		: out  STD_LOGIC;		-- working write with Pepino 60ns
-	ready 	: in  STD_LOGIC;		-- NOT USED: memory read input, a high terminates a memory cycle 
+	-- ready 	: in  STD_LOGIC;		-- NOT USED: memory read input, a high terminates a memory cycle 
 	iaq 		: out  STD_LOGIC;
 	as 		: out  STD_LOGIC;		-- address strobe, when high new address is valid, starts a memory cycle
 --	test_out : out STD_LOGIC_VECTOR (15 downto 0);
@@ -344,7 +344,7 @@ begin
 		end if;
 	end process;
 
-	process(clk, reset) is
+	process(clk, reset, hold) is
 	variable offset : std_logic_vector(15 downto 0);
 	variable take_branch : boolean;
 	variable dec_shift_count   : boolean := False;

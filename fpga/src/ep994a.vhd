@@ -79,6 +79,10 @@ entity ep994a is
 			  SWI       : in std_logic_vector(7 downto 0);
 			  -- SWI 0: when set, CPU will automatically be taken out of reset after copying FLASH to RAM.
 			  
+			  -- RS232 serial port with PNR's TMS9902 design
+			  TMS9902TX : out std_logic;
+			  TMS9902RX : in std_logic;
+			  
 			  -- AUDIO
 			  AUDIO_L	: out std_logic;
 			  AUDIO_R	: out std_logic;
@@ -201,7 +205,7 @@ architecture Behavioral of ep994a is
 	signal cru_read_bit		: std_logic;
 	
 	-- Reset control
-	signal cpu_reset_ctrl	: std_logic_vector(7 downto 0);	-- 8 control signals, bit 0 = reset, bit 1=rom bank reset, bit 2=mask interrupts when cleared
+	signal cpu_reset_ctrl	: std_logic_vector(7 downto 0) := x"00";	-- 8 control signals, bit 0 = reset, bit 1=rom bank reset, bit 2=mask interrupts when cleared
 	signal cpu_single_step  : std_logic_vector(7 downto 0) := x"00";	-- single stepping. bit 0=1 single step mode, bit 1=1 advance one instruction	
 	
 	-- Module port banking
@@ -230,14 +234,7 @@ architecture Behavioral of ep994a is
 	-- signal pager_extended   : std_logic;
 	
 	-- TMS99105 Shield control latch signals (written to control latch during control cycle)
---	signal conl_led1  : std_logic;	-- IO8P - indata[7]
---	signal conl_led2  : std_logic;	-- IO7P - indata[6]
-	signal conl_app_n : std_logic;
-	signal conl_ready : std_logic;
-	signal conl_hold  : std_logic;
-	signal conl_nmi   : std_logic;
 	signal conl_int   : std_logic;	-- IO2P - indata[1]
-	signal conl_reset : std_logic;	-- IO1P - indata[0]
 	-- TMS99105 Shield control signal buffer read signals (read during control control cycle)
 	signal WE_n			: std_logic;	-- IO1N - indata[8]
 	signal MEM_n		: std_logic;	-- IO2N - indata[9]
@@ -264,7 +261,7 @@ architecture Behavioral of ep994a is
 	signal RD_n   : std_logic;
 	signal cpu_rd : std_logic;
 	signal cpu_wr : std_logic;	
-	signal cpu_ready : std_logic;
+	-- signal cpu_ready : std_logic;
 	signal cpu_iaq : std_logic;
 	signal cpu_as : std_logic;
 	
@@ -296,9 +293,10 @@ architecture Behavioral of ep994a is
 	signal flashAddrOut : STD_LOGIC_VECTOR (19 downto 0);
 	signal flashRamWE_n : std_logic;
 	signal flashLoading : std_logic;
+	signal flashLoadingOut : std_logic;
 	signal lastFlashRamWE_n : std_logic;	-- last state of flashRamWE_n
 	signal lastFlashLoading : std_logic;	-- last state of flashLoading
-		
+	
 -------------------------------------------------------------------------------	
     COMPONENT tms9900
     PORT(
@@ -309,7 +307,7 @@ architecture Behavioral of ep994a is
          data_out : OUT  std_logic_vector(15 downto 0);
          rd : OUT  std_logic;
          wr : OUT  std_logic;
-         ready : IN  std_logic;
+         -- ready : IN  std_logic;
          iaq : OUT  std_logic;
          as : OUT  std_logic;
 --			test_out : OUT  std_logic_vector(15 downto 0);
@@ -382,8 +380,29 @@ architecture Behavioral of ep994a is
 	);
 	end component;
 -------------------------------------------------------------------------------
-begin
-  
+-- TMS9902 by pnr	
+	component tms9902 is
+	port (
+		CLK      : in  std_logic;
+		nRTS     : out std_logic;
+		nDSR     : in  std_logic;
+		nCTS     : in  std_logic;
+		nINT     : out std_logic;
+		nCE      : in  std_logic;
+		CRUOUT   : in  std_logic;
+		CRUIN    : out std_logic;
+		CRUCLK   : in  std_logic;
+		XOUT     : out std_logic;
+		RIN      : in  std_logic;
+		S        : in  std_logic_vector(4 downto 0)
+		);
+	end component;
+	
+	signal tms9902_cruin : std_logic;
+	signal tms9902_nCE   : std_logic;
+	signal tms9902_rts_cts : std_logic;begin
+-------------------------------------------------------------------------------
+ 
  clkin1_buf : IBUFG
   port map
    (O => clk_ref_ibuf,
@@ -458,11 +477,6 @@ begin
 	
 	-------------------------------------size
 	
-	-- CPU reset out. If either cpu_reset_ctrl(0) or funky_reset(MSB) is zero, put CPU to reset.
-	real_reset <= funky_reset(funky_reset'length-1) and cpu_reset_ctrl(0);
-	real_reset_n <= not real_reset;
-	conl_reset <= cpu_reset_ctrl(0) and real_reset;
-	
 	cpu_access <= not cpu_holda;	-- CPU owns the bus except when in hold
 	
 	-------------------------------------
@@ -472,10 +486,18 @@ begin
 	-- cartridge memory select
   	cartridge_cs 	<= '1' when MEM_n = '0' and cpu_addr(15 downto 13) = "011" else '0'; -- cartridge_cs >6000..>7FFF
 	
-	process(clk, switch)
+	process(clk, switch, swi)
 	variable ki : integer range 0 to 7;
 	begin
 		if rising_edge(clk) then 	-- our 100 MHz clock
+		
+			-- CPU reset out. If either cpu_reset_ctrl(0) or funky_reset(MSB) is zero, put CPU to reset.
+			-- These are now clocked reset signals.
+			real_reset <= funky_reset(funky_reset'length-1) and cpu_reset_ctrl(0);
+			real_reset_n <= not real_reset;
+			
+			cpu_reset <= not (cpu_reset_ctrl(0) and real_reset and not flashLoading);
+		
 			-- reset generation
 			if switch = '1' then
 				funky_reset <= (others => '0');	-- button on the FPGA board pressed
@@ -496,11 +518,6 @@ begin
 				cru9901 <= x"00000000";
 				cru1100 <= '0';
 				sams_regs <= (others => '0');
-				
-				conl_app_n  <= '1';
-				conl_ready  <= '1';
-				conl_hold 	<= '1';
-				conl_nmi 	<= '1';
 				
 				alatch_counter <= (others => '0');
 				
@@ -866,6 +883,12 @@ begin
 
 				end if;
 				
+				-- CRU cycle to the TMS9902
+				tms9902_nCE <= '1';
+				if MEM_n='1' and cpu_addr(15 downto 8) & "01XXXXXX" =x"1340" then
+					tms9902_nCE <= '0';
+				end if;				
+				
 				-- CRU write cycle to disk control system
 				if MEM_n='1' and cpu_addr(15 downto 1)= x"110" & "000" and go_cruclk = '1' then
 					cru1100 <= cpu_cruout;
@@ -907,6 +930,8 @@ begin
 					cru_read_bit <= cru1100;
 				elsif cpu_addr(15 downto 4) = x"1E0" then
 					cru_read_bit <= sams_regs(to_integer(unsigned(cpu_addr(3 downto 1))));
+				elsif tms9902_cruin = '0' then
+					cru_read_bit <= tms9902_cruin;
 				end if;
 			end if;
 		end if;	-- rising_edge
@@ -934,8 +959,8 @@ begin
 	led(2) <= cpu_holda 		when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) >= "001" else '0';
 	led(3) <= sams_regs(0) 	when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) >= "010" else '0';
 	led(4) <= sams_regs(1) 	when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) >= "011" else '0';
-	led(5) <= cpu_wr   		when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) >= "100" else '0';
-	led(6) <= '1'				when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) >= "101" else '0';
+	led(5) <= flashLoading	when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) >= "100" else '0';
+	led(6) <= real_reset		when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) >= "101" else '0';
 	led(7) <= alatch_counter(19) when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) = "110" else '0';
 
 	
@@ -1049,7 +1074,6 @@ begin
 	WE_n <= not cpu_wr;
 	RD_n <= not cpu_rd;
 	cpu_cruin <= cru_read_bit;
-	cpu_reset <= not (cpu_reset_ctrl(0) and real_reset and not flashLoading);
 	cpu_int_req <= not conl_int and cpu_reset_ctrl(2);	-- cpu_reset_ctrl(2), when cleared, allows us to mask interrupts
 	
 	cpu : tms9900 PORT MAP (
@@ -1060,7 +1084,7 @@ begin
           data_out => data_from_cpu,
           rd => cpu_rd,
           wr => cpu_wr,
-          ready => cpu_ready,
+          -- ready => cpu_ready,
           iaq => cpu_iaq,
           as => cpu_as,
 --			 test_out => test_out,
@@ -1107,12 +1131,30 @@ begin
 				memoryDataOut => flashDataOut,
 				memoryAddr 	=> flashAddrOut,
 				n_ramWE 		=> flashRamWE_n,
-				loading 		=> flashLoading,
+				loading 		=> flashLoadingOut,
 				spi_sclk 	=> FLASH_CK,
 				spi_ss 		=> FLASH_CS,
 				spi_mosi 	=> FLASH_SI,
 				spi_miso 	=> FLASH_SO
 			);
+
+	flashLoading <= flashLoadingOut when SWI(1)='1' else '0';	-- SWI(1)=0 masks flashLoader.
+
+	pnr_tms9902 : tms9902 PORT MAP (
+		CLK 	=> CLK,
+		nRTS 	=> tms9902_rts_cts,  -- out
+		nDSR  => '0', 					-- in
+		nCTS  => tms9902_rts_cts,  -- in, driven by nRTS above
+		nINT  => open, 				-- out
+		nCE   => tms9902_nCE, 		-- in
+		CRUOUT => cpu_cruout, 		-- in
+		CRUIN  => tms9902_cruin, 	-- out
+		CRUCLK => cpu_cruclk, 		-- in
+		XOUT  => TMS9902TX, -- out
+		RIN   => TMS9902RX, -- in
+		S   	=> cpu_addr(5 downto 1)
+	);
+			
 		
 end Behavioral;
 
