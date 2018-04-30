@@ -35,6 +35,10 @@ memloader %PORT% %CART_ROM% zeros8k.bin
 REM clear scratchpad memory
 memloader %PORT% B8300 zeros256.bin
 
+REM Setup TMS99105 for prototyping mode with TMS99110 macro code
+memloader %PORT% A0800 macrorom.bin
+memloader %PORT% A1000 macrostore_1000.bin
+
 REM  CPU out of reset
 memloader %PORT% 100008 cpu_reset_off.bin
 
