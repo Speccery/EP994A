@@ -9,8 +9,23 @@ You need to retain copyright notices in the source code.
 
 Latest changes
 --------------
+Commit 2018-09-22:
+- After a long while worked on the project. This was pretty much trying to remember where I was in the project.
+
+- I synthesized again the master branch and also worked on the soft-cpu-tms9902 branch. The master branch is the branch which supports the TMS99105 CPU on the daughterboard / shield that I designed two years ago. Still works.
+
+- There was some actual progress on the aforementioned **soft-cpu-tms9902** branch. I clarified the naming and processing of reset signals. Thanks to this now two bugs are fixed:
+	- Sound works (again?) now that the audio DAC is not constantly being reset.
+	
+	- The serloader component (handling communication from the host PC over USB serial port to the memory of the TMS9900 via DMA) was being reset by mistake while the CPU was placed to reset. Now if the host PC put the CPU to reset, that reset would also the serloader, effectively preventing any furhter communication with the system. This of course sucks big time, as the main use case for putting the CPU to reset in the first place is to load software to the memory of the TMS9900 system.
+	
+	- I know that my FPGA CPU core has bugs, and I found a repeatable one: running BASIC and doing a simple multiplication with PRINT 1*-1 yields always 1 (plus one) with my FPGA CPU, while an actual TI-99/4A or my TMS99105 FPGA system (i.e. the master branch using real CPU silicon) yields -1 as they should. So this bug can be observed with high level software... There we go. It is a miracle BASIC runs in the first place. The bug is probably related to CPU flag handling. I also have been reported by **pnr** that my divider implementation does not work properly in all cases, so need to check that too.
+	
+Good to be back with the project.
+
+
 Commit 2018-01-03:
-- So I have been very lacy at updating this README file. There has been a ton of changes.
+- So I have been very lazy at updating this README file. There has been a ton of changes.
   Note that there are two branches, master branch contains the **TMS99105** version and soft-cpu contains the **FPGA CPU** version. 
 
 
