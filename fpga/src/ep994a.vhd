@@ -491,12 +491,16 @@ architecture Behavioral of ep994a is
 	begin
 		if rising_edge(clk) then 	-- our 100 MHz clock
 		
-			-- CPU reset out. If either cpu_reset_ctrl(0) or funky_reset(MSB) is zero, put CPU to reset.
-			-- These are now clocked reset signals.
-			real_reset <= funky_reset(funky_reset'length-1) and cpu_reset_ctrl(0);
-			real_reset_n <= not real_reset;
-			
-			cpu_reset <= not (cpu_reset_ctrl(0) and real_reset and not flashLoading);
+			-- EP 2018-09-22 making sense of the reset signals, I also inverted the names.
+			-- We have a bunch of reset signals:
+			--		cold_reset_n 						- when zero we are being cold booted
+			--												- drives reset load from serial flash and serloader
+			--		real_reset and real_reset_n 	- when active we have cold boot OR reset from host
+			-- 	cpu_reset							- (active high) reset CPU
+			real_reset_n <= funky_reset(funky_reset'length-1) and cpu_reset_ctrl(0);	-- when low, we have reset
+			real_reset <= not real_reset_n;			-- when high we have reset
+			cpu_reset <= not (cpu_reset_ctrl(0) and real_reset_n and not flashLoading);
+
 		
 			-- reset generation
 			if switch = '1' then
@@ -940,7 +944,7 @@ architecture Behavioral of ep994a is
 		
 	command_processor : serloader port map (
 		clk 		=> clk,
-		rst 		=> real_reset_n,
+		rst 		=> real_reset,
 		tx			=> txd,
 		rx			=> rxd,
 		mem_addr 		=> mem_addr,
@@ -995,7 +999,7 @@ architecture Behavioral of ep994a is
  	vdp: entity work.tms9918
 		port map(
 		clk 		=> clk,		
-		reset 	=> real_reset_n,	
+		reset 	=> real_reset,	
 		mode 		=> cpu_addr(1),
 		addr		=> cpu_addr(8 downto 1),
 		data_in 	=> data_from_cpu(15 downto 8),
@@ -1024,14 +1028,14 @@ architecture Behavioral of ep994a is
 			rd 		=> grom_rd,
 			selected => grom_selected,	-- output from GROM available, i.e. GROM address is ours
 			mode 		=> cpu_addr(5 downto 1),
-			reset 	=> real_reset_n,
+			reset 	=> real_reset,
 			addr 		=> grom_ram_addr
 		);
 
 	-- sound chip implementation
 	TMS9919_CHIP: entity work.tms9919 port map (
 			clk 		=> clk,
-			reset		=> real_reset_n,
+			reset		=> real_reset,
 			data_in 	=> data_from_cpu(15 downto 8),
 			we			=> tms9919_we,
 			dac_out	=> dac_data
