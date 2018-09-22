@@ -127,6 +127,8 @@ architecture Behavioral of ep994a is
 	signal funky_reset 		: std_logic_vector(15 downto 0) := (others => '0');
 	signal real_reset			: std_logic;
 	signal real_reset_n		: std_logic;
+	signal cold_reset_n		: std_logic;	-- active only during "cold" reset of the system.
+	signal cold_reset			: std_logic;
 	signal mem_data_out 		: std_logic_vector(7 downto 0);
 	signal mem_data_in 		: std_logic_vector(7 downto 0);
 	signal mem_addr			: std_logic_vector(31 downto 0);
@@ -491,25 +493,27 @@ architecture Behavioral of ep994a is
 	begin
 		if rising_edge(clk) then 	-- our 100 MHz clock
 		
-			-- EP 2018-09-22 making sense of the reset signals, I also inverted the names.
+			-- EP 2018-09-22 making sense of the reset signals, I also inverted the names of real_reset
+			-- 	and real_reset_n so that they make more sense now.
 			-- We have a bunch of reset signals:
-			--		cold_reset_n 						- when zero we are being cold booted
-			--												- drives reset load from serial flash and serloader
+			--		cold_reset_n 						- when zero we are being cold booted 
+			--			(drives reset load from serial flash and serloader)
 			--		real_reset and real_reset_n 	- when active we have cold boot OR reset from host
 			-- 	cpu_reset							- (active high) reset CPU
 			real_reset_n <= funky_reset(funky_reset'length-1) and cpu_reset_ctrl(0);	-- when low, we have reset
 			real_reset <= not real_reset_n;			-- when high we have reset
 			cpu_reset <= not (cpu_reset_ctrl(0) and real_reset_n and not flashLoading);
-
+			cold_reset_n <= funky_reset(funky_reset'length-1);
+			cold_reset <= not cold_reset_n;
 		
 			-- reset generation
 			if switch = '1' then
-				funky_reset <= (others => '0');	-- button on the FPGA board pressed
+				funky_reset <= (others => '0');	-- button on the FPGA board pressed -> cold reset
 			else
 				funky_reset <= funky_reset(funky_reset'length-2 downto 0) & '1';
 			end if;
 			-- reset processing
-			if funky_reset(funky_reset'length-1) = '0' then
+			if cold_reset_n = '0' then
 				-- reset activity here
 				mem_state <= idle;
 				ctrl_state <= idle;
@@ -944,7 +948,7 @@ architecture Behavioral of ep994a is
 		
 	command_processor : serloader port map (
 		clk 		=> clk,
-		rst 		=> real_reset,
+		rst 		=> cold_reset,
 		tx			=> txd,
 		rx			=> rxd,
 		mem_addr 		=> mem_addr,
@@ -964,7 +968,7 @@ architecture Behavioral of ep994a is
 	led(3) <= sams_regs(0) 	when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) >= "010" else '0';
 	led(4) <= sams_regs(1) 	when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) >= "011" else '0';
 	led(5) <= flashLoading	when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) >= "100" else '0';
-	led(6) <= real_reset		when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) >= "101" else '0';
+	led(6) <= real_reset_n	when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) >= "101" else '0';
 	led(7) <= alatch_counter(19) when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) = "110" else '0';
 
 	
@@ -1125,7 +1129,7 @@ architecture Behavioral of ep994a is
 	FLASH_HOLD <= '1';
 	serial_flash_rom : flash PORT MAP (
 				clk8 			=> clk8,
-				n_reset 		=> funky_reset(funky_reset'length-1),
+				n_reset 		=> cold_reset_n,
 				bad_load 	=> '0',
 				load_disk 	=> '0',
 				disk			=> "0000",
