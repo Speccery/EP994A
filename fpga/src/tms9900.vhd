@@ -174,6 +174,7 @@ architecture Behavioral of tms9900 is
 	signal mult_b : std_logic_vector(17 downto 0);
 	signal mult_product : std_logic_vector(35 downto 0);
 	signal dividend : std_logic_vector(31 downto 0);	-- for the divide instruction
+	signal divider_sub : std_logic_vector(16 downto 0);
 	
 	
 	component scratchpad is
@@ -319,7 +320,9 @@ begin
 	-- ST3 carry
 	alu_flag_carry    <= alu_out(16) when ope /= alu_sub else not alu_out(16);	-- for sub carry out is inverted
 	-- ST4 overflow
-	alu_flag_overflow <= '1' when ope /= alu_sla and arg1(15)=arg2(15) and alu_result(15) /= arg1(15) else 
+	alu_flag_overflow <= 
+		'1' when (ope = alu_compare or ope = alu_sub) 								  and arg1(15) /= arg2(15) and alu_result(15) /= arg1(15) else 
+		'1' when (ope /= alu_sla and not (ope = alu_compare or ope = alu_sub)) and arg1(15) =  arg2(15) and alu_result(15) /= arg1(15) else 
 		'1' when ope = alu_sla and alu_result(15) /= arg2(15) else -- sla condition: if MSB changes during shift
 		'0';
 	-- ST5 parity
@@ -1267,15 +1270,14 @@ begin
 						cpu_state <= do_div2;
 					when do_div2 =>
 						dividend(31 downto 0) <= dividend(30 downto 0) & '0'; -- shift left
-						arg1 <= dividend(30 downto 15);	-- shifted data to ALU too
-						arg2 <= reg_t;
-						ope <= alu_sub;		
+						-- perform 17-bit substraction, picking up the bit to shifted out too
+						divider_sub <= std_logic_vector(unsigned(dividend(31 downto 15)) - unsigned('0' & reg_t));
 						dec_shift_count := True;	-- decrement count				
 						cpu_state <= do_div3;
 					when do_div3 =>
-						if alu_result(15)='0' then	
+						if divider_sub(16)='0' then	
 							-- successful subtract
-							dividend(31 downto 16) <= alu_result;
+							dividend(31 downto 16) <= divider_sub(15 downto 0);
 							dividend(0) <= '1';
 						end if;
 						if shift_count /= "00000" then
