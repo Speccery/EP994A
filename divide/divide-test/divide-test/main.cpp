@@ -30,14 +30,18 @@ unsigned short tms9900_div(unsigned int divident, int divisor) {
         for(int i=0; i<16; i++) {
             da0 = (da0 << 1) | ((da1 >> 15) & 1);
             da1 <<= 1;
-            if(da0 >= sa) {
-                da0 -= sa;
+            unsigned k = da0-sa;
+            if((k & 0x10000) == 0) {
+            // if(da0 >= sa) {
+                // da0 -= sa;
+              da0 = k;
                 da1 |= 1;   // successful substraction
             }
+          printf("%d: da0=%d da1=%d\n", i, da0, da1);
         }
     }
-    printf("quotiotent: %d remainder %d st4=%d\n", da1, da0, st4);
-    printf("checking: quotiotent %d remainder %d\n\n", divident/divisor, divident % divisor);
+    printf("quotient: %d (0x%X) remainder %d st4=%d\n", da1, da1, da0, st4);
+    printf("checking: quotient %d remainder %d\n\n", divident/divisor, divident % divisor);
     return da1;
 }
 
@@ -48,6 +52,7 @@ int main(int argc, const char * argv[]) {
     tms9900_div(62000, 2);
     tms9900_div(100, 200);
     tms9900_div(200000, 2);
+    tms9900_div(100*0x10000, 0x9000);
     
     return 0;
 }
