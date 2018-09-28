@@ -237,7 +237,7 @@ architecture Behavioral of ep994a is
 	signal cpu_reset_ctrl	: std_logic_vector(7 downto 0);	-- 8 control signals, bit 0 = reset
 	
 	-- Module port banking
-	signal basic_rom_bank : std_logic_vector(3 downto 1) := "000";	-- latch ROM selection, 64K ROM support
+	signal basic_rom_bank : std_logic_vector(6 downto 1) := "000000";	-- latch ROM selection, 512K ROM support
 	signal cartridge_cs	 : std_logic;	-- 0x6000..0x7FFF
 	
 	-- audio subsystem
@@ -282,9 +282,6 @@ architecture Behavioral of ep994a is
 	signal cpu_mem_write_pending : std_logic;
 	-- counter of alatch pulses to produce a sign of life of the CPU
 	signal alatch_counter : std_logic_vector(19 downto 0);
-	-- macrostore detection logic
-	signal macrostore : std_logic_vector(3 downto 0) ;
-	signal macrostore_cycle : std_logic;
 
 -------------------------------------------------------------------------------	
 	component pager612
@@ -382,12 +379,8 @@ begin
 						
 	sram_16bit_read_bus <= SRAM_DAT(15 downto 0) when sram_addr_bus(0)='0' else SRAM_DAT(31 downto 16);
 						
-	SRAM_CE0	<=		(debug_sram_ce0 or sram_addr_bus(0))       when cpu_access = '0' else 
-						(MEM_n or sram_addr_bus(0)) when macrostore_cycle='0' else
-						sram_addr_bus(0);	-- macrostore_cycle = '1'
-	SRAM_CE1	<= 	(debug_sram_ce0 or (not sram_addr_bus(0))) when cpu_access = '0' else 
-						(MEM_n or (not sram_addr_bus(0))) when macrostore_cycle='0' else
-						not sram_addr_bus(0);	-- macrostore_cycle = '1'
+	SRAM_CE0	<=		(debug_sram_ce0 or sram_addr_bus(0))       when cpu_access = '0' else (MEM_n or sram_addr_bus(0));
+	SRAM_CE1	<= 	(debug_sram_ce0 or (not sram_addr_bus(0))) when cpu_access = '0' else (MEM_n or (not sram_addr_bus(0)));
 	SRAM_WE	<=		debug_sram_we;  -- when cpu_access = '0' else WE_n; 
 	SRAM_OE	<=		debug_sram_oe; -- when cpu_access = '0' else RD_n; 	
 	
@@ -438,20 +431,18 @@ begin
 				alatch_counter <= (others => '0');
 				
 				cpu_mem_write_pending <= '0';
-				
-				 macrostore <= (others => '0');
-				 macrostore_cycle  <= '0';
 			else
 				-- processing of normal clocks here. We run at 100MHz.
 				---------------------------------------------------------
 				-- SRAM map (1 mega byte, 0..FFFFF, 20 bit address space)
 				---------------------------------------------------------
-				--	00000..7FFFF - SAMS RAM 512K
+				-- 00000..7FFFF - Cartridge module port, paged, 512K, to support the TI megademo :)
 				-- 80000..8FFFF - GROM mapped to this area, 64K (was at 30000)
-				-- 90000..AFFFF - Cartridge module port, paged, 64K (was at 70000)
+				-- 90000..AFFFF - Not used currently
 				-- B0000..B7FFF - DSR area, 32K reserved	(was at 60000)
 				-- B8000..B8FFF - Scratchpad 	(was at 68000)
 				-- BA000..BCFFF - Boot ROM remapped (was at 0)   
+				-- C0000..FFFFF - SAMS SRAM 256K (i.e. the "normal" CPU RAM paged with the SAMS system)
 				---------------------------------------------------------
 				-- The SAMS control bits are set to zero on reset.
 				-- sams_regs(0) CRU 1E00: when set, paging registers appear at DSR space >4000..
@@ -470,27 +461,16 @@ begin
 				--	the pageable RAM "under" the DSR space is available.
 				-- Thus the entire 64K is pageable.
 				---------------------------------------------------------
-				macrostore(3 downto 1) <= macrostore(2 downto 0);
-				if MEM_n = '1' and BST2='0' and BST1='0' then
-					macrostore(0) <= '1';
-				else
-					macrostore(0) <= '0';
-				end if;
 				
 				-- Drive SRAM addresses outputs synchronously 
 				if cpu_access = '1' then
-					-- Test TMS99100 instruction LDS (load distant) if cpu_addr(0) is set and if we are reading from 0x6XXX
-					-- EPEP BUGBUG note that this will break access to standard cartridges!
-					if cpu_addr(15 downto 12) = x"6" and cpu_addr(0)='1' then
-						-- Direct this access to GROM area i.e. to 0x86XXX
-						sram_addr_bus <= x"8" & cpu_addr(15 downto 1);
-					elsif macrostore_cycle = '1' then
-						sram_addr_bus <= x"A" & cpu_addr(15 downto 1);		-- macrostore memory
-					elsif cpu_addr(15 downto 8) = x"98" and cpu_addr(1)='0' then
+					if cpu_addr(15 downto 8) = x"98" and cpu_addr(1)='0' then
 						sram_addr_bus <= x"8" & grom_ram_addr(15 downto 1);	-- 0x80000 GROM
 					elsif cartridge_cs='1' and sams_regs(5)='0' then
 						-- Handle paging of module port at 0x6000 unless sams_regs(5) is set (1E0A)
-						sram_addr_bus <= x"9" & basic_rom_bank & cpu_addr(12 downto 1);	-- mapped to 0x90000
+						sram_addr_bus <= '0' & basic_rom_bank & cpu_addr(12 downto 1);	-- mapped to 0x00000..0x7FFFF
+						-- sram_addr_bus <= "01" & basic_rom_bank(5 downto 1) & cpu_addr(12 downto 1);	-- mapped to 0x00000..0x7FFFF
+						-- old: sram_addr_bus <= x"9" & basic_rom_bank(3 downto 1) & cpu_addr(12 downto 1);	-- mapped to 0x90000
 					elsif cru1100='1' and cpu_addr(15 downto 13) = "010" then	
 						-- DSR's for disk system
 						sram_addr_bus <= x"B" & "000" & cpu_addr(12 downto 1);	-- mapped to 0xB0000
@@ -503,8 +483,9 @@ begin
 						sram_addr_bus <= x"B8" & "00" & cpu_addr(9 downto 1);
 					else
 						-- regular RAM access
-						-- Bottom 512K is CPU SAMS RAM for now, so we have 19 bit memory addresses for RAM
-						sram_addr_bus <= "0" & translated_addr(6 downto 0) & cpu_addr(11 downto 1);
+						-- Top 256K is CPU SAMS RAM for now, so we have 18 bit memory addresses for RAM
+						-- BUGBUG: this is correct: sram_addr_bus <= "11" & translated_addr(5 downto 0) & cpu_addr(11 downto 1);
+						sram_addr_bus <= x"C" & cpu_addr(15 downto 1);
 					end if;
 				end if;
 				
@@ -526,8 +507,7 @@ begin
 						mem_read_ack <= '0';
 						mem_write_ack <= '0';
 						cpu_access <= '1';		
-						DEBUG2 <= '0';	
-						macrostore_cycle <= '0';
+						DEBUG2 <= '0';						
 						if mem_write_rq = '1' and mem_addr(20)='0' and alatch_sampler(1 downto 0) = "01" then
 							-- normal memory write
 							sram_addr_bus <= mem_addr(19 downto 1);	-- setup address
@@ -546,15 +526,6 @@ begin
 							debug_sram_ce0 <= '0';	-- init read cycle
 							debug_sram_oe <= '0';
 							mem_drive_bus <= '0';
-							macrostore_cycle <= '0';
-						elsif MEM_n = '1' and rd_sampler(1 downto 0) = "10" and BST2='0' and BST1='0' then -- macrostore = "0111" and RD_n='0' then
-							-- make a macrostore access
-							cpu_access <= '1';	
-							mem_state <= cpu_rd0;
-							debug_sram_ce0 <= '0';	-- init read cycle
-							debug_sram_oe <= '0';
-							mem_drive_bus <= '0';
-							macrostore_cycle <= '1';
 						elsif cpu_mem_write_pending = '1' then
 							-- init CPU write cycle
 							cpu_access <= '1';
@@ -669,7 +640,7 @@ begin
 				end case;
 				
 				if cpu_reset_ctrl(1)='0' then
-					basic_rom_bank <= "000";	-- Reset ROM bank selection
+					basic_rom_bank <= (others => '0');	-- Reset ROM bank selection
 				end if;
 				
 				
@@ -696,7 +667,7 @@ begin
 						elsif cpu_addr(15 downto 8) = x"9C" then
 							grom_we <= '1';			-- GROM writes
 						elsif cartridge_cs='1' and sams_regs(5)='0' then
-							basic_rom_bank <= cpu_addr(3 downto 1);	-- capture ROM bank select
+							basic_rom_bank <= cpu_addr(6 downto 1);	-- capture ROM bank select
 						elsif cpu_addr(15 downto 8) = x"84" then	
 							tms9919_we <= '1';		-- Audio chip write
 						elsif paging_registers = '1' then 

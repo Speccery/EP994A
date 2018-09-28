@@ -142,6 +142,7 @@ architecture Behavioral of tms9918 is
 	--
 	constant slv_511	: std_logic_vector(9 downto 0) := std_logic_vector(to_unsigned(511,10));
 	constant slv_760	: std_logic_vector(9 downto 0) := std_logic_vector(to_unsigned(760,10));
+	constant slv_479	: std_logic_vector(9 downto 0) := std_logic_vector(to_unsigned(479,10)); -- EP-USTRIP
 	
 	signal 	blanking : std_logic;
 	
@@ -207,7 +208,7 @@ begin
 		reg1		  & x"00" 								when addr = x"41" else
 		"00" & reg2(3 downto 0) & "0000000000" 	when addr = x"42" else -- pattern memory address base
 		"00" & reg3 & "000000" 						 	when addr = x"43" else -- color table
-		"00" & reg4(2 downto 0) & "00000000000" 	when addr = x"44" else -- chare code address base
+		"00" & reg4(2 downto 0) & "00000000000" 	when addr = x"44" else -- char code address base
 		"00" & reg5(6 downto 0) & "0000000"			when addr = x"45" else -- sprite attribute table
 		"00" & reg6(2 downto 0) & "00000000000"   when addr = x"46" else -- sprite pattern table
 		reg7 & x"00"										when addr = x"47" else -- a couple of colors 47
@@ -314,7 +315,9 @@ begin
 			-- read from linebuffer
 			if clk25MHz = '1' then
 				if video_on = '1' and reg1(6)='1' then
-					if VGACol <= slv_511 and blanking = '0' then
+					if (VGACol <= slv_511 and blanking = '0' and reg1(4)='0') -- EP-USTRIP not text mode
+				    or (VGACol <= slv_479 and blanking = '0' and reg1(4)='1') -- EP-USTRIP text mode  
+				    then
 						vga_red 		<= vga_line_buf_out(7 downto 5);
 						vga_green 	<= vga_line_buf_out(4 downto 2);
 						vga_blue 	<= vga_line_buf_out(1 downto 0);
@@ -363,7 +366,11 @@ begin
 									vram_out_addr <= reg4(2 downto 0) & char_code & ypos(2 downto 0); -- VGARow(3 downto 1);
 								else
 									-- Graphics mode 2. 768 unique characters are possible.
-									vram_out_addr <= reg4(2) & char_addr(9 downto 8) & char_code & ypos(2 downto 0);
+									-- Implement UNDOCUMENTED FEATURE: bits 1 and 0 of reg4 act as bit masks for the two
+									-- MSBs of the 10 bit char code. This allows character set to be limited even in this mode.
+									vram_out_addr <= reg4(2) -- MSB of the address
+										& (char_addr(9 downto 8) and reg4(1 downto 0))	-- Character code with masks for bits 9 and 8
+										& char_code & ypos(2 downto 0); -- 8 bit code and line in character
 								end if;
 								process_pixel <= read_pattern;
 							when read_pattern =>
@@ -374,7 +381,11 @@ begin
 									vram_out_addr <= reg3 & '0' & char_code(7 downto 3);
 								else
 									-- Graphics mode 2
-									vram_out_addr <= reg3(7) & char_addr(9 downto 8) & char_code & ypos(2 downto 0);
+									-- Implement UNDOCUMENTED FEATURE: bits 6 through 0 of reg3 act as bit masks for the seven
+									-- MSBs of the 10 bit char code. This allows character set to be limited even in this mode.
+									vram_out_addr <= reg3(7) 
+										& ((char_addr(9 downto 8) & char_code(7 downto 3)) and reg3(6 downto 0))
+										& char_code(2 downto 0) & ypos(2 downto 0);
 								end if;
 								process_pixel <= read_color;
 								-- now char addr is no longer used and we can increment to next.
@@ -575,7 +586,7 @@ begin
 							-- we arrived at next line boundary, process it
 							vga_bank <= not vga_bank;
 							refresh_state <= process_line;
-							vga_line_buf_addr <= (others => '0');
+							vga_line_buf_addr <= (others => '1'); -- EP-USTRIP- Fixed from zero to one to init line properly
 							blanking <= '0';
 							if ypos(2 downto 0) /= "111" then
 								char_addr <= char_addr_reload;	-- reload char ptr to beginning of line
