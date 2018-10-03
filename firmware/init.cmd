@@ -68,7 +68,9 @@ REM  memloader %CART_ROM% ALPINERC.BIN
 REM  memloader %CART_GROM% ALPINERG.BIN
 
 REM Megademo
-memloader %PORT% %CART_ROM% dontmess.bin
+REM memloader %PORT% %CART_ROM% dontmess.bin
+REM Megademo - version which I compiled myself
+memloader %PORT% %CART_ROM% demo8.bin
 
 REM  CPU out of reset
 memloader %PORT% 100008 cpu_reset_off.bin

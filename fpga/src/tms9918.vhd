@@ -302,6 +302,7 @@ begin
 				-- read became inactive on status register, clear interrupt request
 				stat_reg(7) <= '0';
 				stat_reg(6) <= '0'; -- also reset fifth sprite bit if active
+				-- stat_reg(5) <= '0'; -- and coincide flag, if any two sprites have overlapping pixels (transparent are considered too)
 			end if;
 			
 			if bump_rq='1' then
@@ -361,7 +362,10 @@ begin
 								char_code <= vram_out_data;	-- save for later
 								process_pixel <= read_char1;
 							when read_char1 =>
-								if reg0(1)='0' then
+								if reg1(3)='1' then -- read M2, if set we have multicolor mode
+									-- multicolor mode
+									vram_out_addr <= reg4(2 downto 0) & char_code & ypos(4 downto 2);	-- ignore two LSBs, "pixels" are four high
+								elsif reg0(1)='0' then	-- read M3
 									-- Graphics mode 1 (actually anything else than graphics mode 2)
 									vram_out_addr <= reg4(2 downto 0) & char_code & ypos(2 downto 0); -- VGARow(3 downto 1);
 								else
@@ -394,16 +398,24 @@ begin
 								-- read color data. After this step it would actually be possible to concurrently
 								-- start reading the next char etc while pixels are written to the line buffer.
 								-- in text mode color 1 comes from register 7
-								if reg1(4)='1' then 
-									color1 <= reg7(7 downto 4);				-- text mode, ignore VRAM data
+								if reg1(3)='1' then -- read M2, if set we have multicolor mode
+									-- multicolor mode, char_pattern determines our colors
+									-- BUGBUG: we don't deal yet with transparency!
+									color1 <= char_pattern(7 downto 4);
+									color0 <= char_pattern(3 downto 0);
+									char_pattern <= "11110000";	-- hardcoded pattern
 								else
-									color1 <= vram_out_data(7 downto 4);	-- GM1, GM2
-								end if;
-								if vram_out_data(3 downto 0) = "0000" or reg1(4)='1' then
-									-- transparent, user border color; or text mode
-									color0 <= reg7(3 downto 0);
-								else
-									color0 <= vram_out_data(3 downto 0);
+									if reg1(4)='1' then 
+										color1 <= reg7(7 downto 4);				-- text mode, ignore VRAM data
+									else
+										color1 <= vram_out_data(7 downto 4);	-- GM1, GM2
+									end if;
+									if vram_out_data(3 downto 0) = "0000" or reg1(4)='1' then
+										-- transparent, user border color; or text mode
+										color0 <= reg7(3 downto 0);
+									else
+										color0 <= vram_out_data(3 downto 0);
+									end if;
 								end if;
 								process_pixel <= write_pixels;
 								if reg1(4)='1' then 
