@@ -93,12 +93,16 @@ architecture Behavioral of tms9918 is
 	signal vram_out_addr		: std_logic_vector(13 downto 0);	-- vram hardware addr bus
 	signal line_buf_addra	: std_logic_vector(10 downto 0);
 	signal line_buf_addrb	: std_logic_vector(10 downto 0);
+	signal line_buf_porta_out : std_logic_vector(7 downto 0); -- line buffer render side read port. needed for sprite collisions.
+	signal line_buf_bit8_out: std_logic_vector(0 to 0);
+	signal line_buf_bit8_in : std_logic_vector(0 to 0);
 	signal vga_bank			: std_logic;
 	signal vga_line_buf_addr : std_logic_vector(8 downto 0);
 	signal vga_line_buf_wr	: std_logic;	-- write strobe
 	signal xpos 				: integer;
 	signal ypos					: std_logic_vector(7 downto 0);
 	signal pixel_write		: std_logic;
+	signal pixel_write_pending	: std_logic;
 	signal pixel_toggler		: std_logic;
 	type refresh_state_type is (
 		wait_frame,	
@@ -111,6 +115,7 @@ architecture Behavioral of tms9918 is
 		sprite_read_vert, sprite_read_horiz,sprite_read_char,
 		sprite_read_color,
 		sprite_read_pattern0, sprite_read_pattern1,
+		sprite_write_pattern_setup,
 		sprite_write_pattern0, sprite_write_pattern1, sprite_write_pattern_last,
 		sprite_next
 		);
@@ -302,7 +307,7 @@ begin
 				-- read became inactive on status register, clear interrupt request
 				stat_reg(7) <= '0';
 				stat_reg(6) <= '0'; -- also reset fifth sprite bit if active
-				-- stat_reg(5) <= '0'; -- and coincide flag, if any two sprites have overlapping pixels (transparent are considered too)
+				stat_reg(5) <= '0'; -- and coincide flag, if any two sprites have overlapping pixels (transparent are considered too)
 			end if;
 			
 			if bump_rq='1' then
@@ -434,7 +439,8 @@ begin
 								
 								vga_line_buf_addr <= std_logic_vector(to_unsigned(to_integer(unsigned(vga_line_buf_addr)) + 1, vga_line_buf_addr'length));
 								pixel_toggler <= not pixel_toggler;
-								pixel_write <= '1';							
+								pixel_write <= '1';			
+								line_buf_bit8_in(0) <= '0';	-- not a sprite pixel, write zero								
 								if pixel_toggler = '1' then 
 									char_pattern <= char_pattern(6 downto 0) & '0';
 									pixel_count <= pixel_count + 1;
@@ -533,44 +539,59 @@ begin
 						refresh_state <= sprite_read_pattern0;
 					when sprite_read_pattern0 =>
 						if sprite_color(3 downto 0) = "0000" then
-							refresh_state <= sprite_next;	-- this sprite is transparent, go draw next
+							sprite_pixels(15 downto 8) <= x"00"; -- this sprite is transparent. Still need to "write" pixels to detect collisions
 						else
 							sprite_pixels(15 downto 8) <= vram_out_data;
-							vram_out_addr <= reg6(2 downto 0) & sprite_name(7 downto 2) & '1' & sprite_line(3 downto 0);
-							refresh_state <= sprite_read_pattern1;
 						end if;
+						vram_out_addr <= reg6(2 downto 0) & sprite_name(7 downto 2) & '1' & sprite_line(3 downto 0);
+						refresh_state <= sprite_read_pattern1;
+
 					when sprite_read_pattern1 =>
-						sprite_pixels(7 downto 0) <= vram_out_data;
+						if sprite_color(3 downto 0) = "0000" then
+							sprite_pixels(7 downto 0) <= x"00";
+						else
+							sprite_pixels(7 downto 0) <= vram_out_data;
+						end if;
 						sprite_write_count <=  reg1(1) & "111";	-- 8x8: "0111", 16x16: "1111"
-						refresh_state <= sprite_write_pattern0;
-					when sprite_write_pattern0 =>	-- write in two steps since pixels take 2 clock cycles
+						refresh_state <= sprite_write_pattern_setup;
+						
+					when sprite_write_pattern_setup =>
+						-- Here setup the line buffer address, and READ the 8th bit to see if we have overlapping sprites.
 						if sprite_color(7)='1' then 
 							-- early clock bit set. Now we need to figure out our address.
 							if unsigned(sprite_x) >= 32 then
 								-- just force bit 5 to zero to substract 32. This is bogus but we don't care
 								vga_line_buf_addr <= sprite_x(7 downto 6) & '0' & sprite_x(4 downto 0) & '0';
 								-- enable write strobe if we have a pixel
-								if sprite_pixels(15) = '1' then 
-									pixel_write <= '1';
-								else
-									pixel_write <= '0';
-								end if;
+								pixel_write_pending <= sprite_pixels(15);
 							end if;
 						else
 							-- setup address normally
 							vga_line_buf_addr <= sprite_x & '0';
-							-- enable write strobe if we have a pixel 
-							if sprite_pixels(15) = '1' then 
-								pixel_write <= '1';
-							else
-								pixel_write <= '0';
-							end if;
+							pixel_write_pending <= sprite_pixels(15);
 						end if;
-						-- set data whether we write it or not.
-						vga_line_buf_in <= palette_lookup(sprite_color(3 downto 0));
+						pixel_write <= '0';	-- perform a read
+						refresh_state <= sprite_write_pattern0;
+
+					when sprite_write_pattern0 =>	
+						-- Write in two steps since pixels take 2 clock cycles. We write even transparent pixels,
+						-- since we must write bit 8 (this is a sprite pixel) to detect sprite overlap. In the case
+						-- of transparent sprites we just write the same data back that was already in the line buffer.
+						-- Detect sprite overlap: if this pixel already has a sprite pixel write, we have overlap.
+						if line_buf_bit8_out(0)='1' then
+							stat_reg(5) <= '1';	-- set COINCinde flag (also set for transparent sprites)
+						end if;
+						if pixel_write_pending = '1' then
+							vga_line_buf_in <= palette_lookup(sprite_color(3 downto 0));	-- sprite data
+						else
+							vga_line_buf_in <= line_buf_porta_out;	-- for transparent pixels write the same pixel back.
+						end if;
+						pixel_write <= '1';	-- write ON
+						line_buf_bit8_in(0) <= '1';	-- this is a sprite pixel!
 						refresh_state <= sprite_write_pattern1;
+						
 					when sprite_write_pattern1 =>
-						vga_line_buf_addr(0) <= '1';	-- keep data and write flag change only address
+						vga_line_buf_addr(0) <= '1';	-- keep data and change only address for the write
 						sprite_pixels <= sprite_pixels(14 downto 0) & '0';
 						sprite_x <= std_logic_vector(to_unsigned(to_integer(unsigned(sprite_x)) + 1, sprite_x'length));
 						sprite_write_count <= std_logic_vector(to_unsigned(to_integer(unsigned(sprite_write_count)) - 1, sprite_write_count'length));
@@ -578,7 +599,7 @@ begin
 							-- if out of pixels or rightmost pixel of the screen written (FF=255) go to next sprite
 							refresh_state <= sprite_write_pattern_last;
 						else 
-							refresh_state <= sprite_write_pattern0;
+							refresh_state <= sprite_write_pattern_setup;
 						end if;
 					when sprite_write_pattern_last =>
 						pixel_write <= '0';
@@ -623,17 +644,17 @@ begin
 	
 	LINEBUFFER: RAMB16_S9_S9 -- Port A: write from VRAM, port B: output to VGA
 		port map (
-			DOA => open,      -- Port A 8-bit Data Output
-			DOB => vga_line_buf_out,      -- Port B 8-bit Data Output
---			DOPA => DOPA,    -- Port A 1-bit Parity Output
---			DOPB => DOPB,    -- Port B 1-bit Parity Output
-			ADDRA => line_buf_addra,  -- Port A 11-bit Address Input
-			ADDRB => line_buf_addrb,  -- Port B 11-bit Address Input
-			CLKA => CLK,     -- Port A Clock
-			CLKB => CLK ,    -- Port B Clock
-			DIA => vga_line_buf_in,      -- Port A 8-bit Data Input
-			DIB => (others => '0'),      -- Port B 8-bit Data Input
-			DIPA => "0",     -- Port A 1-bit parity Input
+			DOA => line_buf_porta_out,	-- Port A 8-bit Data Output
+			DOB => vga_line_buf_out,   -- Port B 8-bit Data Output
+			DOPA => line_buf_bit8_out, -- Port A 1-bit Parity Output
+--			DOPB => DOPB,    				-- Port B 1-bit Parity Output
+			ADDRA => line_buf_addra,  	-- Port A 11-bit Address Input
+			ADDRB => line_buf_addrb,  	-- Port B 11-bit Address Input
+			CLKA => CLK,     				-- Port A Clock
+			CLKB => CLK ,    				-- Port B Clock
+			DIA => vga_line_buf_in,    -- Port A 8-bit Data Input
+			DIB => (others => '0'),    -- Port B 8-bit Data Input
+			DIPA => line_buf_bit8_in,  -- Port A 1-bit parity Input
 			DIPB => "0",     -- Port-B 1-bit parity Input
 			ENA => '1',      -- Port A RAM Enable Input
 			ENB => '1',      -- PortB RAM Enable Input
