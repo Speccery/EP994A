@@ -45,3 +45,5 @@ webtalk.log
 webtalk_pn.xml
 xlnx_auto_0_xdb/
 xst/
+fpga/work/tb_tms9900_beh.prj
+fpga/work/tb_tms9900_stx_beh.prj
