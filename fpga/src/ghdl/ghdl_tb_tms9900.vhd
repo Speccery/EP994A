@@ -33,6 +33,7 @@ USE ieee.numeric_std.ALL;
 
 library std;
 USE STD.TEXTIO.ALL;
+USE ieee.std_logic_textio.ALL;	-- needed for xilinx ise "hwrite"
 -- EP GHDL USE IEEE.STD_LOGIC_TEXTIO.ALL;
  
 ENTITY tb_tms9900 IS
@@ -106,13 +107,26 @@ ARCHITECTURE behavior OF tb_tms9900 IS
 	signal read_act_clocks : integer := 0; -- counts clocks with write active
 	signal last_read_act_clocks : integer := 0;
 	signal last_write_act_clocks : integer := 0;
+	
+	signal memory_reads : integer := 0;
+	signal memory_reads_hit : integer := 0; -- calculate cache hits
+
+	-- cache signals
+	signal cache_data_out : std_logic_vector(15 downto 0);
+	signal cacheable : std_logic := '1';
+	signal cache_hit : std_logic;
+	signal cache_miss : std_logic;
+	signal cache_update : std_logic := '0';
+	signal cache_reset_done : std_logic;
+	signal cache_addr_in : std_logic_vector(19 downto 0);
+	signal cpu_reset : std_logic;
  
 BEGIN
  
 	-- Instantiate the Unit Under Test (UUT)
    uut: entity work.tms9900 PORT MAP (
           clk => clk,
-          reset => reset,
+          reset => cpu_reset,
           addr_out => addr,
           data_in => data_in,
           data_out => data_out,
@@ -147,6 +161,23 @@ BEGIN
 		addr => addr(12 downto 1),
 		data_out => rom_data
 		);
+
+	cache_addr_in <= "0000" & addr;
+	cpu_reset <= not cache_reset_done;
+	cache: entity work.epcache PORT MAP ( 
+		clk => clk,
+		reset => reset,
+		reset_done => cache_reset_done, 
+	   	cacheable => cacheable,
+	   	update => cache_update,
+		data_in => data_out,
+		data_out => cache_data_out, 
+		addr_in => cache_addr_in,
+		hit => cache_hit,
+		miss => cache_miss,
+		rd => rd,
+		wr => wr
+	);
 
    -- Clock process definitions
    clk_process :process
@@ -186,6 +217,10 @@ BEGIN
 			hwrite(my_line, addr);
 			write(my_line, STRING'(" opcode "));
 			hwrite(my_line, dat); -- data_in);
+			write(my_line, STRING'(" reads "));
+			write(my_line, memory_reads);
+			write(my_line, STRING'(" cache hits "));
+			write(my_line, memory_reads_hit);
 			writeline(OUTPUT, my_line);
 			last_write_act_clocks <= write_act_clocks;
 			last_read_act_clocks <= read_act_clocks;
@@ -200,10 +235,17 @@ BEGIN
 		writeline(output, my_line);
       -- hold reset state for 100 ns.
 		reset <= '1';
-      wait for 100 ns;	
+        wait for 100 ns;	
 		reset <= '0';
 
+		while cache_reset_done = '0' loop
+			wait for clk_period/2;
+		end loop;
 
+		write(my_line, STRING'("Cache reset done at cycle "));
+		write(my_line, ins_clocks);
+		writeline(output, my_line);
+		
 		write(my_line, STRING'("Reset off"));
 		writeline(output, my_line);
       -- wait for clk_period*20;
@@ -212,6 +254,19 @@ BEGIN
 		for i in 0 to 29999 loop
 			wait for clk_period/2;
 			
+			if clk='1' then
+				-- print cache status
+--				write(my_line, STRING'("cache addr "));
+--				hwrite(my_line, cache_addr_in);
+--				write(my_line, STRING'(" data "));
+--				hwrite(my_line, cache_data_out);
+--				write(my_line, STRING'(" hit "));
+--				write(my_line, cache_hit, right, 2);
+--				write(my_line, STRING'(" miss "));
+--				write(my_line, cache_miss, right, 2);
+--				writeline(output, my_line);
+			end if;
+
 			-- Test hold logic
 			if i = 2000 then 
 				hold <= '1';
@@ -231,6 +286,14 @@ BEGIN
 			
 			read_history <= read_history(1 downto 0) & rd;
 			if rd='1' then
+			
+				if read_history = "011" then 
+					memory_reads <= memory_reads+1;
+					if cache_hit = '1' then 
+						memory_reads_hit <= memory_reads_hit + 1;
+					end if;
+				end if;
+			
 				addr_int := to_integer( unsigned( addr(15 downto 1) ));	-- word address
 				if addr_int >= 0 and addr_int <= 4095 then 
 					data_in <= rom_data;
