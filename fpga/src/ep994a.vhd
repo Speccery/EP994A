@@ -309,9 +309,12 @@ architecture Behavioral of ep994a is
          data_out : OUT  std_logic_vector(15 downto 0);
          rd : OUT  std_logic;
          wr : OUT  std_logic;
-         -- ready : IN  std_logic;
-         iaq : OUT  std_logic;
-         as : OUT  std_logic;
+			-- cache support signals start
+			cache_hit 	: in std_logic;		
+			rd_now		: out std_logic;
+			-- cache support singals end
+         iaq 			: out  std_logic;
+         as 			: out  std_logic;
 --			test_out : OUT  std_logic_vector(15 downto 0);
 --			alu_debug_out : OUT  std_logic_vector(15 downto 0);
 --			alu_debug_oper : out STD_LOGIC_VECTOR(3 downto 0);
@@ -402,7 +405,23 @@ architecture Behavioral of ep994a is
 	
 	signal tms9902_cruin : std_logic;
 	signal tms9902_nCE   : std_logic;
-	signal tms9902_rts_cts : std_logic;begin
+	signal tms9902_rts_cts : std_logic;
+	
+	
+	-- cache signals
+	signal cache_data_in  : std_logic_vector(15 downto 0);
+	signal cache_data_out : std_logic_vector(15 downto 0);
+	signal cpu_data_in    : std_logic_vector(15 downto 0);
+	signal cacheable 		 : std_logic := '1';
+	signal cache_hit      : std_logic;
+	signal cache_miss     : std_logic;
+	signal cache_update   : std_logic := '0';
+	signal cache_reset_done : std_logic;
+	signal cache_addr_in  : std_logic_vector(19 downto 0);
+	signal cpu_reset_after_cache : std_logic;	
+	signal rd_now			 : std_logic;
+	
+	begin
 -------------------------------------------------------------------------------
  
  clkin1_buf : IBUFG
@@ -541,7 +560,8 @@ architecture Behavioral of ep994a is
 				-- First manage CPU wait states
 				-- if switch 1 (SWI[7]) is set we run at 63 wait states
 				-- if switch 2 (SWI[6]) is set we run at 31 wait states
-				-- if switch 2 (SWI[5]) is set we run at 8 wait states
+				-- if switch 3 (SWI[5]) is set we run at 8 wait states
+				-- if switch 4 (SWI[4]) is set cache is disabled.
 				-- else we run at zero wait states
 				if SWI(7)='1' then
 					if cpu_as='1' then
@@ -736,9 +756,14 @@ architecture Behavioral of ep994a is
 						mem_state <= idle;			-- thus one cycle when mem_write_rq is not sampled after write.
 						mem_read_ack <= '0';
 						mem_write_ack <= '0';
+						debug_sram_ce0 <= '1';	-- since we can enter here from cache hits, make sure SRAM is deselected
+						debug_sram_oe <= '1';
+						
 						
 					-- CPU read cycle
-					when cpu_rd0 => mem_state <= cpu_rd1;
+					when cpu_rd0 => 
+						mem_state <= cpu_rd1;
+						if	cpu_rd = '0' then mem_state <= grace; end if;	-- abort if CPU was served by cache
 					when cpu_rd1 => 
 						mem_state <= cpu_rd2;
 						mem_to_cpu <= sram_16bit_read_bus(15 downto 0);
@@ -746,6 +771,7 @@ architecture Behavioral of ep994a is
 							sram_capture <= False;
 							sram_debug <= cpu_addr & "00000000000" & cpu_access & sram_addr_bus & '0' & sram_16bit_read_bus(15 downto 0);
 						end if;
+						if	cpu_rd = '0' then mem_state <= grace; end if;	-- abort if CPU was served by cache
 					when cpu_rd2 =>
 						debug_sram_ce0 <= '1';
 						debug_sram_oe <= '1';
@@ -965,8 +991,10 @@ architecture Behavioral of ep994a is
 	led(0) <= cpu_reset 		when flashLoading = '0' else '1';
 	led(1) <= cpu_hold  		when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) >= "000" else '0';
 	led(2) <= cpu_holda 		when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) >= "001" else '0';
-	led(3) <= sams_regs(0) 	when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) >= "010" else '0';
-	led(4) <= sams_regs(1) 	when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) >= "011" else '0';
+	led(3) <= cache_hit 		when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) >= "001" else '0';
+	led(4) <= cacheable 		when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) >= "011" else '0';
+--	led(3) <= sams_regs(0) 	when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) >= "010" else '0';
+--	led(4) <= sams_regs(1) 	when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) >= "011" else '0';
 	led(5) <= flashLoading	when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) >= "100" else '0';
 	led(6) <= real_reset_n	when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) >= "101" else '0';
 	led(7) <= alatch_counter(19) when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) = "110" else '0';
@@ -1086,12 +1114,14 @@ architecture Behavioral of ep994a is
 	
 	cpu : tms9900 PORT MAP (
           clk => clk,
-          reset => cpu_reset,
+          reset => cpu_reset_after_cache,
           addr_out => cpu_addr,
-          data_in => data_to_cpu,
+          data_in => cpu_data_in,
           data_out => data_from_cpu,
           rd => cpu_rd,
           wr => cpu_wr,
+			 rd_now => rd_now,
+			 cache_hit => cache_hit,
           -- ready => cpu_ready,
           iaq => cpu_iaq,
           as => cpu_as,
@@ -1113,6 +1143,49 @@ architecture Behavioral of ep994a is
 			 scratch_en => '0',
           stuck => cpu_stuck
         );
+		  
+		  
+	cpu_reset_after_cache <= (not cache_reset_done) or cpu_reset;
+	-- Setting SWI(4) (switch number 4) disables cache.
+	cacheable <= (not SWI(4)) when 
+		   cpu_addr(15 downto 14) = "00" 	-- 0000..3FFF system ROM and low 8K of extension RAM
+		or cpu_addr(15 downto 13) = "011"	-- 6000..7FFF 8k cartridge space (paged)
+		or cpu_addr(15 downto 13) = "101"	-- A000..BFFF 8k extension RAM
+		or cpu_addr(15 downto 14) = "11"		-- C000..FFFF top 16k of extension RAM
+		or cpu_addr(15 downto 8)  = x"83"	-- scratchpad
+		else '0';
+	
+	-- Address mapping for cache: matches physical addresses for the 512K 
+	-- paged cartridge address space.
+	-- For simplicity right now the rest is just mapped with a19=1. This does not matter
+	-- as long as paging is not enabled. It is just important that ROM cartridge area does
+	-- not collide with rest of address space of the CPU.
+	cache_addr_in <= '0' & basic_rom_bank & cpu_addr(12 downto 0) when cartridge_cs='1' else
+		"1000" & cpu_addr;
+
+--	cache_addr_in <= "0000" & cpu_addr;	-- incorrect but this is what we use for now, not supporting paged memory or cartridges
+	-- feed write data to cache during writes, otherwise whatever CPU is reading.
+	cache_data_in <= data_from_cpu  when cpu_wr='1' else data_to_cpu; 	
+	cpu_data_in   <= cache_data_out when cache_hit='1' and cpu_rd='1' else data_to_cpu;
+	cache_update  <= '1' when cacheable='1' and rd_now='1' and cache_miss='1' else '0';
+	
+	
+	cache: entity work.epcache PORT MAP ( 
+		clk => clk,
+		reset => cpu_reset,
+		reset_done => cache_reset_done, 
+	   cacheable => cacheable,
+	   update => cache_update,
+		data_in =>  cache_data_in, -- data_out,
+		data_out => cache_data_out, 
+		addr_in => cache_addr_in,
+		hit => cache_hit,
+		-- hit_async => cache_hit,
+		miss => cache_miss,
+		rd => cpu_rd,
+		wr => cpu_wr
+	);
+		  
 		  
 	process(clk) 
 	begin

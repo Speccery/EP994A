@@ -104,7 +104,19 @@ BOOT
   X   9
 ;  
   .printCrLf
+; 
+; EP 2019-01-15 Now that I am in the process of adding a cache, let's do a small loop.
+; Without cache, the last instruction's iaq falling edge is at time 25,135 ns.
+;
+  LI  R3,>8340
+  CLR R0
+  LI  R5,5
+!
+  MOV R0,*R3+
+  DEC R5
+  JNE -!
   IDLE            ; wait for interrupt
+
   .printCrLf
   .printCrLf
   .printCrLf

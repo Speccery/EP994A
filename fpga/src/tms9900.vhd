@@ -36,11 +36,13 @@ use UNISIM.VComponents.all;
 entity tms9900 is Port ( 
 	clk 		: in  STD_LOGIC;		-- input clock
 	reset 	: in  STD_LOGIC;		-- reset, active high
-	addr_out	: out  STD_LOGIC_VECTOR (15 downto 0);
+	addr_out	: out	STD_LOGIC_VECTOR (15 downto 0);
 	data_in 	: in  STD_LOGIC_VECTOR (15 downto 0);
-	data_out : out  STD_LOGIC_VECTOR (15 downto 0);
-	rd 		: out  STD_LOGIC;		-- workin read with Pepino 40ns
-	wr 		: out  STD_LOGIC;		-- working write with Pepino 60ns
+	data_out : out STD_LOGIC_VECTOR (15 downto 0);
+	rd 		: out STD_LOGIC;		-- workin read with Pepino 40ns
+	wr 		: out STD_LOGIC;		-- working write with Pepino 60ns
+	rd_now	: out STD_LOGIC;		-- high on the cycle CPU will latch data
+	cache_hit : in STD_LOGIC;		-- when high, terminate read cycle early
 	-- ready 	: in  STD_LOGIC;		-- NOT USED: memory read input, a high terminates a memory cycle 
 	iaq 		: out  STD_LOGIC;
 	as 		: out  STD_LOGIC;		-- address strobe, when high new address is valid, starts a memory cycle
@@ -66,7 +68,7 @@ entity tms9900 is Port (
 end tms9900;
 
 architecture Behavioral of tms9900 is
-	signal addr : std_logic_vector(15 downto 0);	-- address bus
+	signal addr : std_logic_vector(15 downto 0) := x"0000";	-- address bus (EP set to zero to prevent metavalues during reset).
 
 	-- CPU architecture registers
 	signal pc : std_logic_vector(15 downto 0);
@@ -372,12 +374,18 @@ begin
 			ope <= alu_load2;
 			cpu_state <= do_blwp00;		-- do blwp from zero
 			delay_count <= "00000000";
-			holda <= hold;					-- during reset hold is respected
+			if rising_edge(clk) then 
+				holda <= hold;					-- during reset hold is respected
+			end if;
 			capture_ir <= True;
 			set_int_priority <= False;
 			int_ack <= '0';
 			scratchpad_en <= '0';
 			scratchpad_wr <= '0';
+			-- bring bus control signals to a known state
+			iaq <= '0';
+			rd_now <= '0';
+			as <= '0';
 		else
 			if rising_edge(clk) then
 			
@@ -425,19 +433,35 @@ begin
 							cpu_state <= do_read0;
 						end if;
 					when do_read0 => 
-						cpu_state <= do_read1; 
+--						if cache_hit = '1' then -- if cache_hit is asynchronous, it could be ready here.
+--							cpu_state <= cpu_state_next;
+--							rd <= '0';
+--							rd_dat <= data_in;
+--						else
+							cpu_state <= do_read1;
+--						end if;
 						as <= '0';
 						delay_count <= waits;	-- used to be zero (i.e. not assigned)
 					when do_read1 => 
-						if delay_count = "00000000" then 
-							cpu_state <= do_read2;
+						if cache_hit = '1' then
+							delay_count <= "00000000";
+							cpu_state <= cpu_state_next;
+							rd <= '0';
+							rd_dat <= data_in;
+						else
+							if delay_count = "00000000" then 
+								cpu_state <= do_read2;
+							end if;
 						end if;
-					when do_read2 => cpu_state <= do_read3;
+					when do_read2 => 
+						cpu_state <= do_read3;
+						rd_now <= '1';	-- the next cycle will latch data from databus
 					when do_read3 => 
 						-- if ready='1' then 
 							cpu_state <= cpu_state_next;
 							rd <= '0';
 							rd_dat <= data_in;
+							rd_now <= '0';
 						-- end if;
 					when do_read_pad =>
 						cpu_state <= do_read_pad1;

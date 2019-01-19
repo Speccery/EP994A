@@ -78,6 +78,7 @@ ARCHITECTURE behavior OF tb_tms9900 IS
    signal stuck : std_logic;
 	signal hold : std_logic := '0';
 	signal holda : std_logic;
+	signal rd_now : std_logic;
 	
 	signal cpu_st : std_logic_vector(15 downto 0);
 
@@ -91,6 +92,7 @@ ARCHITECTURE behavior OF tb_tms9900 IS
 	signal scratchpad : ramArray;
 	signal ramIndex : integer range 0 to 15 := 0;
 	signal write_detect : std_logic_vector(1 downto 0);
+	signal read_detect : std_logic_vector(1 downto 0);	-- used for all reads during debugging
 	
 	signal prev_cruclk : std_logic;
 	
@@ -112,14 +114,16 @@ ARCHITECTURE behavior OF tb_tms9900 IS
 	signal memory_reads_hit : integer := 0; -- calculate cache hits
 
 	-- cache signals
+	signal cache_data_in  : std_logic_vector(15 downto 0);
 	signal cache_data_out : std_logic_vector(15 downto 0);
-	signal cacheable : std_logic := '1';
-	signal cache_hit : std_logic;
-	signal cache_miss : std_logic;
-	signal cache_update : std_logic := '0';
+	signal cpu_data_in    : std_logic_vector(15 downto 0);
+	signal cacheable 		 : std_logic := '1';	-- 1 means cache is enabled
+	signal cache_hit      : std_logic;
+	signal cache_miss     : std_logic;
+	signal cache_update   : std_logic := '0';
 	signal cache_reset_done : std_logic;
-	signal cache_addr_in : std_logic_vector(19 downto 0);
-	signal cpu_reset : std_logic;
+	signal cache_addr_in  : std_logic_vector(19 downto 0);
+	signal cpu_reset      : std_logic;
  
 BEGIN
  
@@ -132,6 +136,8 @@ BEGIN
           data_out => data_out,
           rd => rd,
           wr => wr,
+			 rd_now => rd_now,
+			 cache_hit => cache_hit,
           -- ready => ready,
           iaq => iaq,
           as => as,
@@ -163,21 +169,41 @@ BEGIN
 		);
 
 	cache_addr_in <= "0000" & addr;
-	cpu_reset <= not cache_reset_done;
+	cpu_reset <= not cache_reset_done or reset;
 	cache: entity work.epcache PORT MAP ( 
 		clk => clk,
 		reset => reset,
 		reset_done => cache_reset_done, 
-	   	cacheable => cacheable,
-	   	update => cache_update,
-		data_in => data_out,
+	   cacheable => cacheable,
+	   update => cache_update,
+		data_in =>  cache_data_in, -- data_out,
 		data_out => cache_data_out, 
 		addr_in => cache_addr_in,
 		hit => cache_hit,
+		-- hit_async => cache_hit,
 		miss => cache_miss,
 		rd => rd,
 		wr => wr
 	);
+	
+	-------------------------
+	-- control cache stuff --
+	-------------------------
+	-- feed write data to cache during writes, otherwise whatever CPU is reading.
+	cache_data_in <= data_out when wr='1' else data_in; 	
+	cpu_data_in <= cache_data_out when cache_hit='1' and rd='1' else data_in;
+	-- cpu_data_in <= cache_data_out when cache_miss='0' else data_in;
+	cache_update  <= '1' when cacheable='1' and rd_now='1' and cache_miss='1' else '0';
+--	process(clk)
+--	begin 
+--		if rising_edge(clk) and cache_reset_done='1' then
+--			if cacheable='1' and rd='1' and cache_miss='1' then
+--				cache_update <= '1';
+--			else
+--				cache_update <= '0';
+--			end if;
+--		end if;
+--	end process;
 
    -- Clock process definitions
    clk_process :process
@@ -318,7 +344,16 @@ BEGIN
 			end if;
 			
 			write_detect <= write_detect(0) & wr;
-			if wr = '1' then
+			read_detect <= read_detect(0) & rd_now;
+			if rd = '1' and read_detect = "01" then
+				write(my_line, STRING'("cycle "));
+				write(my_line, i);
+				write(my_line, STRING'(" read from "));
+				hwrite(my_line, addr);
+				write(my_line, STRING'(" data "));
+				hwrite(my_line, data_in);
+				writeline(OUTPUT, my_line);			
+			elsif wr = '1' then
 				addr_int := to_integer( unsigned( addr(15 downto 1) ));	-- word address
 				if addr_int >= 16768 and addr_int < 16896 then	-- scratch pad memory range in words
 					-- we're in the scratchpad

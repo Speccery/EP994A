@@ -82,6 +82,7 @@ architecture Behavioral of tms9918 is
 	signal Vsync		: std_logic;
 	signal VGARow		: std_logic_vector(9 downto 0);
 	signal VGACol		: std_logic_vector(9 downto 0);
+	signal VGACol2		: std_logic_vector(9 downto 0);
 	signal vga_shift  : std_logic_vector(7 downto 0);
 	signal video_on	: std_logic;	
 	signal clk12_5MHz	: std_logic;		-- 12.5 MHz 50/50 clock
@@ -321,6 +322,9 @@ begin
 			-- VGA processing
 			vga_hsync 	<= Hsync;
 			vga_vsync 	<= Vsync;
+			
+			-- Apply a shift to VGACol
+			VGACol <= std_logic_vector(to_unsigned(to_integer(unsigned(VGACol2)) - 32, VGACol'length));
 	
 			-- read from linebuffer
 			if clk25MHz = '1' then
@@ -712,7 +716,7 @@ begin
 		horiz_sync_out => Hsync,
 		vert_sync_out  => Vsync,
 		pixel_row      => VGARow,
-		pixel_column   => VGACol
+		pixel_column   => VGACol2
 		);		
 
 end Behavioral;
