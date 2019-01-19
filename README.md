@@ -18,7 +18,8 @@ Commit 2019-01-19:
 - During reads the read is simultaneously started for both main memory and the cache. Cache read takes one cycle. Another cycle is currently required for tag comparison. Thus read cycles which hit cache take two clocks. Any main memory cycles will be aborted if a cache hit is detected.
 - Using my simple stupid BASIC test program the cache improves performance by 22% in the current very simplistic setup. At 100MHz the system reaches over 30x the performance of the original TMS9900.
 
-```10 for i=0 to 1000
+```
+10 for i=0 to 1000
 20 print i;" ";
 30 next i
 ```
