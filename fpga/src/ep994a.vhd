@@ -312,6 +312,7 @@ architecture Behavioral of ep994a is
 			-- cache support signals start
 			cache_hit 	: in std_logic;		
 			rd_now		: out std_logic;
+			wr_force		: out std_logic;
 			-- cache support singals end
          iaq 			: out  std_logic;
          as 			: out  std_logic;
@@ -330,7 +331,6 @@ architecture Behavioral of ep994a is
 			hold     : in STD_LOGIC;
 			holda    : out STD_LOGIC;
 			waits    : in STD_LOGIC_VECTOR(7 downto 0);
-			scratch_en : in STD_LOGIC;		-- when 1 in-core scratchpad RAM is enabled
          stuck : OUT  std_logic
         );
     END COMPONENT;
@@ -420,6 +420,8 @@ architecture Behavioral of ep994a is
 	signal cache_addr_in  : std_logic_vector(19 downto 0);
 	signal cpu_reset_after_cache : std_logic;	
 	signal rd_now			 : std_logic;
+	signal wr_force		: std_logic;
+	signal cache_wr		: std_logic;
 	
 	begin
 -------------------------------------------------------------------------------
@@ -1121,6 +1123,7 @@ architecture Behavioral of ep994a is
           rd => cpu_rd,
           wr => cpu_wr,
 			 rd_now => rd_now,
+			 wr_force => wr_force,
 			 cache_hit => cache_hit,
           -- ready => cpu_ready,
           iaq => cpu_iaq,
@@ -1140,13 +1143,13 @@ architecture Behavioral of ep994a is
 			 hold => cpu_hold,
 			 holda => cpu_holda,
 			 waits => waits,
-			 scratch_en => '0',
           stuck => cpu_stuck
         );
 		  
 		  
 	cpu_reset_after_cache <= (not cache_reset_done) or cpu_reset;
 	-- Setting SWI(4) (switch number 4) disables cache.
+	-- note: address 0 has to be cacheable for instruction X to work.
 	cacheable <= (not SWI(4)) when 
 		   cpu_addr(15 downto 14) = "00" 	-- 0000..3FFF system ROM and low 8K of extension RAM
 		or cpu_addr(15 downto 13) = "011"	-- 6000..7FFF 8k cartridge space (paged)
@@ -1163,11 +1166,12 @@ architecture Behavioral of ep994a is
 	cache_addr_in <= '0' & basic_rom_bank & cpu_addr(12 downto 0) when cartridge_cs='1' else
 		"1000" & cpu_addr;
 
---	cache_addr_in <= "0000" & cpu_addr;	-- incorrect but this is what we use for now, not supporting paged memory or cartridges
 	-- feed write data to cache during writes, otherwise whatever CPU is reading.
-	cache_data_in <= data_from_cpu  when cpu_wr='1' else data_to_cpu; 	
+	cache_data_in <= data_from_cpu  when cpu_wr='1' or wr_force='1' else data_to_cpu; 	
 	cpu_data_in   <= cache_data_out when cache_hit='1' and cpu_rd='1' else data_to_cpu;
 	cache_update  <= '1' when cacheable='1' and rd_now='1' and cache_miss='1' else '0';
+	cache_wr 	  <= cpu_wr or wr_force;
+	-- note: address 0 has to be cacheable for instruction X to work.
 	
 	
 	cache: entity work.epcache PORT MAP ( 
@@ -1183,7 +1187,7 @@ architecture Behavioral of ep994a is
 		-- hit_async => cache_hit,
 		miss => cache_miss,
 		rd => cpu_rd,
-		wr => cpu_wr
+		wr => cache_wr
 	);
 		  
 		  

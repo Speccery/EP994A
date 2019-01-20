@@ -124,6 +124,8 @@ ARCHITECTURE behavior OF tb_tms9900 IS
 	signal cache_reset_done : std_logic;
 	signal cache_addr_in  : std_logic_vector(19 downto 0);
 	signal cpu_reset      : std_logic;
+	signal wr_force		 : std_logic;	-- force a write to the cache from CPU
+	signal cache_wr		 : std_logic;
  
 BEGIN
  
@@ -137,6 +139,7 @@ BEGIN
           rd => rd,
           wr => wr,
 			 rd_now => rd_now,
+			 wr_force => wr_force,
 			 cache_hit => cache_hit,
           -- ready => ready,
           iaq => iaq,
@@ -157,8 +160,6 @@ BEGIN
 			 hold => hold,
 			 holda => holda,
 			 waits => "00000000", -- "111111", -- "000000",
- 		 	 -- scratch_en => '1',
-			scratch_en => '0',
           stuck => stuck
         );
 		  
@@ -170,6 +171,7 @@ BEGIN
 
 	cache_addr_in <= "0000" & addr;
 	cpu_reset <= not cache_reset_done or reset;
+
 	cache: entity work.epcache PORT MAP ( 
 		clk => clk,
 		reset => reset,
@@ -183,27 +185,17 @@ BEGIN
 		-- hit_async => cache_hit,
 		miss => cache_miss,
 		rd => rd,
-		wr => wr
+		wr => cache_wr
 	);
 	
 	-------------------------
 	-- control cache stuff --
 	-------------------------
 	-- feed write data to cache during writes, otherwise whatever CPU is reading.
-	cache_data_in <= data_out when wr='1' else data_in; 	
-	cpu_data_in <= cache_data_out when cache_hit='1' and rd='1' else data_in;
-	-- cpu_data_in <= cache_data_out when cache_miss='0' else data_in;
-	cache_update  <= '1' when cacheable='1' and rd_now='1' and cache_miss='1' else '0';
---	process(clk)
---	begin 
---		if rising_edge(clk) and cache_reset_done='1' then
---			if cacheable='1' and rd='1' and cache_miss='1' then
---				cache_update <= '1';
---			else
---				cache_update <= '0';
---			end if;
---		end if;
---	end process;
+	cache_data_in 	<= data_out when wr='1' or wr_force='1' else data_in; 	
+	cpu_data_in 	<= cache_data_out when cache_hit='1' and rd='1' else data_in;
+	cache_update	<= '1' when cacheable='1' and rd_now='1' and cache_miss='1' else '0';
+	cache_wr 		<= wr or wr_force;
 
    -- Clock process definitions
    clk_process :process
