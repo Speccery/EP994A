@@ -23,7 +23,7 @@
          </top_modules>
       </db_ref>
    </db_ref_list>
-   <WVObjectSize size="35" />
+   <WVObjectSize size="36" />
    <wave_markers>
       <marker time="4700000000" label="" />
       <marker time="21864867000" label="" />
@@ -53,6 +53,10 @@
    <wvobject fp_name="/tb_tms9900/stuck" type="logic" db_ref_id="1">
       <obj_property name="ElementShortName">stuck</obj_property>
       <obj_property name="ObjectShortName">stuck</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_tms9900/uut/cpu_state" type="other" db_ref_id="1">
+      <obj_property name="ElementShortName">cpu_state</obj_property>
+      <obj_property name="ObjectShortName">cpu_state</obj_property>
    </wvobject>
    <wvobject fp_name="/tb_tms9900/data_in" type="array" db_ref_id="1">
       <obj_property name="ElementShortName">data_in[15:0]</obj_property>

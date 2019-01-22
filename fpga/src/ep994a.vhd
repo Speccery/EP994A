@@ -1006,7 +1006,8 @@ architecture Behavioral of ep994a is
 							or flashLoading = '1' else '0'; -- issue DMA request
 	DEBUG1 <= go_write;
 
-	go_write <= '1' when wr_sampler = "1000" else '0'; -- wr_sampler = "1110" else '0';
+	-- go_write <= '1' when wr_sampler = "1000" else '0'; -- wr_sampler = "1110" else '0';
+	go_write <= '1' when wr_sampler(1 downto 0)="10" else '0';
 	go_cruclk <= '1' when cruclk_sampler(1 downto 0) = "01" else '0';
 
 

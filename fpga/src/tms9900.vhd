@@ -83,6 +83,8 @@ architecture Behavioral of tms9900 is
 	signal reg_stcr : std_logic_vector(15 downto 0); -- specific storage for STCR instruction - BUGBUG
 	signal read_byte_aligner : std_logic_vector(15 downto 0); -- align bytes to words for reads
 	
+	signal ead : std_logic_vector(15 downto 0);	-- destination register operand address
+	
 	-- debug stuff begin
 	signal pc_ir : std_logic_vector(15 downto 0);	-- capture address when IR is loaded - debug BUGBUG
 	signal first_ir : std_logic_vector(15 downto 0);
@@ -181,21 +183,6 @@ architecture Behavioral of tms9900 is
 	type fetch_substate_t is (
 		fetch_sub1, fetch_sub2, fetch_sub3 );
 	signal fetch_substate : fetch_substate_t;
-
-	procedure do_pc_read_quick(
-		signal pc : inout std_logic_vector(15 downto 0);
-		signal addr : out std_logic_vector(15 downto 0);
-		signal cpu_state : out cpu_state_type;
-		signal as : out std_logic;
-		signal rd : out std_logic
-	) is
-	begin
-		addr <= pc;
-		pc <= std_logic_vector(unsigned(pc) + to_unsigned(2,16));
-		as <= '1';
-		rd <= '1';
-		cpu_state <= do_read0;
-	end do_pc_read_quick;
 
 begin
 
@@ -391,10 +378,8 @@ begin
 						wr <= '1';
 						cpu_state <= do_write0;
 					when do_alu_write =>
-						-- scratchpad support begin
 						addr <= alu_result;						
 						data_out <= wr_dat;
-						-- external memory
 						as <= '1';
 						wr <= '1';
 						cpu_state <= do_write0;
@@ -402,7 +387,8 @@ begin
 						cpu_state <= do_write1; 
 						as <= '0';
 						if waits(7 downto 1) = "0000000" then
-							delay_count <= "00000010"; -- minimum value
+							-- delay_count <= "00000010"; -- minimum value
+							delay_count <= "00000000"; -- minimum value
 						else
 							delay_count <= waits;
 						end if;
@@ -442,9 +428,6 @@ begin
 								rd <= '1';
 								cpu_state <= do_fetch0;
 								fetch_substate <= fetch_sub1;
-								-- instead of going to do_pc_read let's inline that stuff here.
-								--	do_pc_read_quick(pc=>pc, addr=>addr, cpu_state=>cpu_state, as=>as, rd=>rd);
-								-- cpu_state_next <= do_decode;
 							end if;
 						end if;
 					when do_fetch0 =>
@@ -465,7 +448,16 @@ begin
 							ir <= data_in;						-- read done, store to instruction register
 							pc_ir <= pc;						-- store increment PC for debug purposes
 							iaq <= '0';
-							-- Next analyze what we got
+							-- Calculate immediately the register operand addresses, so it is there at the ALU output.
+							arg1 <= w;
+							arg2 <= x"00" & "000" & data_in(3 downto 0) & '0';
+							ope <= alu_add;	-- calculate workspace address		
+							-- source register operand effective address
+							-- ea <= std_logic_vector(unsigned(w) + unsigned(x"00" & "000" & data_in(3 downto 0) & '0'));
+							-- destination register operand effective address
+							-- ead <= std_logic_vector(unsigned(w) + unsigned(x"00" & "000" & data_in(9 downto 6) & '0'));
+							
+							-- Next analyze what instruction we got
 							-- check for dual operand instructions with full addressing modes
 							if data_in(15 downto 13) = "101" or -- A, AB
 								data_in(15 downto 13) = "100" or -- C, CB
@@ -488,9 +480,6 @@ begin
 							elsif data_in(15 downto 10) = "000010" then -- SLA, SRA, SRC, SRL
 								-- Do all the shifts SLA(10) SRA(00) SRC(11) SRL(01), OPCODE:6 INS:2 C:4 W:4
 								shift_count <= '0' & data_in(7 downto 4);
-								arg1 <= w;
-								arg2 <= x"00" & "000" & data_in(3 downto 0) & '0';
-								ope <= alu_add;	-- calculate workspace address
 								cpu_state <= do_shifts0;
 							elsif data_in = x"0380" then	-- RTWP
 								arg1 <= w;
@@ -501,7 +490,6 @@ begin
 								data_in(15 downto 8) = x"1D" or  --SBO
 								data_in(15 downto 8) = x"1E" or -- SBZ
 								data_in(15 downto 8) = x"1F" then	-- TB
-	--								test_out <= x"8877";
 								 arg1	<= w;
 								 arg2 <= x"00" & "000" & x"C" & '0';
 								 ope <= alu_add;
@@ -511,9 +499,6 @@ begin
 								-- external instructions IDLE, RSET, CKOF, CKON, LREX
 								cpu_state <= do_ext_instructions;
 							elsif data_in(15 downto 4) = x"02C" or data_in(15 downto 4) = x"02A" then -- STST, STWP
-								arg1 <= w;
-								arg2 <= x"00" & "000" & data_in(3 downto 0) & '0';
-								ope <= alu_add;	-- calculate workspace address
 								cpu_state <= do_store_instructions;
 							elsif data_in(15 downto 13) = "001" and data_in(12 downto 10) /= "100" and data_in(12 downto 10) /= "101" then
 								--	COC, CZC, XOR, MPY, DIV, XOP
@@ -550,8 +535,13 @@ begin
 								-- Single operand instructions: BL, B, etc.
 								operand_word <= True;
 								operand_mode <= data_in(5 downto 0);
-								cpu_state <= do_source_address0;
-								cpu_state_operand_return <= do_branch_b_bl;
+								-- If we have direct register operand, that will be in ea already. Just go direct to the destination.
+								if data_in(5 downto 4) = "00" then
+									cpu_state <= do_branch_b_bl;
+								else
+									cpu_state <= do_source_address0;
+									cpu_state_operand_return <= do_branch_b_bl;
+								end if;
 							else
 								cpu_state <= do_stuck;		-- unknown instruction, let's get stuck
 							end if;
@@ -817,25 +807,33 @@ begin
 							when "0110" => -- INC instruction
 								ea <= alu_result;	-- save address SA
 								cpu_state_next <= do_single_op_read;
-								cpu_state <= do_read;
+								-- Inline below do_read.
+								-- cpu_state <= do_read;
+								cpu_state <= do_read0; addr <= alu_result; as <= '1'; rd <= '1'; 
 								arg1 <= x"0001";
 								ope <= alu_add;
 							when "0111" => -- INCT instruction
 								ea <= alu_result;	-- save address SA
 								cpu_state_next <= do_single_op_read;
-								cpu_state <= do_read;
+								-- Inline below do_read.
+								-- cpu_state <= do_read;
+								cpu_state <= do_read0; addr <= alu_result; as <= '1'; rd <= '1'; 
 								arg1 <= x"0002";
 								ope <= alu_add;
 							when "1000" => -- DEC instruction
 								ea <= alu_result;	-- save address SA
 								cpu_state_next <= do_single_op_read;
-								cpu_state <= do_read;
+								-- Inline below do_read.
+								-- cpu_state <= do_read;
+								cpu_state <= do_read0; addr <= alu_result; as <= '1'; rd <= '1'; 
 								arg1 <= x"FFFF";	-- add -1 to create DEC
 								ope <= alu_add;
 							when "1001" => -- DECT instruction
 								ea <= alu_result;	-- save address SA
 								cpu_state_next <= do_single_op_read;
-								cpu_state <= do_read;
+								-- Inline below do_read.
+								-- cpu_state <= do_read;
+								cpu_state <= do_read0; addr <= alu_result; as <= '1'; rd <= '1'; 
 								arg1 <= x"FFFE";	-- add -2 to create DEC
 								ope <= alu_add;
 							when "0010" => -- X instruction...
@@ -884,8 +882,11 @@ begin
 							end if;
 						end if;
 						-- write the result
-						wr_dat <= alu_result;
-						cpu_state <= do_write;	-- ea still holds our address; return via write
+						
+						-- wr_dat <= alu_result;
+						-- inilined below, also no need to update wr_dat.
+						-- cpu_state <= do_write;	-- ea still holds our address; return via write
+						cpu_state <= do_write0; addr <= ea; data_out <= alu_result; as <= '1'; wr <= '1';
 						cpu_state_next <= do_fetch;
 
 					-------------------------------------------------------------
