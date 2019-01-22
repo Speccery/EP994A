@@ -109,7 +109,7 @@ architecture Behavioral of tms9900 is
 		do_alu_write,
 		do_dual_op, do_dual_op1, do_dual_op2, do_dual_op3,
 		do_source_address0, do_source_address1, do_source_address2, do_source_address3, do_source_address4, do_source_address5, do_source_address6,
-		do_branch_b_bl, do_single_op_read, 
+		do_branch_b_bl, do_x_instruction, 
 		do_x_write0, do_x_fetch,
 		do_single_op_writeback,
 		do_rtwp0, do_rtwp1, do_rtwp2, do_rtwp3,
@@ -183,6 +183,9 @@ architecture Behavioral of tms9900 is
 	type fetch_substate_t is (
 		fetch_sub1, fetch_sub2, fetch_sub3 );
 	signal fetch_substate : fetch_substate_t;
+	-- The following flags eliminate cycles and/or states from the state machine.
+	signal read_to_arg2 : boolean;
+	signal set_ea_from_alu : boolean;
 
 begin
 
@@ -314,10 +317,17 @@ begin
 			rd_now <= '0';
 			as <= '0';
 			wr_force <= '0';
+			read_to_arg2 <= False;
+			set_ea_from_alu <= False;
 		else
 			if rising_edge(clk) then
 			
 				dec_shift_count := False;
+				
+				if set_ea_from_alu then 
+					ea <= alu_result;
+					set_ea_from_alu <= False;
+				end if;
 			
 				-- CPU state changes
 				case cpu_state is
@@ -356,6 +366,11 @@ begin
 							cpu_state <= cpu_state_next;
 							rd <= '0';
 							rd_dat <= data_in;
+							if read_to_arg2 then
+								arg2 <= data_in;
+								read_to_arg2 <= False;
+							end if;
+							
 						else
 							if delay_count = "00000000" then 
 								cpu_state <= do_read2;
@@ -369,6 +384,10 @@ begin
 						rd <= '0';
 						rd_dat <= data_in;
 						rd_now <= '0';
+						if read_to_arg2 then
+							arg2 <= data_in;
+							read_to_arg2 <= False;
+						end if;
 						
 					-- write cycles --
 					when do_write =>
@@ -452,6 +471,8 @@ begin
 							arg1 <= w;
 							arg2 <= x"00" & "000" & data_in(3 downto 0) & '0';
 							ope <= alu_add;	-- calculate workspace address		
+							-- Here operand mode is always for the source register.
+							operand_mode <= data_in(5 downto 0);
 							-- source register operand effective address
 							-- ea <= std_logic_vector(unsigned(w) + unsigned(x"00" & "000" & data_in(3 downto 0) & '0'));
 							-- destination register operand effective address
@@ -466,14 +487,19 @@ begin
 								data_in(15 downto 13) = "010" or -- SZC, SZCB
 								data_in(15 downto 13) = "110" then -- MOV, MOVB
 								-- found dual operand instruction. Get source operand.
-								operand_mode <= data_in(5 downto 0);	-- ir not set at this point yet
 								if data_in(12) = '1' then
 									operand_word <= False;	-- byte operation
 								else
 									operand_word <= True;
 								end if;
-								cpu_state <= do_read_operand0;
-								cpu_state_operand_return <= do_dual_op;
+								cpu_state <= do_alu_read;
+								if data_in(5 downto 4) = "00" then
+									cpu_state_next <= do_dual_op;	-- skip workspace reg read cycle, do_alu_read handles this already.
+									set_ea_from_alu <= True;
+								else
+									cpu_state_next <= do_read_operand1;	-- skip do_read_operand0
+									cpu_state_operand_return <= do_dual_op;
+								end if;
 							elsif data_in(15 downto 12) = "0001" and 
 								data_in(11 downto 8) /= x"D" and data_in(11 downto 8) /= x"E" and data_in(11 downto 8) /= x"F" then
 									cpu_state <= do_branch; 
@@ -503,11 +529,9 @@ begin
 							elsif data_in(15 downto 13) = "001" and data_in(12 downto 10) /= "100" and data_in(12 downto 10) /= "101" then
 								--	COC, CZC, XOR, MPY, DIV, XOP
 								if data_in(12 downto 10) = "011" then	-- XOP
-									operand_mode <= data_in(5 downto 0);
 									cpu_state <= do_source_address0;
 									cpu_state_operand_return <= do_xop;
 								else
-									operand_mode <= data_in(5 downto 0);
 									cpu_state <= do_read_operand0;
 									cpu_state_operand_return <= do_coc_czc_etc0;
 								end if;
@@ -516,7 +540,6 @@ begin
 								if data_in(9 downto 6) = "1000" or (data_in(9) = '0' and data_in(8 downto 6) /= "000") then
 									operand_word <= False;
 								end if;
-								operand_mode <= data_in(5 downto 0);
 								if data_in(10) = '0' then
 									cpu_state <= do_read_operand0;
 									cpu_state_operand_return <= do_ldcr0;	-- LDCR
@@ -534,7 +557,6 @@ begin
 							elsif data_in(15 downto 10) = "000001" then 
 								-- Single operand instructions: BL, B, etc.
 								operand_word <= True;
-								operand_mode <= data_in(5 downto 0);
 								-- If we have direct register operand, that will be in ea already. Just go direct to the destination.
 								if data_in(5 downto 4) = "00" then
 									cpu_state <= do_branch_b_bl;
@@ -780,65 +802,64 @@ begin
 								cpu_state_next <= do_fetch;
 							when "0101" => -- INV instruction
 								ea <= alu_result;	-- save address SA
-								cpu_state_next <= do_single_op_read;
-								cpu_state <= do_read;
+								read_to_arg2 <= True;
+								cpu_state_next <= do_single_op_writeback;
+								cpu_state <= do_read0; addr <= alu_result; as <= '1'; rd <= '1'; 
 								arg1 <= x"FFFF";
 								ope <= alu_xor;
 							when "0100" => -- NEG instruction
 								-- test_out <= x"EEFF";
 								ea <= alu_result;	-- save address SA
-								cpu_state_next <= do_single_op_read;
-								cpu_state <= do_read;
+								read_to_arg2 <= True;
+								cpu_state_next <= do_single_op_writeback;
+								cpu_state <= do_read0; addr <= alu_result; as <= '1'; rd <= '1'; 
 								arg1 <= x"0000";
 								ope <= alu_sub;
 							when "1101" => -- ABS instruction
-								-- test_out <= x"AABB";
 								ea <= alu_result;	-- save address SA
-								cpu_state_next <= do_single_op_read;
-								cpu_state <= do_read;
+								read_to_arg2 <= True;
+								cpu_state_next <= do_single_op_writeback;
+								cpu_state <= do_read0; addr <= alu_result; as <= '1'; rd <= '1'; 
 								arg1 <= x"0000";
 								ope <= alu_abs;
 							when "1011" =>  -- SWPB instruction
 								ea <= alu_result;	-- save address SA
-								cpu_state_next <= do_single_op_read;
-								cpu_state <= do_read;
+								read_to_arg2 <= True;
+								cpu_state_next <= do_single_op_writeback;
+								cpu_state <= do_read0; addr <= alu_result; as <= '1'; rd <= '1'; 
 								arg1 <= x"0000";
 								ope <= alu_swpb2;
 							when "0110" => -- INC instruction
 								ea <= alu_result;	-- save address SA
-								cpu_state_next <= do_single_op_read;
-								-- Inline below do_read.
-								-- cpu_state <= do_read;
+								read_to_arg2 <= True;
+								cpu_state_next <= do_single_op_writeback;
 								cpu_state <= do_read0; addr <= alu_result; as <= '1'; rd <= '1'; 
 								arg1 <= x"0001";
 								ope <= alu_add;
 							when "0111" => -- INCT instruction
 								ea <= alu_result;	-- save address SA
-								cpu_state_next <= do_single_op_read;
-								-- Inline below do_read.
-								-- cpu_state <= do_read;
+								read_to_arg2 <= True;
+								cpu_state_next <= do_single_op_writeback;
 								cpu_state <= do_read0; addr <= alu_result; as <= '1'; rd <= '1'; 
 								arg1 <= x"0002";
 								ope <= alu_add;
 							when "1000" => -- DEC instruction
 								ea <= alu_result;	-- save address SA
-								cpu_state_next <= do_single_op_read;
-								-- Inline below do_read.
-								-- cpu_state <= do_read;
+								read_to_arg2 <= True;
+								cpu_state_next <= do_single_op_writeback;
 								cpu_state <= do_read0; addr <= alu_result; as <= '1'; rd <= '1'; 
 								arg1 <= x"FFFF";	-- add -1 to create DEC
 								ope <= alu_add;
 							when "1001" => -- DECT instruction
 								ea <= alu_result;	-- save address SA
-								cpu_state_next <= do_single_op_read;
-								-- Inline below do_read.
-								-- cpu_state <= do_read;
+								read_to_arg2 <= True;
+								cpu_state_next <= do_single_op_writeback;
 								cpu_state <= do_read0; addr <= alu_result; as <= '1'; rd <= '1'; 
 								arg1 <= x"FFFE";	-- add -2 to create DEC
 								ope <= alu_add;
 							when "0010" => -- X instruction...
 								ea <= alu_result;
-								cpu_state_next <= do_single_op_read;
+								cpu_state_next <= do_x_instruction;
 								cpu_state <= do_read;
 							when "0000" => -- BLWP instruction
 								-- alu_result points to new WP
@@ -846,20 +867,16 @@ begin
 							when others =>
 								cpu_state <= do_stuck;
 						end case;
-					when do_single_op_read =>
-						if ir(9 downto 6) /= "0010" then -- if not X instruction
-							arg2 <= rd_dat;	-- feed the data that was read to ALU
-							cpu_state <= do_single_op_writeback;
-						else -- Here we process the X instruction...
-							-- since now decoding starts with reading from data bus, we need to
-							-- force the instruction opcode on the bus. This is done with a special write
-							-- to the cache.
-							addr 		<= x"0000";	-- write to address zero, reset vector
-							data_out <= rd_dat;	-- opcode
-							as 		<= '1';
-							wr_force <= '1';
-							cpu_state <= do_x_write0;
-						end if;
+					when do_x_instruction =>
+						-- Here we process the X instruction...
+						-- since now decoding starts with reading from data bus, we need to
+						-- force the instruction opcode on the bus. This is done with a special write
+						-- to the cache.
+						addr 		<= x"0000";	-- write to address zero, reset vector
+						data_out <= rd_dat;	-- opcode
+						as 		<= '1';
+						wr_force <= '1';
+						cpu_state <= do_x_write0;
 					when do_x_write0 =>
 						wr_force <= '0';
 						as <= '0';
