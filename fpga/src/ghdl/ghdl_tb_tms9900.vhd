@@ -126,6 +126,11 @@ ARCHITECTURE behavior OF tb_tms9900 IS
 	signal cpu_reset      : std_logic;
 	signal wr_force		 : std_logic;	-- force a write to the cache from CPU
 	signal cache_wr		 : std_logic;
+	
+	-- test X instruction without using cache.
+	signal loc0				 : std_logic_vector(15 downto 0);
+	signal wr_force_seen  : std_logic := '0';
+	signal enable_loc0	 : boolean := false;
  
 BEGIN
  
@@ -134,7 +139,7 @@ BEGIN
           clk => clk,
           reset => cpu_reset,
           addr_out => addr,
-          data_in => data_in,
+          data_in => cpu_data_in,
           data_out => data_out,
           rd => rd,
           wr => wr,
@@ -193,10 +198,10 @@ BEGIN
 	-------------------------
 	-- feed write data to cache during writes, otherwise whatever CPU is reading.
 	cache_data_in 	<= data_out when wr='1' or wr_force='1' else data_in; 	
-	cpu_data_in 	<= cache_data_out when cache_hit='1' and rd='1' else data_in;
+	cpu_data_in 	<= cache_data_out when cache_hit='1' else data_in;
 	cache_update	<= '1' when cacheable='1' and rd_now='1' and cache_miss='1' else '0';
 	cache_wr 		<= wr or wr_force;
-
+	
    -- Clock process definitions
    clk_process :process
    begin
@@ -299,6 +304,14 @@ BEGIN
 				int_req <= '0';
 			end if;
 			
+			-- help with X instruction
+			if wr_force='1' then
+				write(my_line, STRING'("wr_force seen, instruction X"));
+				writeline(output, my_line);
+				loc0 <= data_out;
+				wr_force_seen <= '1';
+			end if;
+			
 			-- read CPU status
 			cpu_st <= cpu_debug_out(63 downto 48);
 			
@@ -314,7 +327,15 @@ BEGIN
 			
 				addr_int := to_integer( unsigned( addr(15 downto 1) ));	-- word address
 				if addr_int >= 0 and addr_int <= 4095 then 
-					data_in <= rom_data;
+					if enable_loc0 and wr_force_seen='1' and addr_int=0 then
+						write(my_line, STRING'("Feeding wr_forced data back "));
+						hwrite(my_line, loc0, right, 4);
+						writeline(output, my_line);
+						data_in <= loc0;
+					else
+						data_in <= rom_data;
+					end if;
+					
 					if read_history = "011" and iaq='1' then
 						opcode_read <= true;
 					end if;

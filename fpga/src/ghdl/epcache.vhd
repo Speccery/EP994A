@@ -104,7 +104,7 @@ cache_ram :    BRAM_SINGLE_MACRO
 	miss 		<= '1' when (rd='1' and cacheable='0') 
 							or (rd='1' and cacheable='1' and (dataword(35)='0' or (dataword(35)='1' and tag /= read_tag))) 
 							else '0';
-	hit 		<= '1' when rd='1' and cacheable='1' and tag = read_tag and update='0' and dataword(35)='1' 
+	hit 		<= '1' when cacheable='1' and tag = read_tag and update='0' and dataword(35)='1' 
 							else '0';
 	
 	process(clk, reset)

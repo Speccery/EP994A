@@ -355,11 +355,15 @@ begin
 --							cpu_state <= cpu_state_next;
 --							rd <= '0';
 --							rd_dat <= data_in;
+--							if read_to_arg2 then
+--								arg2 <= data_in;
+--								read_to_arg2 <= False;
+--							end if;
 --						else
 							cpu_state <= do_read1;
+							delay_count <= waits;	-- used to be zero (i.e. not assigned)
 --						end if;
 						as <= '0';
-						delay_count <= waits;	-- used to be zero (i.e. not assigned)
 					when do_read1 => 
 						if cache_hit = '1' then
 							delay_count <= "00000000";
@@ -370,7 +374,6 @@ begin
 								arg2 <= data_in;
 								read_to_arg2 <= False;
 							end if;
-							
 						else
 							if delay_count = "00000000" then 
 								cpu_state <= do_read2;
@@ -461,11 +464,11 @@ begin
 							delay_count <= "00000000";
 							rd_now <= '0';
 							rd <= '0';
+							ir <= data_in;						-- read done, store to instruction register
+							pc_ir <= pc;						-- store increment PC for debug purposes
 							rd_dat <= data_in;
 							-- rest of decode process. Decode directly from data_in.
 							operand_word <= True;			-- By default 16-bit operations.
-							ir <= data_in;						-- read done, store to instruction register
-							pc_ir <= pc;						-- store increment PC for debug purposes
 							iaq <= '0';
 							-- Calculate immediately the register operand addresses, so it is there at the ALU output.
 							arg1 <= w;
