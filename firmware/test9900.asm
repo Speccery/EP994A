@@ -107,6 +107,7 @@ BOOT
 ; 
 ; EP 2019-01-15 Now that I am in the process of adding a cache, let's do a small loop.
 ; Without cache, the last instruction's iaq falling edge is at time 25,135 ns.
+; With cache, the last instruction's falling edge is at 23,865 ns. 71 cache hits, each saving 2 clocks.
 ;
   LI  R3,>8340
   CLR R0
@@ -115,6 +116,9 @@ BOOT
   MOV R0,*R3+
   DEC R5
   JNE -!
+  MOV R3,R0       ; Check timing of this MOV
+  LI  R5,1
+  A   R3,R5
   IDLE            ; wait for interrupt
 
   .printCrLf

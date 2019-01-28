@@ -4,6 +4,8 @@ CONFIG VCCAUX = "3.3" ;
 NET "clock" LOC = "J16"  | IOSTANDARD = LVTTL;
 NET "clock" TNM_NET = "clock" ;
 TIMESPEC "TS_clock" = PERIOD "clock" 20000 ps INPUT_JITTER 200 ps;
+NET "clk" TNM_NET="clk";
+TIMESPEC "TS_clk" = PERIOD "clk" 10000 ps INPUT_JITTER 200 ps;
 
 # FTDI FT2232-chB used as USB UART
 NET "rxd" LOC = "B15"  | IOSTANDARD = LVTTL | PULLUP;
