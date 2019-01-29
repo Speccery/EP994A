@@ -579,7 +579,10 @@ begin
 										data_in(15 downto 4) = x"024" or data_in(15 downto 4) = x"026" or 	-- ANDI, ORI
 										data_in(15 downto 4) = x"028"													-- CI
 									then -- ANDI, ORI 
-										cpu_state <= do_load_imm;	-- LI or AI
+										set_ea_from_alu <= True;
+										cpu_state <= do_pc_read;
+										cpu_state_next <= do_load_imm;
+										-- cpu_state <= do_load_imm;	
 							elsif data_in(15 downto 9) = "0000001" and data_in(4 downto 0) = "00000" then
 										cpu_state <= do_ir_imm;
 							elsif data_in(15 downto 10) = "000001" then 
@@ -648,9 +651,30 @@ begin
 						end if;
 						
 					when do_load_imm =>	-- LI, AI, ANDI, ORI, CI instruction here
-						-- test_out <= x"0001";
-						cpu_state <= do_pc_read;		-- read immediate value from instruction stream
-						cpu_state_next <= do_load_imm2;
+						-- ea is already set to point to our register, and rd_dat contains the immediate value.
+						arg1 <= rd_dat;
+						if ir(7 downto 4) = x"0" then
+							-- Load immediate instruction. No need to read the previous value.
+							cpu_state <= do_load_imm5;
+							ope <= alu_load1; -- LI
+						else
+							-- inlined read register value
+							read_to_arg2 <= True;	-- store read value to ALU arg2
+							addr <= ea; as <= '1'; rd <= '1'; cpu_state <= do_read0;	
+							-- preconfigure ALU
+							case ir(7 downto 4) is
+								when x"0" => ope <= alu_load1; -- LI
+								when x"2" => ope <= alu_add;	 -- AI
+								when x"4" => ope <= alu_and;	 -- ANDI
+								when x"6" => ope <= alu_or;	 -- ORI
+								when x"8" => ope <= alu_compare; -- CI
+								when others => cpu_state <= do_stuck;
+							end case;						
+							cpu_state_next <= do_load_imm5;
+						end if;
+
+--						cpu_state <= do_pc_read;		-- read immediate value from instruction stream
+--						cpu_state_next <= do_load_imm2;
 					when do_load_imm2 =>
 						-- test_out <= x"0002";
 						reg_t <= rd_dat;	-- store the immediate to temp
@@ -760,26 +784,27 @@ begin
 							when "110" => ope <= alu_load2;	-- MOV
 							when others =>	cpu_state <= do_stuck;
 						end case;
+						set_dual_op_flags <= True;	-- Next cycle will set the flags.
 
 					when do_dual_op3 =>
-						-- Store flags.
-						st(15) <= alu_logical_gt;
-						st(14) <= alu_arithmetic_gt;
-						st(13) <= alu_flag_zero;
-						if ir(15 downto 13) = "101" or ir(15 downto 13) = "011" then
-							-- add and sub set two more flags
-							st(12) <= alu_flag_carry;
-							st(11) <= alu_flag_overflow;
-						end if;	
-						-- Byte operations set parity
-						if not operand_word then
-							-- parity bit for MOVB and CB is set differently and only depends on source operand
-							if ir(15 downto 13) = "100" or ir(15 downto 13) = "110" then
-								st(10) <= alu_flag_parity_source;	-- MOVB, CB
-							else
-								st(10) <= alu_flag_parity;
-							end if;
-						end if;					
+--						-- Store flags.
+--						st(15) <= alu_logical_gt;
+--						st(14) <= alu_arithmetic_gt;
+--						st(13) <= alu_flag_zero;
+--						if ir(15 downto 13) = "101" or ir(15 downto 13) = "011" then
+--							-- add and sub set two more flags
+--							st(12) <= alu_flag_carry;
+--							st(11) <= alu_flag_overflow;
+--						end if;	
+--						-- Byte operations set parity
+--						if not operand_word then
+--							-- parity bit for MOVB and CB is set differently and only depends on source operand
+--							if ir(15 downto 13) = "100" or ir(15 downto 13) = "110" then
+--								st(10) <= alu_flag_parity_source;	-- MOVB, CB
+--							else
+--								st(10) <= alu_flag_parity;
+--							end if;
+--						end if;					
 						-- Store the result except with compare instruction.
 						if ir(15 downto 13) = "100" then
 							cpu_state <= do_fetch;	-- compare, we are already done
