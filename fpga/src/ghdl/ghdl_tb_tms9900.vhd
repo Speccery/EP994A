@@ -241,9 +241,11 @@ BEGIN
 			write(my_line, STRING'(" opcode "));
 			hwrite(my_line, dat); -- data_in);
 			write(my_line, STRING'(" reads "));
-			write(my_line, memory_reads);
+			write(my_line, memory_reads, right, 6);
 			write(my_line, STRING'(" cache hits "));
-			write(my_line, memory_reads_hit);
+			write(my_line, memory_reads_hit, right, 6);
+			write(my_line, STRING'(" st "));
+			write(my_line, cpu_st);
 			writeline(OUTPUT, my_line);
 			last_write_act_clocks <= write_act_clocks;
 			last_read_act_clocks <= read_act_clocks;
@@ -306,8 +308,8 @@ BEGIN
 			
 			-- help with X instruction
 			if wr_force='1' then
-				write(my_line, STRING'("wr_force seen, instruction X"));
-				writeline(output, my_line);
+				-- write(my_line, STRING'("wr_force seen, instruction X"));
+				-- writeline(output, my_line);
 				loc0 <= data_out;
 				wr_force_seen <= '1';
 			end if;

@@ -100,21 +100,21 @@ begin
 					data_out <= cache(cache_line)(15 downto 0);
 					read_tag := cache(cache_line)(addressSize-2-maxsizeBit+16 downto 16);
 					
-					if addr_in(15 downto 0) = x"8318" then
-						write(t, STRING'("epcache debug read: "));
-						hwrite(t, addr_in, right, 6);
-						write(t, STRING'(" rd="));
-						write(t, rd);
-						write(t, STRING'(" tag="));
-						hwrite(t, "00" & tag , right, 5);
-						write(t, STRING'(" read tag="));
-						hwrite(t, "00" & read_tag , right, 5);
-						write(t, STRING'(" line="));
-						write(t, cache_line);
-						write(t, STRING'(" cache data="));
-						hwrite(t, cache(cache_line), right, 10);
-						writeline(output, t);
-					end if;
+					-- if addr_in(15 downto 0) = x"8318" then
+					-- 	write(t, STRING'("epcache debug read: "));
+					-- 	hwrite(t, addr_in, right, 6);
+					-- 	write(t, STRING'(" rd="));
+					-- 	write(t, rd);
+					-- 	write(t, STRING'(" tag="));
+					-- 	hwrite(t, "00" & tag , right, 5);
+					-- 	write(t, STRING'(" read tag="));
+					-- 	hwrite(t, "00" & read_tag , right, 5);
+					-- 	write(t, STRING'(" line="));
+					-- 	write(t, cache_line);
+					-- 	write(t, STRING'(" cache data="));
+					-- 	hwrite(t, cache(cache_line), right, 10);
+					-- 	writeline(output, t);
+					-- end if;
 					
 					
 					if read_tag = tag and cache(cache_line)(35)='1' then 
@@ -130,17 +130,17 @@ begin
 					cache(cache_line) <= "1000000000" & tag & data_in;	-- update the contents of the cache on writes
 					dataword <= "1000000000" & tag & data_in;	-- for simulation: show the update
 					
-					write(t, STRING'("epcache write: "));
-					hwrite(t, addr_in, right, 6);
-					write(t, STRING'(" rd="));
-					write(t, rd);
-					write(t, STRING'(" tag="));
-					hwrite(t, "00" & tag , right, 5);
-					write(t, STRING'(" line="));
-					write(t, cache_line);
-					write(t, STRING'(" data="));
-					hwrite(t, data_in, right, 5);
-					writeline(output, t);
+					-- write(t, STRING'("epcache write: "));
+					-- hwrite(t, addr_in, right, 6);
+					-- write(t, STRING'(" rd="));
+					-- write(t, rd);
+					-- write(t, STRING'(" tag="));
+					-- hwrite(t, "00" & tag , right, 5);
+					-- write(t, STRING'(" line="));
+					-- write(t, cache_line);
+					-- write(t, STRING'(" data="));
+					-- hwrite(t, data_in, right, 5);
+					-- writeline(output, t);
 					
 				end if;
 			end if;

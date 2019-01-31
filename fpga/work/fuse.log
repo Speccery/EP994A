@@ -1,0 +1,58 @@
+Running: C:\Xilinx\14.7\ISE_DS\ISE\bin\nt64\unwrapped\fuse.exe -intstyle ise -incremental -lib secureip -o E:/Dropbox/Omat/trunk/s/EP994A/fpga/work/tb_tms9900_isim_beh.exe -prj E:/Dropbox/Omat/trunk/s/EP994A/fpga/work/tb_tms9900_beh.prj work.tb_tms9900 
+ISim P.20131013 (signature 0x7708f090)
+Number of CPUs detected in this system: 8
+Turning on mult-threading, number of parallel sub-compilation jobs: 16 
+Determining compilation order of HDL files
+Parsing VHDL file "E:/Dropbox/Omat/trunk/s/EP994A/fpga/work/../ep994a/ipcore_dir/multiplier.vhd" into library work
+Parsing VHDL file "E:/Dropbox/Omat/trunk/s/EP994A/fpga/work/../src/tms9900.vhd" into library work
+Parsing VHDL file "E:/Dropbox/Omat/trunk/s/EP994A/fpga/work/../src/ghdl/testrom.vhd" into library work
+Parsing VHDL file "E:/Dropbox/Omat/trunk/s/EP994A/fpga/work/../src/ghdl/epcache.vhd" into library work
+Parsing VHDL file "E:/Dropbox/Omat/trunk/s/EP994A/fpga/work/../src/ghdl/ghdl_tb_tms9900.vhd" into library work
+Starting static elaboration
+Completed static elaboration
+Compiling package standard
+Compiling package std_logic_1164
+Compiling package numeric_std
+Compiling package textio
+Compiling package std_logic_textio
+Compiling package vcomponents
+Compiling package vcomponents
+Compiling package std_logic_arith
+Compiling package std_logic_signed
+Compiling package bip_utils_pkg_v2_0
+Compiling package mult_gen_pkg_v11_2
+Compiling package std_logic_unsigned
+Compiling architecture behavioral of entity mult_gen_v11_2 [\mult_gen_v11_2(0,0,"spartan6",1...]
+Compiling architecture multiplier_a of entity multiplier [multiplier_default]
+Compiling architecture behavioral of entity tms9900 [tms9900_default]
+Compiling architecture behavioral of entity testrom [testrom_default]
+Compiling package vital_timing
+Compiling package vital_primitives
+Compiling package vpkg
+Compiling architecture ramb16bwer_v of entity RAMB16BWER [\RAMB16BWER(36,0,0,0,true,true,"...]
+WARNING:HDLCompiler:746 - "N:/P.20131013/rtf/vhdl/src/unisims/primitive/RAMB16BWER.vhd" Line 2450: Range is empty (null range)
+WARNING:HDLCompiler:746 - "N:/P.20131013/rtf/vhdl/src/unisims/primitive/RAMB16BWER.vhd" Line 2875: Range is empty (null range)
+WARNING:HDLCompiler:746 - "N:/P.20131013/rtf/vhdl/src/unisims/primitive/RAMB16BWER.vhd" Line 3054: Range is empty (null range)
+WARNING:HDLCompiler:746 - "N:/P.20131013/rtf/vhdl/src/unisims/primitive/RAMB16BWER.vhd" Line 3072: Range is empty (null range)
+WARNING:HDLCompiler:746 - "N:/P.20131013/rtf/vhdl/src/unisims/primitive/RAMB16BWER.vhd" Line 3091: Range is empty (null range)
+WARNING:HDLCompiler:746 - "N:/P.20131013/rtf/vhdl/src/unisims/primitive/RAMB16BWER.vhd" Line 3109: Range is empty (null range)
+WARNING:HDLCompiler:746 - "N:/P.20131013/rtf/vhdl/src/unisims/primitive/RAMB16BWER.vhd" Line 3135: Range is empty (null range)
+WARNING:HDLCompiler:746 - "N:/P.20131013/rtf/vhdl/src/unisims/primitive/RAMB16BWER.vhd" Line 3138: Range is empty (null range)
+WARNING:HDLCompiler:746 - "N:/P.20131013/rtf/vhdl/src/unisims/primitive/RAMB16BWER.vhd" Line 2450: Range is empty (null range)
+WARNING:HDLCompiler:746 - "N:/P.20131013/rtf/vhdl/src/unisims/primitive/RAMB16BWER.vhd" Line 2874: Range is empty (null range)
+WARNING:HDLCompiler:746 - "N:/P.20131013/rtf/vhdl/src/unisims/primitive/RAMB16BWER.vhd" Line 2875: Range is empty (null range)
+WARNING:HDLCompiler:746 - "N:/P.20131013/rtf/vhdl/src/unisims/primitive/RAMB16BWER.vhd" Line 3054: Range is empty (null range)
+WARNING:HDLCompiler:746 - "N:/P.20131013/rtf/vhdl/src/unisims/primitive/RAMB16BWER.vhd" Line 3072: Range is empty (null range)
+WARNING:HDLCompiler:746 - "N:/P.20131013/rtf/vhdl/src/unisims/primitive/RAMB16BWER.vhd" Line 3091: Range is empty (null range)
+WARNING:HDLCompiler:746 - "N:/P.20131013/rtf/vhdl/src/unisims/primitive/RAMB16BWER.vhd" Line 3109: Range is empty (null range)
+WARNING:HDLCompiler:746 - "N:/P.20131013/rtf/vhdl/src/unisims/primitive/RAMB16BWER.vhd" Line 3135: Range is empty (null range)
+WARNING:HDLCompiler:746 - "N:/P.20131013/rtf/vhdl/src/unisims/primitive/RAMB16BWER.vhd" Line 3138: Range is empty (null range)
+Compiling architecture bram_v of entity BRAM_SINGLE_MACRO [\BRAM_SINGLE_MACRO("18Kb","SPART...]
+Compiling architecture behavioral of entity epcache [epcache_default]
+Compiling architecture behavior of entity tb_tms9900
+Time Resolution for simulation is 1ps.
+Waiting for 1 sub-compilation(s) to finish...
+Compiled 30 VHDL Units
+Built simulation executable E:/Dropbox/Omat/trunk/s/EP994A/fpga/work/tb_tms9900_isim_beh.exe
+Fuse Memory Usage: 166756 KB
+Fuse CPU Usage: 4639 ms
