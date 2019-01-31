@@ -3,7 +3,7 @@
    <wave_state>
    </wave_state>
    <db_ref_list>
-      <db_ref path="C:/Users/Erik Piehl/Dropbox/Omat/trunk/EP994A/fpga/work/tb_tms9900_isim_beh.wdb" id="1" type="auto">
+      <db_ref path="E:/Dropbox/Omat/trunk/s/EP994A/fpga/work/tb_tms9900_isim_beh.wdb" id="1" type="auto">
          <top_modules>
             <top_module name="bip_utils_pkg_v2_0" />
             <top_module name="mult_gen_pkg_v11_2" />
@@ -23,13 +23,19 @@
          </top_modules>
       </db_ref>
    </db_ref_list>
-   <WVObjectSize size="28" />
+   <WVObjectSize size="39" />
    <wave_markers>
-      <marker time="3935000000" label="" />
+      <marker time="4700000000" label="" />
+      <marker time="21864867000" label="" />
+      <marker time="6075000000" label="" />
    </wave_markers>
    <wvobject fp_name="/tb_tms9900/clk" type="logic" db_ref_id="1">
       <obj_property name="ElementShortName">clk</obj_property>
       <obj_property name="ObjectShortName">clk</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_tms9900/cpu_reset" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">cpu_reset</obj_property>
+      <obj_property name="ObjectShortName">cpu_reset</obj_property>
    </wvobject>
    <wvobject fp_name="/tb_tms9900/reset" type="logic" db_ref_id="1">
       <obj_property name="ElementShortName">reset</obj_property>
@@ -44,14 +50,28 @@
       <obj_property name="ElementShortName">iaq</obj_property>
       <obj_property name="ObjectShortName">iaq</obj_property>
    </wvobject>
+   <wvobject fp_name="/tb_tms9900/uut/ir" type="array" db_ref_id="1">
+      <obj_property name="ElementShortName">ir[15:0]</obj_property>
+      <obj_property name="ObjectShortName">ir[15:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_tms9900/uut/rd_dat" type="array" db_ref_id="1">
+      <obj_property name="ElementShortName">rd_dat[15:0]</obj_property>
+      <obj_property name="ObjectShortName">rd_dat[15:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_tms9900/stuck" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">stuck</obj_property>
+      <obj_property name="ObjectShortName">stuck</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_tms9900/uut/cpu_state" type="other" db_ref_id="1">
+      <obj_property name="ElementShortName">cpu_state</obj_property>
+      <obj_property name="ObjectShortName">cpu_state</obj_property>
+   </wvobject>
    <wvobject fp_name="/tb_tms9900/data_in" type="array" db_ref_id="1">
       <obj_property name="ElementShortName">data_in[15:0]</obj_property>
       <obj_property name="ObjectShortName">data_in[15:0]</obj_property>
       <obj_property name="Radix">HEXRADIX</obj_property>
-   </wvobject>
-   <wvobject fp_name="/tb_tms9900/ready" type="logic" db_ref_id="1">
-      <obj_property name="ElementShortName">ready</obj_property>
-      <obj_property name="ObjectShortName">ready</obj_property>
    </wvobject>
    <wvobject fp_name="/tb_tms9900/data_out" type="array" db_ref_id="1">
       <obj_property name="ElementShortName">data_out[15:0]</obj_property>
@@ -62,6 +82,14 @@
       <obj_property name="ElementShortName">rd</obj_property>
       <obj_property name="ObjectShortName">rd</obj_property>
    </wvobject>
+   <wvobject fp_name="/tb_tms9900/uut/rd_now" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">rd_now</obj_property>
+      <obj_property name="ObjectShortName">rd_now</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_tms9900/uut/wr_force" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">wr_force</obj_property>
+      <obj_property name="ObjectShortName">wr_force</obj_property>
+   </wvobject>
    <wvobject fp_name="/tb_tms9900/wr" type="logic" db_ref_id="1">
       <obj_property name="ElementShortName">wr</obj_property>
       <obj_property name="ObjectShortName">wr</obj_property>
@@ -70,83 +98,163 @@
       <obj_property name="ElementShortName">as</obj_property>
       <obj_property name="ObjectShortName">as</obj_property>
    </wvobject>
-   <wvobject fp_name="/tb_tms9900/cruout" type="logic" db_ref_id="1">
-      <obj_property name="ElementShortName">cruout</obj_property>
-      <obj_property name="ObjectShortName">cruout</obj_property>
-   </wvobject>
-   <wvobject fp_name="/tb_tms9900/cruclk" type="logic" db_ref_id="1">
-      <obj_property name="ElementShortName">cruclk</obj_property>
-      <obj_property name="ObjectShortName">cruclk</obj_property>
-   </wvobject>
-   <wvobject fp_name="/tb_tms9900/cruin" type="logic" db_ref_id="1">
-      <obj_property name="ElementShortName">cruin</obj_property>
-      <obj_property name="ObjectShortName">cruin</obj_property>
-   </wvobject>
-   <wvobject fp_name="/tb_tms9900/stuck" type="logic" db_ref_id="1">
-      <obj_property name="ElementShortName">stuck</obj_property>
-      <obj_property name="ObjectShortName">stuck</obj_property>
-   </wvobject>
-   <wvobject fp_name="/tb_tms9900/clk_period" type="other" db_ref_id="1">
-      <obj_property name="ElementShortName">clk_period</obj_property>
-      <obj_property name="ObjectShortName">clk_period</obj_property>
-   </wvobject>
-   <wvobject fp_name="/tb_tms9900/hold" type="logic" db_ref_id="1">
-      <obj_property name="ElementShortName">hold</obj_property>
-      <obj_property name="ObjectShortName">hold</obj_property>
-   </wvobject>
-   <wvobject fp_name="/tb_tms9900/holda" type="logic" db_ref_id="1">
-      <obj_property name="ElementShortName">holda</obj_property>
-      <obj_property name="ObjectShortName">holda</obj_property>
-   </wvobject>
-   <wvobject fp_name="/tb_tms9900/int_req" type="logic" db_ref_id="1">
-      <obj_property name="ElementShortName">int_req</obj_property>
-      <obj_property name="ObjectShortName">int_req</obj_property>
-   </wvobject>
-   <wvobject fp_name="/tb_tms9900/int_ack" type="logic" db_ref_id="1">
-      <obj_property name="ElementShortName">int_ack</obj_property>
-      <obj_property name="ObjectShortName">int_ack</obj_property>
-   </wvobject>
-   <wvobject fp_name="/tb_tms9900/mult_debug_out" type="array" db_ref_id="1">
-      <obj_property name="ElementShortName">mult_debug_out[35:0]</obj_property>
-      <obj_property name="ObjectShortName">mult_debug_out[35:0]</obj_property>
-      <obj_property name="Radix">HEXRADIX</obj_property>
-   </wvobject>
-   <wvobject fp_name="/tb_tms9900/cpu_st" type="array" db_ref_id="1">
-      <obj_property name="ElementShortName">cpu_st[15:0]</obj_property>
-      <obj_property name="ObjectShortName">cpu_st[15:0]</obj_property>
-      <obj_property name="Radix">HEXRADIX</obj_property>
-   </wvobject>
-   <wvobject fp_name="/tb_tms9900/alu_debug_arg1" type="array" db_ref_id="1">
-      <obj_property name="ElementShortName">alu_debug_arg1[15:0]</obj_property>
-      <obj_property name="ObjectShortName">alu_debug_arg1[15:0]</obj_property>
-      <obj_property name="Radix">HEXRADIX</obj_property>
-   </wvobject>
-   <wvobject fp_name="/tb_tms9900/alu_debug_arg2" type="array" db_ref_id="1">
-      <obj_property name="ElementShortName">alu_debug_arg2[15:0]</obj_property>
-      <obj_property name="ObjectShortName">alu_debug_arg2[15:0]</obj_property>
-      <obj_property name="Radix">HEXRADIX</obj_property>
-   </wvobject>
-   <wvobject fp_name="/tb_tms9900/cru_test_data" type="array" db_ref_id="1">
-      <obj_property name="ElementShortName">cru_test_data[15:0]</obj_property>
-      <obj_property name="ObjectShortName">cru_test_data[15:0]</obj_property>
-      <obj_property name="Radix">HEXRADIX</obj_property>
-   </wvobject>
-   <wvobject fp_name="/tb_tms9900/uut/scratchpad_wr" type="logic" db_ref_id="1">
-      <obj_property name="ElementShortName">scratchpad_wr</obj_property>
-      <obj_property name="ObjectShortName">scratchpad_wr</obj_property>
-   </wvobject>
-   <wvobject fp_name="/tb_tms9900/uut/scratchpad_en" type="logic" db_ref_id="1">
-      <obj_property name="ElementShortName">scratchpad_en</obj_property>
-      <obj_property name="ObjectShortName">scratchpad_en</obj_property>
+   <wvobject fp_name="group578" type="group">
+      <obj_property name="label">some signals</obj_property>
+      <obj_property name="DisplayName">label</obj_property>
+      <wvobject fp_name="/tb_tms9900/cruout" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">cruout</obj_property>
+         <obj_property name="ObjectShortName">cruout</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb_tms9900/cruclk" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">cruclk</obj_property>
+         <obj_property name="ObjectShortName">cruclk</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb_tms9900/cruin" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">cruin</obj_property>
+         <obj_property name="ObjectShortName">cruin</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb_tms9900/clk_period" type="other" db_ref_id="1">
+         <obj_property name="ElementShortName">clk_period</obj_property>
+         <obj_property name="ObjectShortName">clk_period</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb_tms9900/hold" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">hold</obj_property>
+         <obj_property name="ObjectShortName">hold</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb_tms9900/holda" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">holda</obj_property>
+         <obj_property name="ObjectShortName">holda</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb_tms9900/int_req" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">int_req</obj_property>
+         <obj_property name="ObjectShortName">int_req</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb_tms9900/int_ack" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">int_ack</obj_property>
+         <obj_property name="ObjectShortName">int_ack</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb_tms9900/ready" type="logic" db_ref_id="1">
+         <obj_property name="ElementShortName">ready</obj_property>
+         <obj_property name="ObjectShortName">ready</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb_tms9900/mult_debug_out" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">mult_debug_out[35:0]</obj_property>
+         <obj_property name="ObjectShortName">mult_debug_out[35:0]</obj_property>
+         <obj_property name="Radix">HEXRADIX</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb_tms9900/cpu_st" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">cpu_st[15:0]</obj_property>
+         <obj_property name="ObjectShortName">cpu_st[15:0]</obj_property>
+         <obj_property name="Radix">HEXRADIX</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb_tms9900/alu_debug_arg1" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">alu_debug_arg1[15:0]</obj_property>
+         <obj_property name="ObjectShortName">alu_debug_arg1[15:0]</obj_property>
+         <obj_property name="Radix">HEXRADIX</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb_tms9900/alu_debug_arg2" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">alu_debug_arg2[15:0]</obj_property>
+         <obj_property name="ObjectShortName">alu_debug_arg2[15:0]</obj_property>
+         <obj_property name="Radix">HEXRADIX</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb_tms9900/cru_test_data" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">cru_test_data[15:0]</obj_property>
+         <obj_property name="ObjectShortName">cru_test_data[15:0]</obj_property>
+         <obj_property name="Radix">HEXRADIX</obj_property>
+      </wvobject>
    </wvobject>
    <wvobject fp_name="/tb_tms9900/uut/wr_dat" type="array" db_ref_id="1">
       <obj_property name="ElementShortName">wr_dat[15:0]</obj_property>
       <obj_property name="ObjectShortName">wr_dat[15:0]</obj_property>
       <obj_property name="Radix">HEXRADIX</obj_property>
    </wvobject>
-   <wvobject fp_name="/tb_tms9900/uut/scratchpad_out" type="array" db_ref_id="1">
-      <obj_property name="ElementShortName">scratchpad_out[15:0]</obj_property>
-      <obj_property name="ObjectShortName">scratchpad_out[15:0]</obj_property>
+   <wvobject fp_name="/tb_tms9900/cache/clk" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">clk</obj_property>
+      <obj_property name="ObjectShortName">clk</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_tms9900/cache/reset" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">reset</obj_property>
+      <obj_property name="ObjectShortName">reset</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_tms9900/cache/reset_done" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">reset_done</obj_property>
+      <obj_property name="ObjectShortName">reset_done</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_tms9900/cache/cacheable" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">cacheable</obj_property>
+      <obj_property name="ObjectShortName">cacheable</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_tms9900/cache/update" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">update</obj_property>
+      <obj_property name="ObjectShortName">update</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_tms9900/cache/data_in" type="array" db_ref_id="1">
+      <obj_property name="ElementShortName">data_in[15:0]</obj_property>
+      <obj_property name="ObjectShortName">data_in[15:0]</obj_property>
       <obj_property name="Radix">HEXRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_tms9900/cache/data_out" type="array" db_ref_id="1">
+      <obj_property name="ElementShortName">data_out[15:0]</obj_property>
+      <obj_property name="ObjectShortName">data_out[15:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_tms9900/cache/addr_in" type="array" db_ref_id="1">
+      <obj_property name="ElementShortName">addr_in[19:0]</obj_property>
+      <obj_property name="ObjectShortName">addr_in[19:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_tms9900/cpu_data_in" type="array" db_ref_id="1">
+      <obj_property name="ElementShortName">cpu_data_in[15:0]</obj_property>
+      <obj_property name="ObjectShortName">cpu_data_in[15:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_tms9900/cache/hit" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">hit</obj_property>
+      <obj_property name="ObjectShortName">hit</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_tms9900/cache/miss" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">miss</obj_property>
+      <obj_property name="ObjectShortName">miss</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_tms9900/cache/rd" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">rd</obj_property>
+      <obj_property name="ObjectShortName">rd</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_tms9900/cache/wr" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">wr</obj_property>
+      <obj_property name="ObjectShortName">wr</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_tms9900/cache/cache_line" type="other" db_ref_id="1">
+      <obj_property name="ElementShortName">cache_line</obj_property>
+      <obj_property name="ObjectShortName">cache_line</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_tms9900/cache/reset_count" type="other" db_ref_id="1">
+      <obj_property name="ElementShortName">reset_count</obj_property>
+      <obj_property name="ObjectShortName">reset_count</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_tms9900/cache/in_reset" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">in_reset</obj_property>
+      <obj_property name="ObjectShortName">in_reset</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_tms9900/cache/dataword" type="array" db_ref_id="1">
+      <obj_property name="ElementShortName">dataword[35:0]</obj_property>
+      <obj_property name="ObjectShortName">dataword[35:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_tms9900/cache/reset_donei" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">reset_donei</obj_property>
+      <obj_property name="ObjectShortName">reset_donei</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_tms9900/cache/cachelast" type="other" db_ref_id="1">
+      <obj_property name="ElementShortName">cachelast</obj_property>
+      <obj_property name="ObjectShortName">cachelast</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_tms9900/cache/maxsizebit" type="other" db_ref_id="1">
+      <obj_property name="ElementShortName">maxsizebit</obj_property>
+      <obj_property name="ObjectShortName">maxsizebit</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_tms9900/cache/addresssize" type="other" db_ref_id="1">
+      <obj_property name="ElementShortName">addresssize</obj_property>
+      <obj_property name="ObjectShortName">addresssize</obj_property>
    </wvobject>
 </wave_config>

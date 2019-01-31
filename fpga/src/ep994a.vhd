@@ -57,6 +57,10 @@ use UNISIM.VComponents.all;
 --...
 ----------------------------------------------------------------------------------
 entity ep994a is
+	generic (
+		cfg_spi_memloader : boolean := false;
+		cfg_hw_keyboard   : boolean := false	-- TI-99/4A original keyboard connected to system
+	);
     Port ( clock : in  STD_LOGIC;
            rxd : in  STD_LOGIC;
            txd : out  STD_LOGIC;
@@ -93,7 +97,8 @@ entity ep994a is
 			  
 			  -- GPIO port
 			  GPIO		 : inout std_logic_vector(15 downto 0);
-				-- GPIO 0..7  = IO1P..IO8P - these are the keyboard row strobes.
+				-- GPIO 0..1 = TMS9902RX and TMS9902TX	serial port signals
+				-- GPIO 2..7  = IO1P..IO8P - these are the keyboard row strobes.
 				-- GPIO 8..15 = IO1N..IO8N - these are key input signals.
 				
 			  LPC1343_RQ	: out STD_LOGIC; 
@@ -116,32 +121,34 @@ end ep994a;
 
 architecture Behavioral of ep994a is
 
-	 component serloader port (
-		  clk 		: in  STD_LOGIC;
-		  rst 		: in  STD_LOGIC;
-		  tx				: out STD_LOGIC;
-		  rx				: in STD_LOGIC;
-		  -- SPI interface begin
-		  spi_cs_n		: in STD_LOGIC;
-		  spi_clk		: in STD_LOGIC;
-		  spi_mosi		: in STD_LOGIC;
-		  spi_miso     : out STD_LOGIC;
-		  spi_rq			: out STD_LOGIC;	-- spi request - currently used for debugging.
-		  -- SPI interface end
-		  mem_addr 	: out  STD_LOGIC_VECTOR (31 downto 0);
-		  mem_data_out : out  STD_LOGIC_VECTOR (7 downto 0);
-		  mem_data_in : in  STD_LOGIC_VECTOR (7 downto 0);
-		  mem_read_rq : out  STD_LOGIC;
-		  mem_read_ack : in  STD_LOGIC;
-		  mem_write_rq : out  STD_LOGIC;
-		  mem_write_ack : in  STD_LOGIC
-		);
-	 end component;
+--	 component serloader port (
+--		  clk 		: in  STD_LOGIC;
+--		  rst 		: in  STD_LOGIC;
+--		  tx				: out STD_LOGIC;
+--		  rx				: in STD_LOGIC;
+--		  -- SPI interface begin
+--		  spi_cs_n		: in STD_LOGIC;
+--		  spi_clk		: in STD_LOGIC;
+--		  spi_mosi		: in STD_LOGIC;
+--		  spi_miso     : out STD_LOGIC;
+--		  spi_rq			: out STD_LOGIC;	-- spi request - currently used for debugging.
+--		  -- SPI interface end
+--		  mem_addr 	: out  STD_LOGIC_VECTOR (31 downto 0);
+--		  mem_data_out : out  STD_LOGIC_VECTOR (7 downto 0);
+--		  mem_data_in : in  STD_LOGIC_VECTOR (7 downto 0);
+--		  mem_read_rq : out  STD_LOGIC;
+--		  mem_read_ack : in  STD_LOGIC;
+--		  mem_write_rq : out  STD_LOGIC;
+--		  mem_write_ack : in  STD_LOGIC
+--		);
+--	 end component;
  
 	
 	signal funky_reset 		: std_logic_vector(15 downto 0) := (others => '0');
 	signal real_reset			: std_logic;
 	signal real_reset_n		: std_logic;
+	signal cold_reset_n		: std_logic;	-- active only during "cold" reset of the system.
+	signal cold_reset			: std_logic;
 	signal mem_data_out 		: std_logic_vector(7 downto 0);
 	signal mem_data_in 		: std_logic_vector(7 downto 0);
 	signal mem_addr			: std_logic_vector(31 downto 0);
@@ -220,7 +227,7 @@ architecture Behavioral of ep994a is
 	signal cru_read_bit		: std_logic;
 	
 	-- Reset control
-	signal cpu_reset_ctrl	: std_logic_vector(7 downto 0);	-- 8 control signals, bit 0 = reset, bit 1=rom bank reset, bit 2=mask interrupts when cleared
+	signal cpu_reset_ctrl	: std_logic_vector(7 downto 0) := x"00";	-- 8 control signals, bit 0 = reset, bit 1=rom bank reset, bit 2=mask interrupts when cleared
 	signal cpu_single_step  : std_logic_vector(7 downto 0) := x"00";	-- single stepping. bit 0=1 single step mode, bit 1=1 advance one instruction	
 	
 	-- Module port banking
@@ -249,14 +256,7 @@ architecture Behavioral of ep994a is
 	-- signal pager_extended   : std_logic;
 	
 	-- TMS99105 Shield control latch signals (written to control latch during control cycle)
---	signal conl_led1  : std_logic;	-- IO8P - indata[7]
---	signal conl_led2  : std_logic;	-- IO7P - indata[6]
-	signal conl_app_n : std_logic;
-	signal conl_ready : std_logic;
-	signal conl_hold  : std_logic;
-	signal conl_nmi   : std_logic;
 	signal conl_int   : std_logic;	-- IO2P - indata[1]
-	signal conl_reset : std_logic;	-- IO1P - indata[0]
 	-- TMS99105 Shield control signal buffer read signals (read during control control cycle)
 	signal WE_n			: std_logic;	-- IO1N - indata[8]
 	signal MEM_n		: std_logic;	-- IO2N - indata[9]
@@ -283,7 +283,7 @@ architecture Behavioral of ep994a is
 	signal RD_n   : std_logic;
 	signal cpu_rd : std_logic;
 	signal cpu_wr : std_logic;	
-	signal cpu_ready : std_logic;
+	-- signal cpu_ready : std_logic;
 	signal cpu_iaq : std_logic;
 	signal cpu_as : std_logic;
 	
@@ -315,6 +315,7 @@ architecture Behavioral of ep994a is
 	signal flashAddrOut : STD_LOGIC_VECTOR (19 downto 0);
 	signal flashRamWE_n : std_logic;
 	signal flashLoading : std_logic;
+	signal flashLoadingOut : std_logic;
 	signal lastFlashRamWE_n : std_logic;	-- last state of flashRamWE_n
 	signal lastFlashLoading : std_logic;	-- last state of flashLoading
 	
@@ -332,6 +333,7 @@ architecture Behavioral of ep994a is
 	signal spi_clk_sampler : std_logic_vector(2 downto 0) := "000";
 	signal spi_rx_bit : std_logic;	
 	signal wait_clock : boolean := false;
+
 -------------------------------------------------------------------------------	
     COMPONENT tms9900
     PORT(
@@ -342,9 +344,13 @@ architecture Behavioral of ep994a is
          data_out : OUT  std_logic_vector(15 downto 0);
          rd : OUT  std_logic;
          wr : OUT  std_logic;
-         ready : IN  std_logic;
-         iaq : OUT  std_logic;
-         as : OUT  std_logic;
+			-- cache support signals start
+			cache_hit 	: in std_logic;		
+			rd_now		: out std_logic;
+			wr_force		: out std_logic;
+			-- cache support singals end
+         iaq 			: out  std_logic;
+         as 			: out  std_logic;
 --			test_out : OUT  std_logic_vector(15 downto 0);
 --			alu_debug_out : OUT  std_logic_vector(15 downto 0);
 --			alu_debug_oper : out STD_LOGIC_VECTOR(3 downto 0);
@@ -360,7 +366,6 @@ architecture Behavioral of ep994a is
 			hold     : in STD_LOGIC;
 			holda    : out STD_LOGIC;
 			waits    : in STD_LOGIC_VECTOR(7 downto 0);
-			scratch_en : in STD_LOGIC;		-- when 1 in-core scratchpad RAM is enabled
          stuck : OUT  std_logic
         );
     END COMPONENT;
@@ -414,9 +419,50 @@ architecture Behavioral of ep994a is
 		spi_miso 	: in STD_LOGIC
 	);
 	end component;
-
-begin
-  
+-------------------------------------------------------------------------------
+-- TMS9902 by pnr	
+	component tms9902 is
+	port (
+		CLK      : in  std_logic;
+		nRTS     : out std_logic;
+		nDSR     : in  std_logic;
+		nCTS     : in  std_logic;
+		nINT     : out std_logic;
+		nCE      : in  std_logic;
+		CRUOUT   : in  std_logic;
+		CRUIN    : out std_logic;
+		CRUCLK   : in  std_logic;
+		XOUT     : out std_logic;
+		RIN      : in  std_logic;
+		S        : in  std_logic_vector(4 downto 0)
+		);
+	end component;
+	
+	signal tms9902_cruin : std_logic;
+	signal tms9902_nCE   : std_logic;
+	signal tms9902_rts_cts : std_logic;
+	
+	signal TMS9902TX 		 : std_logic;
+	signal TMS9902RX 		 : std_logic;
+	
+	-- cache signals
+	signal cache_data_in  : std_logic_vector(15 downto 0);
+	signal cache_data_out : std_logic_vector(15 downto 0);
+	signal cpu_data_in    : std_logic_vector(15 downto 0);
+	signal cacheable 		 : std_logic := '1';
+	signal cache_hit      : std_logic;
+	signal cache_miss     : std_logic;
+	signal cache_update   : std_logic := '0';
+	signal cache_reset_done : std_logic;
+	signal cache_addr_in  : std_logic_vector(19 downto 0);
+	signal cpu_reset_after_cache : std_logic;	
+	signal rd_now			 : std_logic;
+	signal wr_force		: std_logic;
+	signal cache_wr		: std_logic;
+	
+	begin
+-------------------------------------------------------------------------------
+ 
  clkin1_buf : IBUFG
   port map
    (O => clk_ref_ibuf,
@@ -491,11 +537,6 @@ begin
 	
 	-------------------------------------size
 	
-	-- CPU reset out. If either cpu_reset_ctrl(0) or funky_reset(MSB) is zero, put CPU to reset.
-	real_reset <= funky_reset(funky_reset'length-1);
-	real_reset_n <= not real_reset;
-	conl_reset <= cpu_reset_ctrl(0) and real_reset;
-	
 	cpu_access <= not cpu_holda;	-- CPU owns the bus except when in hold
 	
 	-------------------------------------
@@ -515,7 +556,9 @@ begin
 	-- 12 | IO5P | col#0	
 	--  9 | IO4P | col#4	
 	--  8 | IO3P | col#5
-	GPIO(1 downto 0) <= "ZZ";	-- unused
+	GPIO(1) <= TMS9902TX;
+	TMS9902RX <= GPIO(0);
+	
 	-- For the column decoder, rely on pull-ups to bring the row selectors high
 	GPIO(7) <= '0' when cru9901(20 downto 18) = "011" else 'Z'; 	-- col#3
 	GPIO(6) <= '0' when cru9901(20 downto 18) = "010" else 'Z'; 	-- col#2
@@ -525,18 +568,32 @@ begin
 	GPIO(2) <= '0' when cru9901(20 downto 18) = "101" else 'Z'; 	-- col#5
 	-------------------------------------
 	
-	process(clk, switch)
+	process(clk, switch, swi)
 	variable ki : integer range 0 to 7;
 	begin
 		if rising_edge(clk) then 	-- our 100 MHz clock
+		
+			-- EP 2018-09-22 making sense of the reset signals, I also inverted the names of real_reset
+			-- 	and real_reset_n so that they make more sense now.
+			-- We have a bunch of reset signals:
+			--		cold_reset_n 						- when zero we are being cold booted 
+			--			(drives reset load from serial flash and serloader)
+			--		real_reset and real_reset_n 	- when active we have cold boot OR reset from host
+			-- 	cpu_reset							- (active high) reset CPU
+			real_reset_n <= funky_reset(funky_reset'length-1) and cpu_reset_ctrl(0);	-- when low, we have reset
+			real_reset <= not real_reset_n;			-- when high we have reset
+			cpu_reset <= not (cpu_reset_ctrl(0) and real_reset_n and not flashLoading);
+			cold_reset_n <= funky_reset(funky_reset'length-1);
+			cold_reset <= not cold_reset_n;
+		
 			-- reset generation
 			if switch = '1' then
-				funky_reset <= (others => '0');	-- button on the FPGA board pressed
+				funky_reset <= (others => '0');	-- button on the FPGA board pressed -> cold reset
 			else
 				funky_reset <= funky_reset(funky_reset'length-2 downto 0) & '1';
 			end if;
 			-- reset processing
-			if funky_reset(funky_reset'length-1) = '0' then
+			if cold_reset_n = '0' then
 				-- reset activity here
 				mem_state <= idle;
 				ctrl_state <= idle;
@@ -549,11 +606,6 @@ begin
 				cru9901 <= x"00000000";
 				cru1100 <= '0';
 				sams_regs <= (others => '0');
-				
-				conl_app_n  <= '1';
-				conl_ready  <= '1';
-				conl_hold 	<= '1';
-				conl_nmi 	<= '1';
 				
 				alatch_counter <= (others => '0');
 				
@@ -569,7 +621,8 @@ begin
 				-- First manage CPU wait states
 				-- if switch 1 (SWI[7]) is set we run at 63 wait states
 				-- if switch 2 (SWI[6]) is set we run at 31 wait states
-				-- if switch 2 (SWI[5]) is set we run at 8 wait states
+				-- if switch 3 (SWI[5]) is set we run at 8 wait states
+				-- if switch 4 (SWI[4]) is set cache is disabled.
 				-- else we run at zero wait states
 				if SWI(7)='1' then
 					if cpu_as='1' then
@@ -592,7 +645,6 @@ begin
 				
 				-- If SWI(0) is set then automatically bring CPU out of reset once FPGA has moved
 				-- data from flash memory to SRAM.
-				cpu_reset <= not (cpu_reset_ctrl(0) and real_reset and not flashLoading);
 				lastFlashLoading <= flashLoading;
 				if SWI(0) = '1' then 
 					if flashLoading='1' then
@@ -767,9 +819,14 @@ begin
 						mem_state <= idle;			-- thus one cycle when mem_write_rq is not sampled after write.
 						mem_read_ack <= '0';
 						mem_write_ack <= '0';
+						debug_sram_ce0 <= '1';	-- since we can enter here from cache hits, make sure SRAM is deselected
+						debug_sram_oe <= '1';
+						
 						
 					-- CPU read cycle
-					when cpu_rd0 => mem_state <= cpu_rd1;
+					when cpu_rd0 => 
+						mem_state <= cpu_rd1;
+						if	cpu_rd = '0' then mem_state <= grace; end if;	-- abort if CPU was served by cache
 					when cpu_rd1 => 
 						mem_state <= cpu_rd2;
 						mem_to_cpu <= sram_16bit_read_bus(15 downto 0);
@@ -777,6 +834,7 @@ begin
 							sram_capture <= False;
 							sram_debug <= cpu_addr & "00000000000" & cpu_access & sram_addr_bus & '0' & sram_16bit_read_bus(15 downto 0);
 						end if;
+						if	cpu_rd = '0' then mem_state <= grace; end if;	-- abort if CPU was served by cache
 					when cpu_rd2 =>
 						debug_sram_ce0 <= '1';
 						debug_sram_oe <= '1';
@@ -813,6 +871,9 @@ begin
 								case mem_addr(4 downto 0) is
 									when "01000" => mem_data_in <= cpu_reset_ctrl;
 									when "01001" => mem_data_in <= cpu_single_step;
+									when "01010" => mem_data_in <= 
+										  funky_reset(funky_reset'length-1) & cpu_reset_ctrl(0) & SWI(1) & cpu_reset_after_cache
+										& flashLoading & cpu_reset & real_reset & cold_reset;
 									when "10000" => mem_data_in <= cpu_debug_out(7 downto 0);
 									when "10001" => mem_data_in <= cpu_debug_out(15 downto 8);
 									when "10010" => mem_data_in <= cpu_debug_out(23 downto 16);
@@ -922,6 +983,12 @@ begin
 
 				end if;
 				
+				-- CRU cycle to the TMS9902
+				tms9902_nCE <= '1';
+				if MEM_n='1' and cpu_addr(15 downto 8) = x"13" and cpu_addr(7 downto 6) = "01" then -- x"1340" base address
+					tms9902_nCE <= '0';
+				end if;				
+				
 				-- CRU write cycle to disk control system
 				if MEM_n='1' and cpu_addr(15 downto 1)= x"110" & "000" and go_cruclk = '1' then
 					cru1100 <= cpu_cruout;
@@ -945,17 +1012,22 @@ begin
 					--	8 = 1000
 					-- A = 1010 
 					ki := to_integer(unsigned(cpu_addr(3 downto 1))) - 3; -- row select on address
---					cru_read_bit <= keyboard(to_integer(unsigned(cru9901(20 downto 18))), ki); -- column select on multiplexor select
-					case ki is
-						when 0 => cru_read_bit <= GPIO(8);
-						when 1 => cru_read_bit <= GPIO(9);
-						when 2 => cru_read_bit <= GPIO(10);
-						when 3 => cru_read_bit <= GPIO(11);
-						when 4 => cru_read_bit <= GPIO(12);
-						when 5 => cru_read_bit <= GPIO(13);
-						when 6 => cru_read_bit <= GPIO(14);
-						when 7 => cru_read_bit <= GPIO(15);
-					end case;
+					if not cfg_hw_keyboard then
+						-- keyboard from PC through memloader
+						cru_read_bit <= keyboard(to_integer(unsigned(cru9901(20 downto 18))), ki); -- column select on multiplexor select
+					else
+						-- keyboard from an actual connected keyboard
+						case ki is
+							when 0 => cru_read_bit <= GPIO(8);
+							when 1 => cru_read_bit <= GPIO(9);
+							when 2 => cru_read_bit <= GPIO(10);
+							when 3 => cru_read_bit <= GPIO(11);
+							when 4 => cru_read_bit <= GPIO(12);
+							when 5 => cru_read_bit <= GPIO(13);
+							when 6 => cru_read_bit <= GPIO(14);
+							when 7 => cru_read_bit <= GPIO(15);
+						end case;
+					end if;
 					
 				elsif cpu_addr(15 downto 1) & '0' = x"0004" then
 					cru_read_bit <= not vdp_interrupt; -- VDP interrupt status (read with TB 2 instruction)
@@ -968,15 +1040,21 @@ begin
 					cru_read_bit <= cru1100;
 				elsif cpu_addr(15 downto 4) = x"1E0" then
 					cru_read_bit <= sams_regs(to_integer(unsigned(cpu_addr(3 downto 1))));
+				elsif tms9902_cruin = '0' then
+					cru_read_bit <= tms9902_cruin;
 				end if;
 			end if;
 		end if;	-- rising_edge
 	end process;
 	
 		
-	command_processor : serloader port map (
+	command_processor : entity work.serloader 
+		generic map ( 
+			cfg_spi_memloader => cfg_spi_memloader
+		)
+		port map (
 		clk 		=> clk,
-		rst 		=> real_reset_n,
+		rst 		=> cold_reset,
 		tx			=> txd,
  		rx			=> rxd,
 	   -- SPI interface begin
@@ -997,22 +1075,25 @@ begin
 
 	-- The leds have two functions: during Flash loading they make a progress bar of the LED to RAM transfer.
 	-- During normal operation they show various control signals.
---	led(0) <= cpu_reset 		when flashLoading = '0' else '1';
---	led(1) <= cpu_hold  		when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) >= "000" else '0';
---	led(2) <= cpu_holda 		when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) >= "001" else '0';
+	led(0) <= cpu_reset 		when flashLoading = '0' else '1';
+	led(1) <= cpu_hold  		when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) >= "000" else '0';
+	led(2) <= cpu_holda 		when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) >= "001" else '0';
+	led(3) <= cache_hit 		when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) >= "001" else '0';
+	led(4) <= cacheable 		when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) >= "011" else '0';
 --	led(3) <= sams_regs(0) 	when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) >= "010" else '0';
 --	led(4) <= sams_regs(1) 	when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) >= "011" else '0';
---	led(5) <= cpu_wr   		when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) >= "100" else '0';
---	led(6) <= '1'				when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) >= "101" else '0';
---	led(7) <= alatch_counter(19) when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) = "110" else '0';
-	led <= spiLPC_tx;
+	led(5) <= flashLoading	when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) >= "100" else '0';
+	led(6) <= real_reset_n	when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) >= "101" else '0';
+	led(7) <= alatch_counter(19) when flashLoading = '0' else '1' when flashAddrOut(17 downto 15) = "110" else '0';
+	-- led <= spiLPC_tx;
 
 	
 	cpu_hold <= '1' when mem_read_rq='1' or mem_write_rq='1' or (cpu_single_step(0)='1' and cpu_single_step(1)='0') 
 							or flashLoading = '1' else '0'; -- issue DMA request
 	DEBUG1 <= go_write;
 
-	go_write <= '1' when wr_sampler = "1000" else '0'; -- wr_sampler = "1110" else '0';
+	-- go_write <= '1' when wr_sampler = "1000" else '0'; -- wr_sampler = "1110" else '0';
+	go_write <= '1' when wr_sampler(1 downto 0)="10" else '0';
 	go_cruclk <= '1' when cruclk_sampler(1 downto 0) = "01" else '0';
 
 
@@ -1039,7 +1120,7 @@ begin
  	vdp: entity work.tms9918
 		port map(
 		clk 		=> clk,		
-		reset 	=> real_reset_n,	
+		reset 	=> real_reset,	
 		mode 		=> cpu_addr(1),
 		addr		=> cpu_addr(8 downto 1),
 		data_in 	=> data_from_cpu(15 downto 8),
@@ -1068,14 +1149,14 @@ begin
 			rd 		=> grom_rd,
 			selected => grom_selected,	-- output from GROM available, i.e. GROM address is ours
 			mode 		=> cpu_addr(5 downto 1),
-			reset 	=> real_reset_n,
+			reset 	=> real_reset,
 			addr 		=> grom_ram_addr
 		);
 
 	-- sound chip implementation
 	TMS9919_CHIP: entity work.tms9919 port map (
 			clk 		=> clk,
-			reset		=> real_reset_n,
+			reset		=> real_reset,
 			data_in 	=> data_from_cpu(15 downto 8),
 			we			=> tms9919_we,
 			dac_out	=> dac_data
@@ -1122,13 +1203,16 @@ begin
 	
 	cpu : tms9900 PORT MAP (
           clk => clk,
-          reset => cpu_reset,
+          reset => cpu_reset_after_cache,
           addr_out => cpu_addr,
-          data_in => data_to_cpu,
+          data_in => cpu_data_in,
           data_out => data_from_cpu,
           rd => cpu_rd,
           wr => cpu_wr,
-          ready => cpu_ready,
+			 rd_now => rd_now,
+			 wr_force => wr_force,
+			 cache_hit => cache_hit,
+          -- ready => cpu_ready,
           iaq => cpu_iaq,
           as => cpu_as,
 --			 test_out => test_out,
@@ -1146,9 +1230,53 @@ begin
 			 hold => cpu_hold,
 			 holda => cpu_holda,
 			 waits => waits,
-			 scratch_en => '0',
           stuck => cpu_stuck
         );
+		  
+		  
+	cpu_reset_after_cache <= (not cache_reset_done) or cpu_reset;
+	-- Setting SWI(4) (switch number 4) disables cache.
+	-- note: address 0 has to be cacheable for instruction X to work.
+	cacheable <= (not SWI(4)) when 
+		   cpu_addr(15 downto 14) = "00" 	-- 0000..3FFF system ROM and low 8K of extension RAM
+		or cpu_addr(15 downto 13) = "011"	-- 6000..7FFF 8k cartridge space (paged)
+		or cpu_addr(15 downto 13) = "101"	-- A000..BFFF 8k extension RAM
+		or cpu_addr(15 downto 14) = "11"		-- C000..FFFF top 16k of extension RAM
+		or cpu_addr(15 downto 8)  = x"83"	-- scratchpad
+		else '0';
+	
+	-- Address mapping for cache: matches physical addresses for the 512K 
+	-- paged cartridge address space.
+	-- For simplicity right now the rest is just mapped with a19=1. This does not matter
+	-- as long as paging is not enabled. It is just important that ROM cartridge area does
+	-- not collide with rest of address space of the CPU.
+	cache_addr_in <= '0' & basic_rom_bank & cpu_addr(12 downto 0) when cartridge_cs='1' else
+		"1000" & cpu_addr;
+
+	-- feed write data to cache during writes, otherwise whatever CPU is reading.
+	cache_data_in <= data_from_cpu  when cpu_wr='1' or wr_force='1' else data_to_cpu; 	
+	cpu_data_in   <= cache_data_out when cache_hit='1' and cpu_rd='1' else data_to_cpu;
+	cache_update  <= '1' when cacheable='1' and rd_now='1' and cache_miss='1' else '0';
+	cache_wr 	  <= cpu_wr or wr_force;
+	-- note: address 0 has to be cacheable for instruction X to work.
+	
+	
+	cache: entity work.epcache PORT MAP ( 
+		clk => clk,
+		reset => cpu_reset,
+		reset_done => cache_reset_done, 
+	   cacheable => cacheable,
+	   update => cache_update,
+		data_in =>  cache_data_in, -- data_out,
+		data_out => cache_data_out, 
+		addr_in => cache_addr_in,
+		hit => cache_hit,
+		-- hit_async => cache_hit,
+		miss => cache_miss,
+		rd => cpu_rd,
+		wr => cache_wr
+	);
+		  
 		  
 	process(clk) 
 	begin
@@ -1165,7 +1293,7 @@ begin
 	FLASH_HOLD <= '1';
 	serial_flash_rom : flash PORT MAP (
 				clk8 			=> clk8,
-				n_reset 		=> funky_reset(funky_reset'length-1),
+				n_reset 		=> cold_reset_n,
 				bad_load 	=> '0',
 				load_disk 	=> '0',
 				disk			=> "0000",
@@ -1175,13 +1303,30 @@ begin
 				memoryDataOut => flashDataOut,
 				memoryAddr 	=> flashAddrOut,
 				n_ramWE 		=> flashRamWE_n,
-				loading 		=> flashLoading,
+				loading 		=> flashLoadingOut,
 				spi_sclk 	=> FLASH_CK,
 				spi_ss 		=> FLASH_CS,
 				spi_mosi 	=> FLASH_SI,
 				spi_miso 	=> FLASH_SO
 			);
-		
+
+	flashLoading <= flashLoadingOut when SWI(1)='1' else '0';	-- SWI(1)=0 masks flashLoader.
+
+	pnr_tms9902 : tms9902 PORT MAP (
+		CLK 	=> CLK,
+		nRTS 	=> tms9902_rts_cts,  -- out
+		nDSR  => '0', 					-- in
+		nCTS  => tms9902_rts_cts,  -- in, driven by nRTS above
+		nINT  => open, 				-- out
+		nCE   => tms9902_nCE, 		-- in
+		CRUOUT => cpu_cruout, 		-- in
+		CRUIN  => tms9902_cruin, 	-- out
+		CRUCLK => cpu_cruclk, 		-- in
+		XOUT  => TMS9902TX, -- out
+		RIN   => TMS9902RX, -- in
+		S   	=> cpu_addr(5 downto 1)
+	);
+	
 			
 end Behavioral;
 

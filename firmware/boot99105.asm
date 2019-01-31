@@ -157,7 +157,39 @@ SKIP_CLEAR:
 	  CLR   @PRINTWS
 	  .printString HELLO
 	  .printCrLf
-      
+	  
+; EP 2018-09-23 - run through a sequence of instructions with data and  write
+;	results to RAM. This is to enable comparing the FPGA CPU and TMS9900.
+	  LI	R5,>2000			; point to result table
+	  LI    R7,TEST_ROUTINES	; point to test routines
+RUN_TEST
+	  MOV	*R7+,R8				; address of routine to test
+	  LI    R6,TEST_DATA_SEQ
+	  
+!
+	  MOV	*R6+,R1				; fetch test parameters
+	  MOV	*R6+,R2
+	  CLR	R3
+; perform operation under test	  
+	  BL    *R8
+; save results
+	  MOV	R1,*R5+
+	  MOV   R2,*R5+
+	  MOV   R3,*R5+
+	  STST	R3
+	  ANDI	R3,>FC00			; only keep meaningful flags
+	  MOV   R3,*R5+	  	
+	  CI	R6,TEST_DEND
+	  JNE	-!	  
+	  CI	R7,TEST_ROUT_END
+	  JNE	RUN_TEST
+; write end marker to memory
+	  LI	R3,>1234
+	  MOV	R3,*R5+
+	  MOV	R3,*R5+
+	  MOV	R3,*R5+
+	  MOV	R3,*R5+
+	  	  	        
       JMP		GROM1
       
       CLR   @PRINTWS    ; Initial display position
@@ -760,6 +792,7 @@ HELLO
     TEXT '      TMS99105'
 ;	  TEXT '      SOFTCPU RUNNING'
 	  BYTE 0
+
 	  EVEN
 FLAGS_STRING TEXT ' STATUS REGISTER'
 	  BYTE 0
@@ -772,5 +805,106 @@ GOTBACK TEXT 'RETURNED AFTER MACROSTORE TEST'
 			BYTE 0
 			EVEN
 			
+	  
+TEST_DATA_SEQ			; Parameters to pass two various instructions
+	DATA	1,2			; First data set
+	DATA	>7FFF,1		; 2nd
+	DATA	>8000,>7FFF
+	DATA 	>7FFF,>8000
+	DATA	>FFFF,>8000	; 5th
+	DATA	>8000,>FFFF
+	DATA	>8000,>8000	; 7th
+	DATA	0,>8000		; 8th
+	; -- ok extending to 16 values
+	DATA	200,400		; 9th
+	DATA	400,200
+	DATA	0,400
+	DATA	400,0		; 12th
+	DATA	1000,10
+	DATA	10,1000
+	DATA	>9000,100
+	DATA	100,>9000	; 16th
+TEST_DEND
+
+TEST_ROUTINES
+	DATA	DO_ADD, DO_SUB
+	DATA	DO_SOC, DO_SZC
+	DATA	DO_DIV, DO_MPY
+	DATA	DO_COMP, DO_NEG
+	DATA	DO_SRL
+	; continuing
+	DATA	DO_ANDI
+	DATA 	DO_CB, DO_SB
+	DATA	DO_AB, DO_XOR
+	DATA 	DO_INC, DO_DEC
+	DATA	DO_SLA, DO_SRA
+	DATA	DO_SRC, DO_SRC2
+	DATA    DO_MOV, DO_MOVB
+	DATA	DO_SOCB, DO_SZCB
+	DATA	DO_ABS, DO_X
+	
+TEST_ROUT_END
+
+DO_ADD	A	R1,R2
+	RT
+DO_SUB	S	R1,R2
+	RT
+DO_SOC	SOC R1,R2
+	RT
+DO_SZC	SZC R1,R2
+	RT
+DO_DIV	DIV	R1,R2
+	RT
+DO_MPY	MPY	R1,R2
+	RT
+DO_COMP	C	R1,R2
+	RT	
+DO_NEG	NEG R2
+	RT
+DO_SRL	SRL R2,1
+	RT
+DO_ANDI	ANDI R2,>8001
+	RT
+DO_CB	CB	R1,R2
+	RT
+DO_SB	SB	R1,R2
+	RT
+DO_AB	AB	R1,R2
+	RT
+DO_XOR	XOR	R1,R2
+	RT
+DO_INC	INC R2
+	RT
+DO_DEC	DEC R2
+	RT
+DO_SLA	SLA R2,1
+	RT
+DO_SRA	SRA R2,1
+	RT
+DO_SRC	SRC R2,1
+	RT
+DO_SRC2	; Test a 3-bit shift with R0
+	LI	R0,3	
+	SRC	R2,0
+	RT
+DO_MOV	MOV R1,R2
+	RT
+DO_MOVB	MOVB R1,R2
+	RT
+DO_SOCB SOCB R1,R2
+	RT
+DO_SZCB SZCB R1,R2
+	RT
+DO_ABS 	ABS R2
+	RT
+DO_X
+	LI	R3,>0502	; NEG R2
+	CI	R1,0		; R1 > 0 ?
+	JGT !
+	LI  R3,>05C2	; INCT R2
+!	X	R3
+	RT		
+	
+
 SLAST  END  BOOT
 

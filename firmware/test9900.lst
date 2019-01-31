@@ -1,0 +1,590 @@
+XAS99 CROSS-ASSEMBLER   VERSION 1.7.0
+**** **** ****     > test9900.asm
+0001               * Erik Piehl (C) 2017 April
+0002               * test9900.asm
+0003               *
+0004               * Test program sequences to test drive the TMS9900 VHDL core.
+0005               *
+0006               
+0007               	IDT 'TEST9900'
+0008      8300     WRKSP  EQU >8300
+0009      8320     WRKSP2 EQU >8320
+0010      8380     WRKSPI EQU >8380      * Interrupt workspace
+0011 0000 8300         DATA WRKSP,BOOT   * RESET VECTOR
+     0002 004Cr
+0012 0004 8380         DATA WRKSPI,INTERRUPT
+     0006 0320r
+0013               BLWPTEST
+0014 0008 8320         DATA WRKSP2,TEST2
+     000A 02E2r
+0015 000C BEEF         DATA >BEEF,>BEEF
+     000E BEEF 
+0016 0010 0000         DATA 0,0
+     0012 0000 
+0017 0014 0000         DATA 0,0,0,0,0,0,0,0
+     0016 0000 
+     0018 0000 
+     001A 0000 
+     001C 0000 
+     001E 0000 
+     0020 0000 
+     0022 0000 
+0018 0024 0000         DATA 0,0,0,0,0,0,0,0
+     0026 0000 
+     0028 0000 
+     002A 0000 
+     002C 0000 
+     002E 0000 
+     0030 0000 
+     0032 0000 
+0019 0034 0000         DATA 0,0,0,0,0,0
+     0036 0000 
+     0038 0000 
+     003A 0000 
+     003C 0000 
+     003E 0000 
+0020               * Here are the XOP vectors
+0021 0040 8320         DATA WRKSP2,MYXOP0
+     0042 030Cr
+0022 0044 8320         DATA WRKSP2,MYXOP1
+     0046 0316r
+0023               
+0024 0048 0040     COCTEST DATA >0040
+0025 004A F000     CZCTEST DATA >F000
+0026               
+0027               *---------------------------------------------
+0028               * Macro: printNumber <arg>
+0029               * (would be xop <arg>,10 for the TMS9995 BB)
+0030               *---------------------------------------------
+0035               
+0036               *---------------------------------------------
+0037               * Macro: printCrLf
+0038               *---------------------------------------------
+0043               
+0044               
+0045               BOOT
+0046 004C 0300  24   LIMI 2
+     004E 0002 
+0047               ; Test LDCR
+0048 0050 020C  20   LI  R12,>550
+     0052 0550 
+0049 0054 058C  14   INC R12
+0050 0056 060C  14   DEC R12
+0051 0058 0203  20   LI  R3,>8155
+     005A 8155 
+0052 005C 3203  56   LDCR R3,8
+0053 005E 3603  64   STCR R3,8
+0054 0060 0203  20   LI  R3,>0655
+     0062 0655 
+0055 0064 30C3  56   LDCR R3,3
+0056               
+0057               ; Test byte operations with flags
+0058 0066 04C0  14   CLR R0
+0059 0068 04C1  14   CLR  R1
+0060 006A 0702  14   SETO R2
+0061 006C 0205  20   LI  R5,>7A9B
+     006E 7A9B 
+0062 0070 9805  38   CB  R5,@TESTK+1
+     0072 0341r
+0063               
+0064 0074 0204  20   LI  R4,15
+     0076 000F 
+0065 0078 0205  20   LI  R5,0
+     007A 0000 
+0066 007C 0206  20   LI  R6,62000
+     007E F230 
+0067 0080 3D44  128   DIV R4,R5
+0068               
+0069 0082 0204  20   LI  R4,10
+     0084 000A 
+0070 0086 0205  20   LI  R5,0
+     0088 0000 
+0071 008A 0206  20   LI  R6,100
+     008C 0064 
+0072 008E 3D44  128   DIV R4,R5
+0073               
+0074               
+0075               ;  BL   @BYTECHECK ; classic99: 2000
+0076               ;  LI  R0,>7F00
+0077               ;  BL   @BYTECHECK ; classic99: C400
+0078               ;  LI  R0,>8100
+0079               ;  BL   @BYTECHECK ; classic99: 8000
+0080               
+0081 0090 0206  20   LI   R6,>0020
+     0092 0020 
+0082 0094 D806  38   MOVB R6,@>8304
+     0096 8304 
+0083 0098 02CA  12   STST  R10
+0001               *	    BLWP	@PRINTS
+0002               *  	  DATA	TXTCRLF
+0001               *			MOV		#1,@PRTR1P		; Store HEX value to print
+0002               *			BLWP	@PRINTR1			; Go print R1
+0086 009A D820  54   MOVB @>830D,@>8305
+     009C 830D 
+     009E 8305 
+0087 00A0 02CA  12   STST  R10
+0001               *	    BLWP	@PRINTS
+0002               *  	  DATA	TXTCRLF
+0001               *			MOV		#1,@PRTR1P		; Store HEX value to print
+0002               *			BLWP	@PRINTR1			; Go print R1
+0090 00A2 C1E0  34   MOV @>8304,R7
+     00A4 8304 
+0001               *			MOV		#1,@PRTR1P		; Store HEX value to print
+0002               *			BLWP	@PRINTR1			; Go print R1
+0092               
+0093               
+0094               ; Test the X instruction
+0095 00A6 020C  20   LI R12,>0400    ; CRU TEST address
+     00A8 0400 
+0096 00AA 04C9  14   CLR R9          ; ROM >05D2
+0097 00AC 04C2  14   CLR R2          ; ROM >05EE
+0098 00AE D0A0  34   MOVB @TEST1+6,R2  ; ROM >05F0 kind of
+     00B0 033Cr
+0099 00B2 0A42  56   SLA R2,4
+0100 00B4 E242  18   SOC R2,R9
+0101 00B6 0B69  56   SRC R9,6
+0102 00B8 0269  22   ORI 9,>3012
+     00BA 3012 
+0103 00BC 0202  20   LI  R2,TEST1+8
+     00BE 033Er
+0104 00C0 0489  12   X   9
+0105               ;
+0001               *	    BLWP	@PRINTS
+0002               *  	  DATA	TXTCRLF
+0107               ;
+0108               ; EP 2019-01-15 Now that I am in the process of adding a cache, let's do a small loop.
+0109               ; Without cache, the last instruction's iaq falling edge is at time 25,135 ns.
+0110               ; With cache, the last instruction's falling edge is at 23,865 ns. 71 cache hits, each saving 2 clocks.
+0111               ;
+0112 00C2 0203  20   LI  R3,>8340
+     00C4 8340 
+0113 00C6 04C0  14   CLR R0
+0114 00C8 0205  20   LI  R5,5
+     00CA 0005 
+0115               !
+0116 00CC CCC0  34   MOV R0,*R3+
+0117 00CE 0605  14   DEC R5
+0118 00D0 16FD  14   JNE -!
+0119 00D2 C003  18   MOV R3,R0       ; Check timing of this MOV
+0120 00D4 0205  20   LI  R5,1
+     00D6 0001 
+0121 00D8 A143  18   A   R3,R5
+0122 00DA 0340  16   IDLE            ; wait for interrupt
+0123               
+0001               *	    BLWP	@PRINTS
+0002               *  	  DATA	TXTCRLF
+0001               *	    BLWP	@PRINTS
+0002               *  	  DATA	TXTCRLF
+0001               *	    BLWP	@PRINTS
+0002               *  	  DATA	TXTCRLF
+0127 00DC 04C0  14   CLR  R0
+0128               ; Test a few instructions used by ROM
+0129 00DE 0720  34   SETO @>8340
+     00E0 8340 
+0130 00E2 5820  54   SZCB @TEST1,@>8340
+     00E4 0336r
+     00E6 8340 
+0131               ; Test arithmetic greater than flag
+0132 00E8 D260  34   MOVB @TEST1+2,R9
+     00EA 0338r
+0133 00EC 1103  14   JLT  NAKS
+0134 00EE 0202  20   LI   R2,1
+     00F0 0001 
+0135 00F2 1001  14   JMP  !
+0136               NAKS
+0137 00F4 0381       DATA >0381    ** RTWP but illegal on TMS9995, will get stuck
+0138               !
+0139 00F6 D260  34   MOVB @TEST1+4,R9
+     00F8 033Ar
+0140 00FA 1101  14   JLT  !
+0141 00FC 10FB  14   JMP NAKS
+0142 00FE 0202  20 ! LI   R2,>11
+     0100 0011 
+0143               ; Test multiplication
+0144 0102 0203  20   LI   R3,1
+     0104 0001 
+0145 0106 0204  20   LI   R4,2
+     0108 0002 
+0146 010A 3903  56   MPY  R3,R4
+0147 010C 0203  20   LI   R3,>300
+     010E 0300 
+0148 0110 0204  20   LI   R4,>5000
+     0112 5000 
+0149 0114 3903  56   MPY  R3,R4
+0150               ; Test immediate compare instruction - ; EP display top 4 bits of R1 in current VDP RAM location
+0151 0116 0201  20   LI    R1,>8000
+     0118 8000 
+0152 011A 0941  56   SRL 	R1,4
+0153 011C 0241  22   ANDI 	R1,>0F00
+     011E 0F00 
+0154 0120 0221  22   AI		R1,>3000	; Convert to ASCII
+     0122 3000 
+0155 0124 0281  22   CI		R1,>3A00
+     0126 3A00 
+0156 0128 02CA  12   STST  R10       ; FPGA C000
+0001               *	    BLWP	@PRINTS
+0002               *  	  DATA	TXTCRLF
+0001               *			MOV		#1,@PRTR1P		; Store HEX value to print
+0002               *			BLWP	@PRINTR1			; Go print R1
+0159 012A 0201  20   LI    R1,>B000
+     012C B000 
+0160 012E 0941  56   SRL 	R1,4
+0161 0130 0241  22   ANDI 	R1,>0F00
+     0132 0F00 
+0162 0134 0221  22   AI		R1,>3000	; Convert to ASCII
+     0136 3000 
+0163 0138 0281  22   CI		R1,>3A00
+     013A 3A00 
+0164 013C 02CA  12   STST  R10       ; FPGA 0000
+0001               *	    BLWP	@PRINTS
+0002               *  	  DATA	TXTCRLF
+0001               *			MOV		#1,@PRTR1P		; Store HEX value to print
+0002               *			BLWP	@PRINTR1			; Go print R1
+0167               ; Test compare instruction
+0168 013E 0201  20   LI   R1,1
+     0140 0001 
+0169 0142 0202  20   LI   R2,2
+     0144 0002 
+0170 0146 8081  18   C    R1,R2		; classic99 - FPGA
+0171 0148 02CA  12   STST R10			; 0000		  0000
+0001               *	    BLWP	@PRINTS
+0002               *  	  DATA	TXTCRLF
+0001               *			MOV		#1,@PRTR1P		; Store HEX value to print
+0002               *			BLWP	@PRINTR1			; Go print R1
+0174 014A 8042  18   C    R2,R1
+0175 014C 02CA  12   STST R10			; C000        C000
+0001               *	    BLWP	@PRINTS
+0002               *  	  DATA	TXTCRLF
+0001               *			MOV		#1,@PRTR1P		; Store HEX value to print
+0002               *			BLWP	@PRINTR1			; Go print R1
+0178 014E 8041  18   C	   R1,R1
+0179 0150 02CA  12   STST R10			; 2000        2000
+0001               *	    BLWP	@PRINTS
+0002               *  	  DATA	TXTCRLF
+0001               *			MOV		#1,@PRTR1P		; Store HEX value to print
+0002               *			BLWP	@PRINTR1			; Go print R1
+0182 0152 0203  20   LI   R3,>8000
+     0154 8000 
+0183 0156 80C1  18   C    R1,R3		; 4000		  4000
+0184 0158 02CA  12   STST R10
+0001               *	    BLWP	@PRINTS
+0002               *  	  DATA	TXTCRLF
+0001               *			MOV		#1,@PRTR1P		; Store HEX value to print
+0002               *			BLWP	@PRINTR1			; Go print R1
+0187 015A 0704  14   SETO  R4
+0188 015C 80C4  18   C    R4,R3
+0189 015E 02CA  12   STST R10  		; C000        C000
+0001               *	    BLWP	@PRINTS
+0002               *  	  DATA	TXTCRLF
+0001               *			MOV		#1,@PRTR1P		; Store HEX value to print
+0002               *			BLWP	@PRINTR1			; Go print R1
+0192               
+0193               ; test subtract instruction
+0001               *	    BLWP	@PRINTS
+0002               *  	  DATA	TXTCRLF
+0195 0160 C142  18   MOV  R2,R5
+0196 0162 6141  18   S    R1,R5		; classic99 - FPGA
+0197 0164 02CA  12   STST R10			; D000		  0000
+0001               *	    BLWP	@PRINTS
+0002               *  	  DATA	TXTCRLF
+0001               *			MOV		#1,@PRTR1P		; Store HEX value to print
+0002               *			BLWP	@PRINTR1			; Go print R1
+0200 0166 C141  18   MOV  R1,R5
+0201 0168 6142  18   S    R2,R5
+0202 016A 02CA  12   STST R10			; 8000        D800
+0001               *	    BLWP	@PRINTS
+0002               *  	  DATA	TXTCRLF
+0001               *			MOV		#1,@PRTR1P		; Store HEX value to print
+0002               *			BLWP	@PRINTR1			; Go print R1
+0205 016C C141  18   MOV  R1,R5
+0206 016E 6141  18   S	   R1,R5
+0207 0170 02CA  12   STST R10			; 3000        2000
+0001               *	    BLWP	@PRINTS
+0002               *  	  DATA	TXTCRLF
+0001               *			MOV		#1,@PRTR1P		; Store HEX value to print
+0002               *			BLWP	@PRINTR1			; Go print R1
+0210 0172 0203  20   LI   R3,>8000
+     0174 8000 
+0211 0176 C143  18   MOV  R3,R5
+0212 0178 6141  18   S    R1,R5		; D800		  4000
+0213 017A 02CA  12   STST R10
+0001               *	    BLWP	@PRINTS
+0002               *  	  DATA	TXTCRLF
+0001               *			MOV		#1,@PRTR1P		; Store HEX value to print
+0002               *			BLWP	@PRINTR1			; Go print R1
+0216 017C 0704  14   SETO  R4
+0217 017E C143  18   MOV  R3,R5
+0218 0180 6144  18   S    R4,R5
+0219 0182 02CA  12   STST R10  		; 8000        D000
+0001               *	    BLWP	@PRINTS
+0002               *  	  DATA	TXTCRLF
+0001               *			MOV		#1,@PRTR1P		; Store HEX value to print
+0002               *			BLWP	@PRINTR1			; Go print R1
+0222               
+0223               
+0224 0184 0420  54   BLWP @BLWPTEST
+     0186 0008r
+0225 0188 020C  20   LI  R12,>0240
+     018A 0240 
+0226 018C 1D00  20   SBO 0          * debug marker
+0227 018E 0202  20   LI  R2,>1
+     0190 0001 
+0228 0192 288C  18   XOR R12,R2
+0229 0194 20A0  38   COC @COCTEST,R2
+     0196 0048r
+0230 0198 1301  14   JEQ !
+0231 019A 0381       DATA >0381    ** RTWP but illegal on TMS9995, will get stuck
+0232 019C 24A0  38 ! CZC @CZCTEST,R2
+     019E 004Ar
+0233 01A0 1301  14   JEQ !
+0234 01A2 0381       DATA >0381    ** RTWP but illegal on TMS9995, will get stuck
+0235               !
+0236 01A4 1D00  20   SBO 0
+0237 01A6 1E01  20   SBZ 1
+0238 01A8 1D02  20   SBO 2
+0239 01AA 1EFF  20   SBZ -1
+0240 01AC 1F00  20   TB  0
+0241 01AE 1301  14   JEQ GOODO1
+0242 01B0 0381       DATA >0381    ** RTWP but illegal on TMS9995, will get stuck
+0243               GOODO1
+0244 01B2 1F01  20   TB  1
+0245 01B4 1601  14   JNE GOODO2
+0246 01B6 0381       DATA >0381    ** RTWP but illegal on TMS9995, will get stuck
+0247               GOODO2:
+0248 01B8 0200  20   LI  R0,>3333
+     01BA 3333 
+0249 01BC 2C20  64   XOP @>BEEF,0
+     01BE BEEF 
+0250 01C0 0200  20   LI  R0,>5555
+     01C2 5555 
+0251 01C4 2C60  64   XOP @>0011,1
+     01C6 0011 
+0252               * Test LDCR
+0253 01C8 020C  20   LI  R12,>550
+     01CA 0550 
+0254 01CC 0203  20   LI  R3,>0055
+     01CE 0055 
+0255 01D0 3003  56   LDCR R3,0
+0256 01D2 3243  56   LDCR R3,9
+0257 01D4 0203  20   LI   R3,6
+     01D6 0006 
+0258 01D8 0A83  56   SLA  R3,8
+0259 01DA 30C3  56   LDCR R3,3
+0260 01DC 04CC  14   CLR R12
+0261 01DE 0208  20   LI   R8,>12   * Low byte to 12
+     01E0 0012 
+0262 01E2 3608  64   STCR R8,8
+0263 01E4 3409  64   STCR R9,0
+0264 01E6 0288  22   CI   R8,>7912
+     01E8 7912 
+0265 01EA 1301  14   JEQ  !
+0266 01EC 0381       DATA >0381    ** RTWP but illegal on TMS9995, will get stuck
+0267 01EE 0289  22 ! CI   R9,>A079
+     01F0 A079 
+0268 01F2 1301  14   JEQ  !
+0269 01F4 0381       DATA >0381    ** RTWP but illegal on TMS9995, will get stuck
+0270               !
+0271 01F6 0203  20   LI  R3,>8340    ** write to 8306 data 8340 1000001101000000
+     01F8 8340 
+0272 01FA 0207  20   LI  R7,>8350
+     01FC 8350 
+0273 01FE 0201  20   LI  R1,>0123
+     0200 0123 
+0274 0202 0202  20   LI  R2,>4567
+     0204 4567 
+0275 0206 0204  20   LI  R4,>89AB
+     0208 89AB 
+0276 020A C4C1  30   MOV R1,*R3
+0277 020C C8C2  38   MOV R2,@2(R3)
+     020E 0002 
+0278 0210 C8C4  38   MOV R4,@4(R3)
+     0212 0004 
+0279 0214 04E3  34   CLR @6(R3)
+     0216 0006 
+0280 0218 DDF3  42   MOVB *R3+,*R7+
+0281 021A DDF3  42   MOVB *R3+,*R7+
+0282 021C DDF3  42   MOVB *R3+,*R7+
+0283 021E DDF3  42   MOVB *R3+,*R7+
+0284 0220 CDF3  46   MOV  *R3+,*R7+
+0285 0222 D820  54   MOVB @>8303,@>8350
+     0224 8303 
+     0226 8350 
+0286 0228 0203  20   LI   R3,>8340
+     022A 8340 
+0287               * Test byte operations
+0288 022C D804  38   MOVB R4,@>8340
+     022E 8340 
+0289 0230 D802  38   MOVB R2,@>8341
+     0232 8341 
+0290 0234 C4C1  30   MOV  R1,*R3   * Restore
+0291 0236 D4C4  30   MOVB R4,*R3
+0292 0238 BCC1  32   AB   R1,*R3+
+0293 023A B4C1  30   AB   R1,*R3
+0294 023C 0223  22   AI   R3,-1
+     023E FFFF 
+0295 0240 D073  28   MOVB *R3+,R1
+0296 0242 D053  26   MOVB *R3,R1
+0297 0244 0603  14   DEC  R3
+0298               
+0299 0246 04D3  26   CLR *R3
+0300 0248 0204  20   LI  R4,>8350
+     024A 8350 
+0301 024C 0202  20   LI  R2,2
+     024E 0002 
+0302 0250 CD33  46   MOV *R3+,*R4+
+0303 0252 0644  14   DECT R4
+0304 0254 AD02  34   A   R2,*R4+
+0305 0256 6802  38   S   R2,@>8350
+     0258 8350 
+0306 025A 0283  22   CI  R3,>8342
+     025C 8342 
+0307 025E 1301  14   JEQ GOOD1
+0308 0260 0381       DATA >0381    ** RTWP but illegal on TMS9995, will get stuck
+0309               GOOD1:
+0310 0262 0201  20   LI  R1,>4444
+     0264 4444 
+0311 0266 C801  38   MOV R1,@>8360
+     0268 8360 
+0312 026A C820  54   MOV @>8360,@>8350
+     026C 8360 
+     026E 8350 
+0313 0270 8060  34   C   @>8350,R1
+     0272 8350 
+0314 0274 1301  14   JEQ GOOD2
+0315 0276 0381       DATA >0381    ** RTWP but illegal on TMS9995, will get stuck
+0316               GOOD2:
+0317 0278 0200  20   LI  R0,>1234
+     027A 1234 
+0318 027C 0381       DATA >0381    ** RTWP but illegal on TMS9995, will get stuck
+0319               BACK
+0320 027E 06A0  32   BL    @SUBROUTINE
+     0280 02DCr
+0321 0282 04C1  14   CLR R1
+0322 0284 04E3  34   CLR   @4(R3)
+     0286 0004 
+0323 0288 0723  34   SETO  @6(R3)
+     028A 0006 
+0324 028C 04E0  34   CLR   @>8348
+     028E 8348 
+0325 0290 0713  26   SETO  *R3
+0326 0292 04F3  30   CLR   *R3+
+0327 0294 04F3  30   CLR   *R3+
+0328 0296 04F3  30   CLR   *R3+
+0329 0298 0502  16   NEG R2
+0330 029A CCC2  34   MOV R2,*R3+
+0331 029C 10F0  14   JMP BACK
+0332 029E 0502  16   NEG R2
+0333 02A0 0202  20   LI R2, >8002
+     02A2 8002 
+0334 02A4 0502  16   NEG R2
+0335 02A6 0502  16   NEG R2
+0336 02A8 05C3  14   INCT R3
+0337 02AA C143  18   MOV R3,R5
+0338 02AC 0585  14   INC R5
+0339 02AE 0605  14   DEC R5
+0340 02B0 06C5  14   SWPB R5
+0341 02B2 0545  14   INV R5
+0342 02B4 0713  26   SETO *R3
+0343 02B6 0745  18   ABS R5
+0344 02B8 0505  16   NEG R5
+0345 02BA 0200  20   LI  R0,>1234    ** write to 8300 data 1234 0001001000110100
+     02BC 1234 
+0346 02BE 0201  20   LI  R1,1        ** write to 8302 data 0001 0000000000000001
+     02C0 0001 
+0347 02C2 C4C0  30   MOV R0,*R3      ** write to 8340 data 1234 0001001000110100
+0348 02C4 C0B3  30   MOV *R3+,R2     ** write to 8306 data 8342 1000001101000010
+0349               *                 ** write to 8304 data 1234 0001001000110100
+0350 02C6 A081  18   A   R1,R2       ** write to 8304 data 1235 0001001000110101
+0351 02C8 C202  18   MOV R2,R8       ** write to 8310 data 1235 0001001000110101
+0352 02CA C4C1  30   MOV R1,*R3      ** write to 8342 data 0001 0000000000000001
+0353 02CC A4C1  30   A   R1,*R3      ** write to 8342 data 0002 0000000000000010
+0354 02CE C820  54   MOV @>4,@>8344
+     02D0 0004 
+     02D2 8344 
+0355 02D4 06A0  32   BL  @SUBROUTINE
+     02D6 02DCr
+0356 02D8 0460  28   B   @BOOT
+     02DA 004Cr
+0357               
+0358               SUBROUTINE
+0359 02DC 0204  20   LI  R4,123
+     02DE 007B 
+0360 02E0 045B  20   RT
+0361               
+0362               * Thus source modes Rx, *Rx, *Rx+, @addr work
+0363               * Destination modes Rx and *Rx work
+0364               *   Also destination mode @addr works for MOV but not other instructions
+0365               * First iteration of MOV @>4,@>8344 takes 3375-2915=460ns from iaq to iaq
+0366               
+0367               TEST2
+0368 02E2 03A0  16   CKON
+0369 02E4 02A0  12   STWP R0
+0370 02E6 0202  20   LI   R2,4
+     02E8 0004 
+0371 02EA C0C2  18   MOV  R2,R3
+0372 02EC 0583  14   INC  R3
+0373 02EE 6083  18   S    R3,R2
+0374 02F0 02C1  12   STST R1
+0375 02F2 0200  20   LI  R0,>0004
+     02F4 0004 
+0376 02F6 C040  18   MOV R0,R1
+0377 02F8 0202  20   LI R2,-4
+     02FA FFFC 
+0378 02FC C0C0  18   MOV R0,R3
+0379 02FE 0204  20   LI  R4,-4
+     0300 FFFC 
+0380 0302 0A81  56   SLA R1,8
+0381 0304 0812  56   SRA R2,1
+0382 0306 0B43  56   SRC R3,4
+0383 0308 0914  56   SRL R4,1
+0384 030A 0380  18   RTWP
+0385               
+0386               MYXOP0
+0387 030C 020C  20   LI R12,>0100
+     030E 0100 
+0388 0310 02C1  12   STST R1
+0389 0312 1D00  20   SBO 0
+0390 0314 0380  18   RTWP
+0391               MYXOP1
+0392 0316 020C  20   LI R12,>0100
+     0318 0100 
+0393 031A 02C1  12   STST R1
+0394 031C 1D01  20   SBO 1
+0395 031E 0380  18   RTWP
+0396               
+0397               INTERRUPT
+0398 0320 0200  20   LI  R0,>4455
+     0322 4455 
+0399 0324 0201  20   LI  R1,>6677
+     0326 6677 
+0400 0328 02CA  12   STST R10
+0401 032A 0380  18   RTWP
+0402               
+0403               BYTECHECK:
+0404 032C D040  18   MOVB R0,R1
+0405 032E 02CA  12   STST  R10      ; classic99: C400
+0001               *	    BLWP	@PRINTS
+0002               *  	  DATA	TXTCRLF
+0001               *			MOV		#1,@PRTR1P		; Store HEX value to print
+0002               *			BLWP	@PRINTR1			; Go print R1
+0001               *			MOV		#1,@PRTR1P		; Store HEX value to print
+0002               *			BLWP	@PRINTR1			; Go print R1
+0409 0330 D080  18   MOVB R0,R2
+0410 0332 02CA  12   STST  R10       ; classic99: C400
+0001               *	    BLWP	@PRINTS
+0002               *  	  DATA	TXTCRLF
+0001               *			MOV		#1,@PRTR1P		; Store HEX value to print
+0002               *			BLWP	@PRINTR1			; Go print R1
+0001               *			MOV		#1,@PRTR1P		; Store HEX value to print
+0002               *			BLWP	@PRINTR1			; Go print R1
+0414 0334 045B  20   RT
+0415               
+0416               TEST1
+0417 0336 2080       DATA >2080
+0418 0338 4000       DATA >4000
+0419 033A A000       DATA >A000
+0420 033C 0800       DATA >0800
+0421 033E 0C00       DATA >0C00
+0422               TESTK
+0423 0340 8090       DATA >8090
+0424               SLAST  END  BOOT

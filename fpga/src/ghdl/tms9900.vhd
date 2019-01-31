@@ -24,8 +24,9 @@ use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 -- Uncomment the following library declaration if instantiating
 -- any Xilinx primitives in this code.
-library UNISIM;
-use UNISIM.VComponents.all;
+
+-- library UNISIM;
+--use UNISIM.VComponents.all;
 
 -- simulation begin
 --USE STD.TEXTIO.ALL;
@@ -35,33 +36,30 @@ use UNISIM.VComponents.all;
 
 entity tms9900 is Port ( 
 	clk 		: in  STD_LOGIC;		-- input clock
-	reset 	: in  STD_LOGIC;		-- reset, active high
+	reset 		: in  STD_LOGIC;		-- reset, active high
 	addr_out	: out	STD_LOGIC_VECTOR (15 downto 0);
 	data_in 	: in  STD_LOGIC_VECTOR (15 downto 0);
-	data_out : out STD_LOGIC_VECTOR (15 downto 0);
-	rd 		: out STD_LOGIC;		-- workin read with Pepino 40ns
-	wr 		: out STD_LOGIC;		-- working write with Pepino 60ns
-	wr_force : out STD_LOGIC;		-- force a write to the cache only (X instruction)
-	rd_now	: out STD_LOGIC;		-- high on the cycle CPU will latch data
-	cache_hit : in STD_LOGIC;		-- when high, terminate read cycle early
-	-- ready 	: in  STD_LOGIC;		-- NOT USED: memory read input, a high terminates a memory cycle 
+	data_out 	: out STD_LOGIC_VECTOR (15 downto 0);
+	rd 			: out STD_LOGIC;		-- workin read with Pepino 40ns
+	wr 			: out STD_LOGIC;		-- working write with Pepino 60ns
+	wr_force 	: out STD_LOGIC;		-- force a write to the cache only (X instruction)
+	rd_now		: out STD_LOGIC;		-- high on the cycle CPU will latch data
+	cache_hit 	: in STD_LOGIC;		-- when high, terminate read cycle early
 	iaq 		: out  STD_LOGIC;
-	as 		: out  STD_LOGIC;		-- address strobe, when high new address is valid, starts a memory cycle
---	test_out : out STD_LOGIC_VECTOR (15 downto 0);
---	alu_debug_out  : out STD_LOGIC_VECTOR (15 downto 0); -- ALU debug bus
+	as 			: out  STD_LOGIC;		-- address strobe, when high new address is valid, starts a memory cycle
 	alu_debug_arg1 :  out STD_LOGIC_VECTOR (15 downto 0);
 	alu_debug_arg2 :  out STD_LOGIC_VECTOR (15 downto 0);	
 	cpu_debug_out : out STD_LOGIC_VECTOR (95 downto 0);	
 	mult_debug_out : out STD_LOGIC_VECTOR (35 downto 0);	
-	int_req	: in STD_LOGIC;		-- interrupt request, active high
-	ic03     : in STD_LOGIC_VECTOR(3 downto 0);	-- interrupt priority for the request, 0001 is the highest (0000 is reset)
-	int_ack	: out STD_LOGIC;		-- does not exist on the TMS9900, when high CPU vectors to interrupt
+	int_req		: in STD_LOGIC;		-- interrupt request, active high
+	ic03     	: in STD_LOGIC_VECTOR(3 downto 0);	-- interrupt priority for the request, 0001 is the highest (0000 is reset)
+	int_ack		: out STD_LOGIC;		-- does not exist on the TMS9900, when high CPU vectors to interrupt
 	cruin		: in STD_LOGIC;
-	cruout   : out STD_LOGIC;
-	cruclk   : out STD_LOGIC;
-	hold     : in STD_LOGIC;		-- DMA request, active high
-	holda    : out STD_LOGIC;     -- DMA ack, active high
-	waits    : in STD_LOGIC_VECTOR(7 downto 0);	-- number of wait states per memory cycles
+	cruout   	: out STD_LOGIC;
+	cruclk   	: out STD_LOGIC;
+	hold     	: in STD_LOGIC;		-- DMA request, active high
+	holda    	: out STD_LOGIC;     -- DMA ack, active high
+	waits    	: in STD_LOGIC_VECTOR(7 downto 0);	-- number of wait states per memory cycles
 	stuck	 	: out  STD_LOGIC		-- when high the CPU is stuck
 	);
 end tms9900;
