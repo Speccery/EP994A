@@ -9,6 +9,15 @@ You need to retain copyright notices in the source code.
 
 Latest changes
 --------------
+Commit 2019-01-31:
+Merged the soft-cpu-tms9902 branch to soft-cpu branch. I have not used enough git to be great at it, but this first major merge seems to have gone well. There are two generics in top level object:
+- **cfg_spi_memloader** enables SPI (microcontroller) boot instead of boot from PC.
+- **cfg_hw_keyboard** enables the use of an genuine TI-99/4A keyboard with the FPGA. The keyboard needs to be wired to the 20-pin GPIO connector.
+- I haven't tested these flags; they were features incorporated to the **soft-cpu** branch earlier, while my main development branch has been the **soft-cpu-tms9902** branch, which includes the TMS9902 compatible UART. Now the soft-cpu branch includes all features.
+- Before the merge I have been working on optimizing the CPU core, removing unneeded states which didn't do much and adding some shortcuts in the instruction decode states, avoiding some more unnecessary states.
+- The net effect of the optimizations so far is that my stupid Basic benchmark now runs at 39x faster than the original TI (when the cache is enabled). This is still slow, but probably the world's fastest TI-99/4A implementation still.
+
+
 Commit 2019-01-19:
 **cache**
 - Added a system level cache, outside of the CPU core (soft-cpu-tms9902 branch). 
