@@ -98,12 +98,11 @@ architecture Behavioral of tms9900 is
 		do_fetch, do_fetch0, do_decode,
 		do_branch,
 		do_stuck,
-		do_read,
 		do_read0, do_read1, do_read2, do_read3,
 		do_write,
 		do_write0, do_write1, do_write2, do_write3, 
 		do_ir_imm, do_lwpi_limi,
-		do_load_imm, do_load_imm2, do_load_imm3, do_load_imm4, do_load_imm5,
+		do_load_imm, do_load_imm5,
 		do_read_operand0, do_read_operand1, do_read_operand2, do_read_operand3, do_read_operand4, do_read_operand5,
 		do_alu_write,
 		do_dual_op, do_dual_op1, do_dual_op2, do_dual_op3,
@@ -187,7 +186,7 @@ architecture Behavioral of tms9900 is
 	signal set_ea_from_alu : boolean;
 	signal dest_reg_addr : std_logic_vector(15 downto 0);
 	signal set_dual_op_flags : boolean;
-
+	
 begin
 
 	addr_out <= addr;
@@ -288,9 +287,11 @@ begin
 	end process;
 
 	process(clk, reset, hold) is
-	variable offset : std_logic_vector(15 downto 0);
 	variable take_branch : boolean;
 	variable dec_shift_count   : boolean := False;
+	variable add_to_pc	: boolean := False;
+	variable pc_offset 	: std_logic_vector(15 downto 0);
+
 	-- simulation begin
 --	variable my_line : line;	-- from textio
 	-- simulation end
@@ -325,6 +326,7 @@ begin
 			if rising_edge(clk) then
 			
 				dec_shift_count := False;
+				add_to_pc := False;
 				
 				if set_ea_from_alu then 
 					ea <= alu_result;
@@ -360,12 +362,8 @@ begin
 				------------------------
 					when do_pc_read =>
 						addr <= pc;
-						pc <= std_logic_vector(unsigned(pc) + to_unsigned(2,16));
-						as <= '1';
-						rd <= '1';
-						cpu_state <= do_read0;
-					when do_read =>		-- start memory read cycle
-						addr <= ea;					
+						add_to_pc := True;
+						pc_offset := x"0002";
 						as <= '1';
 						rd <= '1';
 						cpu_state <= do_read0;
@@ -469,7 +467,8 @@ begin
 								-- let's run faster in here and save one clock cycle by setting things up already here.
 								iaq <= '1';
 								addr <= pc;
-								pc <= std_logic_vector(unsigned(pc) + to_unsigned(2,16));
+								add_to_pc := True;
+								pc_offset := x"0002";
 								as <= '1';
 								rd <= '1';
 								cpu_state <= do_fetch0;
@@ -631,8 +630,8 @@ begin
 						when others => cpu_state <= do_stuck;
 						end case;
 						if take_branch then
-							offset := ir(7) & ir(7) & ir(7) & ir(7) & ir(7) & ir(7) & ir(7) & ir(7 downto 0) & '0';
-							pc <= std_logic_vector(unsigned(offset) + unsigned(pc));
+							add_to_pc := True;
+							pc_offset := ir(7) & ir(7) & ir(7) & ir(7) & ir(7) & ir(7) & ir(7) & ir(7 downto 0) & '0';
 						end if;
 					when do_ir_imm =>
 --						test_out <= x"EE00";
@@ -673,35 +672,6 @@ begin
 							cpu_state_next <= do_load_imm5;
 						end if;
 
---						cpu_state <= do_pc_read;		-- read immediate value from instruction stream
---						cpu_state_next <= do_load_imm2;
-					when do_load_imm2 =>
-						-- test_out <= x"0002";
-						reg_t <= rd_dat;	-- store the immediate to temp
-						arg1 <= w;
-						arg2 <= x"00" & "000" & ir(3 downto 0) & '0';
-						ope <= alu_add;	-- calculate workspace address
-						cpu_state <= do_load_imm3;
-					when do_load_imm3 =>	-- read from workspace register
---						-- test_out <= x"0003";
-						ea <= alu_result; 
-						cpu_state <= do_read;	
-						cpu_state_next <= do_load_imm4;
-					when do_load_imm4 =>	-- do actual operation
-						-- test_out <= x"0004";
-						-- The order below is abit funny, but that's due to CI instruction (sub).
-						-- CI RX,IMM is defined as IMM-RX, and not RX-IMM
-						arg1 <= reg_t;		-- temporary holds the immediate parameter
-						arg2 <= rd_dat;	-- contents of workspace register
-						case ir(7 downto 4) is
-							when x"0" => ope <= alu_load1; -- LI
-							when x"2" => ope <= alu_add;	 -- AI
-							when x"4" => ope <= alu_and;	 -- ANDI
-							when x"6" => ope <= alu_or;	 -- ORI
-							when x"8" => ope <= alu_compare; -- CI
-							when others => cpu_state <= do_stuck;
-						end case;
-						cpu_state <= do_load_imm5;
 					when do_load_imm5 =>		-- write to workspace the result of ALU, ea still points to register
 						-- test_out <= x"0005";
 						-- let's write flags 0-2 for all instructions
@@ -739,7 +709,6 @@ begin
 								-- We have MOV, skip reading of dest operand. We still need to move along as we need to set flags.
 								cpu_state <= do_dual_op2;
 							else	-- not MOV, some other dual op
-								-- inlined below: cpu_state <= do_read;
 								addr <= dest_reg_addr; as <= '1'; rd <= '1'; cpu_state <= do_read0; 
 								cpu_state_next <= do_dual_op2;
 							end if;
@@ -757,10 +726,8 @@ begin
 							cpu_state <= do_dual_op2;
 						else
 							-- we have any of the other ones expect MOV
-							-- inlined below: cpu_state <= do_read;
 							addr <= alu_result; as <= '1'; rd <= '1'; cpu_state <= do_read0; 
 							cpu_state_next <= do_dual_op2;
-							-- test_out <= x"DD10";
 						end if;
 					when do_dual_op2 =>
 						-- Perform the actual operation. 
@@ -787,24 +754,6 @@ begin
 						set_dual_op_flags <= True;	-- Next cycle will set the flags.
 
 					when do_dual_op3 =>
---						-- Store flags.
---						st(15) <= alu_logical_gt;
---						st(14) <= alu_arithmetic_gt;
---						st(13) <= alu_flag_zero;
---						if ir(15 downto 13) = "101" or ir(15 downto 13) = "011" then
---							-- add and sub set two more flags
---							st(12) <= alu_flag_carry;
---							st(11) <= alu_flag_overflow;
---						end if;	
---						-- Byte operations set parity
---						if not operand_word then
---							-- parity bit for MOVB and CB is set differently and only depends on source operand
---							if ir(15 downto 13) = "100" or ir(15 downto 13) = "110" then
---								st(10) <= alu_flag_parity_source;	-- MOVB, CB
---							else
---								st(10) <= alu_flag_parity;
---							end if;
---						end if;					
 						-- Store the result except with compare instruction.
 						if ir(15 downto 13) = "100" then
 							cpu_state <= do_fetch;	-- compare, we are already done
@@ -831,59 +780,6 @@ begin
 							cpu_state_next <= do_fetch;
 							addr <= ea; wr <= '1'; as <= '1'; cpu_state <= do_write0; -- inlined do_write
 						end if;
-
-					-- when do_dual_op2 =>
-					-- 	-- perform the actual operation
-
-					-- 	-- Handle processing of byte operations for rd_dat.
-					-- 	if ir(15 downto 13) = "110" then 
-					-- 		arg1 <= (others => '0');	-- For proper flag behavior drive zero for MOV to arg1 
-					-- 		alu_debug_dst_arg <= (others => '0'); -- Store argument for debug information
-					-- 	else
-					-- 		arg1 <= read_byte_aligner;
-					-- 		alu_debug_dst_arg <= read_byte_aligner;
-					-- 	end if;
-					-- 	arg2 <= reg_t2;
-					-- 	alu_debug_src_arg <= reg_t2; -- Store argument for debug information
-
-					-- 	case ir(15 downto 13) is
-					-- 		when "101" => ope <= alu_add; -- A add
-					-- 		when "100" => ope <= alu_compare;	-- C compare
-					-- 		when "011" => ope <= alu_sub; -- S substract
-					-- 		when "111" => ope <= alu_or;
-					-- 		when "010" => ope <= alu_and_not;
-					-- 		when "110" => ope <= alu_load2;	-- MOV
-					-- 		when others =>	cpu_state <= do_stuck;
-					-- 	end case;
-					-- 	set_dual_op_flags <= True;	-- Next cycle will set the flags.
-					-- 	if ir(15 downto 13) = "100" then -- compare, we are already done (when flags are set in next cycle)
-					-- 		cpu_state <= do_fetch;	-- compare, we are already done
-					-- 	else
-					-- 		-- Not compare. Need to store results.
-					-- 		if operand_word then -- word write, start working on it here
-					-- 			cpu_state<= do_alu_write;	-- cannot inline this operation; ALU result is only available later
-					-- 			wr_dat   <= alu_result; 
-					-- 			data_out <= alu_result;
-					-- 			cpu_state_next <= do_fetch;
-					-- 		else	-- dealing with byte operations, need to still wiggle data in next cycle.
-					-- 			cpu_state <= do_dual_op_byte_write;
-					-- 		end if;
-					-- 	end if;
-						
-					-- when do_dual_op_byte_write =>
-					-- 	-- Byte operation.
-					-- 	if operand_mode(5 downto 4) = "00" or ea(0)='0' then
-					-- 		-- Register operation or write to high byte. Always impacts high byte.
-					-- 		wr_dat   <= alu_result(15 downto 8) & rd_dat(7 downto 0);
-					-- 		data_out <= alu_result(15 downto 8) & rd_dat(7 downto 0);
-					-- 	else
-					-- 		-- Memory operation going to low byte. High byte not impacted.
-					-- 		wr_dat   <= rd_dat(15 downto 8) & alu_result(15 downto 8); 
-					-- 		data_out <= rd_dat(15 downto 8) & alu_result(15 downto 8); 
-					-- 	end if;
-					-- 	cpu_state_next <= do_fetch;
-					-- 	-- inlined above and below: cpu_state <= do_write;
-					-- 	addr <= ea; wr <= '1'; as <= '1'; cpu_state <= do_write0;
 						
 					-------------------------------------------------------------
 					-- Single operand instructions
@@ -970,7 +866,7 @@ begin
 							when "0010" => -- X instruction...
 								ea <= alu_result;
 								cpu_state_next <= do_x_instruction;
-								cpu_state <= do_read;
+								addr <= alu_result; as <= '1'; rd <= '1'; cpu_state <= do_read0;
 							when "0000" => -- BLWP instruction
 								-- alu_result points to new WP
 								cpu_state <= do_blwp00;
@@ -1033,7 +929,7 @@ begin
 							arg1 <= x"0002";			-- calculate address of PC
 							arg2 <= alu_result;
 							ope <= alu_add;
-							cpu_state <= do_read;	-- read new WP
+							addr <= alu_result; as <= '1'; rd <= '1'; cpu_state <= do_read0;
 							cpu_state_next <= do_blwp0;					
 						end if;
 					when do_blwp0 =>
@@ -1051,7 +947,7 @@ begin
 							cpu_state_next <= do_blwp_xop;		-- XOP has an extra step to store EA to R11
 						end if;
 						ope 	<= alu_add;
-						cpu_state <= do_read;
+						addr <= alu_result; as <= '1'; rd <= '1'; cpu_state <= do_read0;
 						int_ack <= '0';		-- if this was an interrupt vectoring event, clear the flag
 					when do_blwp_xop =>
 						-- ** This phase only exists for XOP **
@@ -1105,18 +1001,18 @@ begin
 						arg1 <= x"0002";
 						arg2 <= alu_result;
 						ope <= alu_add;
-						cpu_state <= do_read;
+						addr <= alu_result; as <= '1'; rd <= '1'; cpu_state <= do_read0;
 						cpu_state_next <= do_rtwp1;
 					when do_rtwp1 =>
 						w <= rd_dat;			-- W from previous R13
 						ea <= alu_result;		-- addr of previous R14
 						arg2 <= alu_result;	-- start calculation of R15
-						cpu_state <= do_read;
+						addr <= alu_result; as <= '1'; rd <= '1'; cpu_state <= do_read0;
 						cpu_state_next <= do_rtwp2;
 					when do_rtwp2 =>
 						pc <= rd_dat;			-- PC from previous R14
 						ea <= alu_result;		-- addr of previous R15
-						cpu_state <= do_read;
+						addr <= alu_result; as <= '1'; rd <= '1'; cpu_state <= do_read0;
 						cpu_state_next <= do_rtwp3;
 					when do_rtwp3 =>
 						st <= rd_dat;			-- ST from previous R15
@@ -1136,7 +1032,8 @@ begin
 							cpu_state_next <= do_shifts1;
 						else
 							-- shift count is ready, it came from the instruction already.
-							cpu_state <= do_read;			-- read the register.
+							-- read the register.
+							addr <= alu_result; as <= '1'; rd <= '1'; cpu_state <= do_read0;
 							cpu_state_next <= do_shifts2;
 						end if;
 					when do_shifts1 =>
@@ -1146,7 +1043,7 @@ begin
 						else
 							shift_count <= '0' & rd_dat(3 downto 0);
 						end if;
-						cpu_state <= do_read;
+						addr <= ea; as <= '1'; rd <= '1'; cpu_state <= do_read0;
 						cpu_state_next <= do_shifts2;
 					when do_shifts2 => 
 						-- shift count is now ready. rd_dat is our operand.
@@ -1265,7 +1162,7 @@ begin
 						cpu_state_operand_return <= do_coc_czc_etc1;
 					when do_coc_czc_etc1 =>
 						ea <= alu_result;	-- store the effective address and go and read the destination operand
-						cpu_state <= do_read;
+						addr <= alu_result; as <= '1'; rd <= '1'; cpu_state <= do_read0;
 						cpu_state_next <= do_coc_czc_etc2;
 					when do_coc_czc_etc2 =>
 						arg1 <= reg_t;		-- source
@@ -1482,7 +1379,7 @@ begin
 						-- For byte operation support, we need to read the destination before writing
 						-- to it. reg_t2 has the destination address.
 						ea <= reg_t2;
-						cpu_state <= do_read;
+						addr <= reg_t2; as <= '1'; rd <= '1'; cpu_state <= do_read0;
 						cpu_state_next <= do_stcr7;
 					when do_stcr7 =>
 						-- Ok now rd_dat has destination data from memory. 
@@ -1590,7 +1487,6 @@ begin
 						when "01" =>
 							-- workspace register indirect
 							ea <= rd_dat;
-							-- inlined below: cpu_state <= do_read;
 							addr <= rd_dat; as <= '1'; rd <= '1'; cpu_state <= do_read0;
 							-- return via operand read
 							cpu_state_next <= cpu_state_operand_return;
@@ -1616,11 +1512,9 @@ begin
 						end case;
 					when do_read_operand2 =>
 						-- indirect or indexed mode here
-						-- test_out <= x"EE02";
 						if operand_mode(3 downto 0) = "0000" then
 							-- symbolic, read from rd_dat
 							ea <= rd_dat;
-							-- inlined below: cpu_state <= do_read;
 							addr <= rd_dat; as <= '1'; rd <= '1'; cpu_state <= do_read0;
 							-- return after read
 							cpu_state_next <= cpu_state_operand_return;
@@ -1643,12 +1537,10 @@ begin
 					when do_read_operand4 =>
 						-- Now we need to read the actual value. And return in EA where it came from.
 						ea <= reg_t;
-						-- inlined below: cpu_state <= do_read;
 						addr <= reg_t; as <= '1'; rd <= '1'; cpu_state <= do_read0;
 						cpu_state_next <= cpu_state_operand_return;
 					when do_read_operand5 =>
 						ea <= alu_result;
-						-- inlined below: cpu_state <= do_read;
 						addr <= alu_result; as <= '1'; rd <= '1'; cpu_state <= do_read0;
 						cpu_state_next <= cpu_state_operand_return; 	-- return via read
 						
@@ -1666,11 +1558,13 @@ begin
 					delay_count <= std_logic_vector(unsigned(delay_count) - to_unsigned(1, 8));
 				end if;
 				
+				if add_to_pc then
+					pc <= std_logic_vector(unsigned(pc) + unsigned(pc_offset));
+				end if;
 			
 			end if; -- rising_edge
 		end if;	
 	end process;
-
 
 end Behavioral;
 

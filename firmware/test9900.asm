@@ -100,7 +100,9 @@ BOOT
   SOC R2,R9
   SRC R9,6
   ORI 9,>3012
-  LI  R2,TEST1+8
+  ; Here R9 becomes 3212: LDCR, C=8, TS=1, S=2
+  ; LDCR *R2,8
+  LI  R2,TEST1+8  ; TEST+1 contains 0C00
   X   9
 ;  
   .printCrLf
@@ -119,6 +121,12 @@ BOOT
   MOV R3,R0       ; Check timing of this MOV
   LI  R5,1
   A   R3,R5
+; debug, problems with shift
+  LI  R2,2
+  LI  R3,3
+  LI  R0,4
+  SLA R2,2
+  SLA R3,0
   IDLE            ; wait for interrupt
 
   .printCrLf

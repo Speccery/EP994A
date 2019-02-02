@@ -51,8 +51,7 @@ Compiling architecture bram_v of entity BRAM_SINGLE_MACRO [\BRAM_SINGLE_MACRO("1
 Compiling architecture behavioral of entity epcache [epcache_default]
 Compiling architecture behavior of entity tb_tms9900
 Time Resolution for simulation is 1ps.
-Waiting for 1 sub-compilation(s) to finish...
 Compiled 30 VHDL Units
 Built simulation executable E:/Dropbox/Omat/trunk/s/EP994A/fpga/work/tb_tms9900_isim_beh.exe
-Fuse Memory Usage: 166756 KB
-Fuse CPU Usage: 4639 ms
+Fuse Memory Usage: 166836 KB
+Fuse CPU Usage: 4812 ms

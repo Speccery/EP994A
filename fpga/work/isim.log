@@ -15,219 +15,235 @@ Finished circuit initialization process.
 at 0 ps, Instance /tb_tms9900/uut/my_mult/U0/ : Warning: There is an 'U'|'X'|'W'|'Z'|'-' in an arithmetic operand, the result will be 'X'(es).
 Cache reset done at cycle 522
 Reset off
-cycle 10 read from 0000 data 8300
-cycle 22 read from 0002 data 004C
-cycle 28 write to 831A R13  data 0000               UUUUUUUUUUUUUUUU
-cycle 40 write to 831C R14  data 0000               0000000000000000
-cycle 52 write to 831E R15  data 0000               0000000000000000
-    64   555 10 12 instruction at 004C opcode 0300 reads 3 cache hits 0
-cycle 68 read from 004C data 0300
-cycle 80 read from 004E data 0002
-    88    12  8  0 instruction at 0050 opcode 020C reads 5 cache hits 0
-cycle 92 read from 0050 data 020C
-cycle 102 read from 0052 data 0550
-cycle 110 write to 8318 R12  data 0550               0000010101010000
-   122    17  8  4 instruction at 0054 opcode 058C reads 7 cache hits 0
-cycle 126 read from 0054 data 058C
-cycle 136 write to 8318 R12  data 0551               0000010101010001
-   148    13  6  4 instruction at 0056 opcode 060C reads 9 cache hits 1
-cycle 152 read from 0056 data 060C
-cycle 162 write to 8318 R12  data 0550               0000010101010000
-   174    13  6  4 instruction at 0058 opcode 0203 reads 11 cache hits 2
-cycle 178 read from 0058 data 0203
-cycle 188 read from 005A data 8155
-cycle 196 write to 8306 R3  data 8155               1000000101010101
-   208    17  8  4 instruction at 005C opcode 3203 reads 13 cache hits 2
-cycle 212 read from 005C data 3203
-   370    81  8  0 instruction at 005E opcode 3603 reads 16 cache hits 4
-cycle 374 read from 005E data 3603
-cycle 564 write to 8306 R3  data 8155               1000000101010101
-   576   103  8  4 instruction at 0060 opcode 0203 reads 19 cache hits 6
-cycle 580 read from 0060 data 0203
-cycle 590 read from 0062 data 0655
-cycle 598 write to 8306 R3  data 0655               0000011001010101
-   610    17  8  4 instruction at 0064 opcode 30C3 reads 21 cache hits 6
-cycle 614 read from 0064 data 30C3
-   692    41  8  0 instruction at 0066 opcode 04C0 reads 24 cache hits 8
-cycle 696 read from 0066 data 04C0
-cycle 702 write to 8300 R0  data 0000               0000000000000000
-   714    11  4  4 instruction at 0068 opcode 04C1 reads 25 cache hits 8
-cycle 718 read from 0068 data 04C1
-cycle 724 write to 8302 R1  data 0000               0000000000000000
-   736    11  4  4 instruction at 006A opcode 0702 reads 26 cache hits 8
-cycle 740 read from 006A data 0702
-cycle 746 write to 8304 R2  data FFFF               1111111111111111
-   758    11  4  4 instruction at 006C opcode 0205 reads 27 cache hits 8
-cycle 762 read from 006C data 0205
-cycle 772 read from 006E data 7A9B
-cycle 780 write to 830A R5  data 7A9B               0111101010011011
-   792    17  8  4 instruction at 0070 opcode 9805 reads 29 cache hits 8
-cycle 796 read from 0070 data 9805
-cycle 816 read from 0072 data 0341
-cycle 828 read from 0341 data 8090
-   838    23 14  0 instruction at 0074 opcode 0204 reads 33 cache hits 9
-cycle 842 read from 0074 data 0204
-cycle 852 read from 0076 data 000F
-cycle 860 write to 8308 R4  data 000F               0000000000001111
-   872    17  8  4 instruction at 0078 opcode 0205 reads 35 cache hits 9
-cycle 876 read from 0078 data 0205
-cycle 886 read from 007A data 0000
-cycle 894 write to 830A R5  data 0000               0000000000000000
-   906    17  8  4 instruction at 007C opcode 0206 reads 37 cache hits 9
-cycle 910 read from 007C data 0206
-cycle 920 read from 007E data F230
-cycle 928 write to 830C R6  data F230               1111001000110000
-   940    17  8  4 instruction at 0080 opcode 3D44 reads 39 cache hits 9
-cycle 944 read from 0080 data 3D44
-cycle 1048 write to 830A R5  data 1025               0001000000100101
-cycle 1060 write to 830C R6  data 0005               0000000000000101
-  1072    66 10  8 instruction at 0082 opcode 0204 reads 43 cache hits 12
-cycle 1076 read from 0082 data 0204
-cycle 1086 read from 0084 data 000A
-cycle 1094 write to 8308 R4  data 000A               0000000000001010
-  1106    17  8  4 instruction at 0086 opcode 0205 reads 45 cache hits 12
-cycle 1110 read from 0086 data 0205
-cycle 1120 read from 0088 data 0000
-cycle 1128 write to 830A R5  data 0000               0000000000000000
-  1140    17  8  4 instruction at 008A opcode 0206 reads 47 cache hits 12
-cycle 1144 read from 008A data 0206
-cycle 1154 read from 008C data 0064
-cycle 1162 write to 830C R6  data 0064               0000000001100100
-  1174    17  8  4 instruction at 008E opcode 3D44 reads 49 cache hits 12
-cycle 1178 read from 008E data 3D44
-cycle 1282 write to 830A R5  data 000A               0000000000001010
-cycle 1294 write to 830C R6  data 0000               0000000000000000
-  1306    66 10  8 instruction at 0090 opcode 0206 reads 53 cache hits 15
-cycle 1310 read from 0090 data 0206
-cycle 1320 read from 0092 data 0020
-cycle 1328 write to 830C R6  data 0020               0000000000100000
-  1340    17  8  4 instruction at 0094 opcode D806 reads 55 cache hits 15
-cycle 1344 read from 0094 data D806
-cycle 1364 read from 0096 data 8304
-cycle 1378 write to 8304 R2  data 00FF               0000000011111111
-  1390    25 12  4 instruction at 0098 opcode 02CA reads 59 cache hits 17
-cycle 1394 read from 0098 data 02CA
-cycle 1400 write to 8314 R10  data 3002               0011000000000010
-  1412    11  4  4 instruction at 009A opcode D820 reads 60 cache hits 17
-cycle 1416 read from 009A data D820
-cycle 1434 read from 009C data 830D
-cycle 1454 read from 009E data 8305
-cycle 1468 write to 8305 R2  data 0020               0000000000100000
-  1480    34 18  4 instruction at 00A0 opcode 02CA reads 66 cache hits 20
-cycle 1484 read from 00A0 data 02CA
-cycle 1490 write to 8314 R10  data D402               1101010000000010
-  1502    11  4  4 instruction at 00A2 opcode C1E0 reads 67 cache hits 20
-cycle 1506 read from 00A2 data C1E0
-cycle 1524 read from 00A4 data 8304
-cycle 1538 write to 830E R7  data 0020               0000000000100000
-  1550    24 12  4 instruction at 00A6 opcode 020C reads 71 cache hits 22
-cycle 1554 read from 00A6 data 020C
-cycle 1564 read from 00A8 data 0400
-cycle 1572 write to 8318 R12  data 0400               0000010000000000
-  1584    17  8  4 instruction at 00AA opcode 04C9 reads 73 cache hits 22
-cycle 1588 read from 00AA data 04C9
-cycle 1594 write to 8312 R9  data 0000               0000000000000000
-  1606    11  4  4 instruction at 00AC opcode 04C2 reads 74 cache hits 22
-cycle 1610 read from 00AC data 04C2
-cycle 1616 write to 8304 R2  data 0000               0000000000000000
-  1628    11  4  4 instruction at 00AE opcode D0A0 reads 75 cache hits 22
-cycle 1632 read from 00AE data D0A0
-cycle 1650 read from 00B0 data 033C
-cycle 1660 read from 033C data 0800
-cycle 1676 write to 8304 R2  data 0800               0000100000000000
-  1688    30 16  4 instruction at 00B2 opcode 0A42 reads 80 cache hits 24
-cycle 1692 read from 00B2 data 0A42
-cycle 1716 write to 8304 R2  data 8000               1000000000000000
-  1728    20  6  4 instruction at 00B4 opcode E242 reads 82 cache hits 25
-cycle 1732 read from 00B4 data E242
-cycle 1750 write to 8312 R9  data 8000               1000000000000000
-  1762    17  8  4 instruction at 00B6 opcode 0B69 reads 85 cache hits 27
-cycle 1766 read from 00B6 data 0B69
-cycle 1794 write to 8312 R9  data 0200               0000001000000000
-  1806    22  6  4 instruction at 00B8 opcode 0269 reads 87 cache hits 28
-cycle 1810 read from 00B8 data 0269
-cycle 1820 read from 00BA data 3012
-cycle 1832 write to 8312 R9  data 3212               0011001000010010
-  1844    19 10  4 instruction at 00BC opcode 0202 reads 90 cache hits 29
-cycle 1848 read from 00BC data 0202
-cycle 1858 read from 00BE data 033E
-cycle 1866 write to 8304 R2  data 033E               0000001100111110
-  1878    17  8  4 instruction at 00C0 opcode 0489 reads 92 cache hits 29
-cycle 1882 read from 00C0 data 0489
-wr_force seen, instruction X
-wr_force seen, instruction X
-cycle 1918 read from 033E data 0C00
-  2204   163 16  0 instruction at 00C2 opcode 0203 reads 98 cache hits 33
+cycle 8 read from 0000 data 8300
+cycle 18 read from 0002 data 004C
+cycle 24 write to 831A R13  data 0000               UUUUUUUUUUUUUUUU
+cycle 36 write to 831C R14  data 0000               0000000000000000
+cycle 48 write to 831E R15  data 0000               0000000000000000
+    60   553 10 12 instruction at 004C opcode 0300 reads      3 cache hits      0 st 0000000000000000
+cycle 64 read from 004C data 0300
+cycle 76 read from 004E data 0002
+    84    12  8  0 instruction at 0050 opcode 020C reads      5 cache hits      0 st 0000000000000010
+cycle 88 read from 0050 data 020C
+cycle 98 read from 0052 data 0550
+cycle 106 write to 8318 R12  data 0550               0000010101010000
+   118    17  8  4 instruction at 0054 opcode 058C reads      7 cache hits      0 st 1100000000000010
+cycle 122 read from 0054 data 058C
+cycle 132 write to 8318 R12  data 0551               0000010101010001
+   144    13  6  4 instruction at 0056 opcode 060C reads      9 cache hits      1 st 1100000000000010
+cycle 148 read from 0056 data 060C
+cycle 158 write to 8318 R12  data 0550               0000010101010000
+   170    13  6  4 instruction at 0058 opcode 0203 reads     11 cache hits      2 st 1101000000000010
+cycle 174 read from 0058 data 0203
+cycle 184 read from 005A data 8155
+cycle 192 write to 8306 R3  data 8155               1000000101010101
+   204    17  8  4 instruction at 005C opcode 3203 reads     13 cache hits      2 st 1001000000000010
+cycle 208 read from 005C data 3203
+   366    81  8  0 instruction at 005E opcode 3603 reads     16 cache hits      4 st 1001000000000010
+cycle 370 read from 005E data 3603
+cycle 558 write to 8306 R3  data 8155               1000000101010101
+   570   102  8  4 instruction at 0060 opcode 0203 reads     19 cache hits      6 st 1001000000000010
+cycle 574 read from 0060 data 0203
+cycle 584 read from 0062 data 0655
+cycle 592 write to 8306 R3  data 0655               0000011001010101
+   604    17  8  4 instruction at 0064 opcode 30C3 reads     21 cache hits      6 st 1101000000000010
+cycle 608 read from 0064 data 30C3
+   686    41  8  0 instruction at 0066 opcode 04C0 reads     24 cache hits      8 st 1101000000000010
+cycle 690 read from 0066 data 04C0
+cycle 696 write to 8300 R0  data 0000               0000000000000000
+   708    11  4  4 instruction at 0068 opcode 04C1 reads     25 cache hits      8 st 1101000000000010
+cycle 712 read from 0068 data 04C1
+cycle 718 write to 8302 R1  data 0000               0000000000000000
+   730    11  4  4 instruction at 006A opcode 0702 reads     26 cache hits      8 st 1101000000000010
+cycle 734 read from 006A data 0702
+cycle 740 write to 8304 R2  data FFFF               1111111111111111
+   752    11  4  4 instruction at 006C opcode 0205 reads     27 cache hits      8 st 1101000000000010
+cycle 756 read from 006C data 0205
+cycle 766 read from 006E data 7A9B
+cycle 774 write to 830A R5  data 7A9B               0111101010011011
+   786    17  8  4 instruction at 0070 opcode 9805 reads     29 cache hits      8 st 1101000000000010
+cycle 790 read from 0070 data 9805
+cycle 810 read from 0072 data 0351
+cycle 822 read from 0351 data 8090
+   832    23 14  0 instruction at 0074 opcode 0204 reads     33 cache hits      9 st 0101010000000010
+cycle 836 read from 0074 data 0204
+cycle 846 read from 0076 data 000F
+cycle 854 write to 8308 R4  data 000F               0000000000001111
+   866    17  8  4 instruction at 0078 opcode 0205 reads     35 cache hits      9 st 1101010000000010
+cycle 870 read from 0078 data 0205
+cycle 880 read from 007A data 0000
+cycle 888 write to 830A R5  data 0000               0000000000000000
+   900    17  8  4 instruction at 007C opcode 0206 reads     37 cache hits      9 st 0011010000000010
+cycle 904 read from 007C data 0206
+cycle 914 read from 007E data F230
+cycle 922 write to 830C R6  data F230               1111001000110000
+   934    17  8  4 instruction at 0080 opcode 3D44 reads     39 cache hits      9 st 1001010000000010
+cycle 938 read from 0080 data 3D44
+cycle 1040 write to 830A R5  data 1025               0001000000100101
+cycle 1052 write to 830C R6  data 0005               0000000000000101
+  1064    65 10  8 instruction at 0082 opcode 0204 reads     43 cache hits     12 st 1001010000000010
+cycle 1068 read from 0082 data 0204
+cycle 1078 read from 0084 data 000A
+cycle 1086 write to 8308 R4  data 000A               0000000000001010
+  1098    17  8  4 instruction at 0086 opcode 0205 reads     45 cache hits     12 st 1101010000000010
+cycle 1102 read from 0086 data 0205
+cycle 1112 read from 0088 data 0000
+cycle 1120 write to 830A R5  data 0000               0000000000000000
+  1132    17  8  4 instruction at 008A opcode 0206 reads     47 cache hits     12 st 0011010000000010
+cycle 1136 read from 008A data 0206
+cycle 1146 read from 008C data 0064
+cycle 1154 write to 830C R6  data 0064               0000000001100100
+  1166    17  8  4 instruction at 008E opcode 3D44 reads     49 cache hits     12 st 1101010000000010
+cycle 1170 read from 008E data 3D44
+cycle 1272 write to 830A R5  data 000A               0000000000001010
+cycle 1284 write to 830C R6  data 0000               0000000000000000
+  1296    65 10  8 instruction at 0090 opcode 0206 reads     53 cache hits     15 st 1101010000000010
+cycle 1300 read from 0090 data 0206
+cycle 1310 read from 0092 data 0020
+cycle 1318 write to 830C R6  data 0020               0000000000100000
+  1330    17  8  4 instruction at 0094 opcode D806 reads     55 cache hits     15 st 1101010000000010
+cycle 1334 read from 0094 data D806
+cycle 1354 read from 0096 data 8304
+cycle 1368 write to 8304 R2  data 00FF               0000000011111111
+  1380    25 12  4 instruction at 0098 opcode 02CA reads     59 cache hits     17 st 0011000000000010
+cycle 1384 read from 0098 data 02CA
+cycle 1390 write to 8314 R10  data 3002               0011000000000010
+  1402    11  4  4 instruction at 009A opcode D820 reads     60 cache hits     17 st 0011000000000010
+cycle 1406 read from 009A data D820
+cycle 1424 read from 009C data 830D
+cycle 1444 read from 009E data 8305
+cycle 1458 write to 8305 R2  data 0020               0000000000100000
+  1470    34 18  4 instruction at 00A0 opcode 02CA reads     66 cache hits     20 st 1101010000000010
+cycle 1474 read from 00A0 data 02CA
+cycle 1480 write to 8314 R10  data D402               1101010000000010
+  1492    11  4  4 instruction at 00A2 opcode C1E0 reads     67 cache hits     20 st 1101010000000010
+cycle 1496 read from 00A2 data C1E0
+cycle 1514 read from 00A4 data 8304
+cycle 1528 write to 830E R7  data 0020               0000000000100000
+  1540    24 12  4 instruction at 00A6 opcode 020C reads     71 cache hits     22 st 1101010000000010
+cycle 1544 read from 00A6 data 020C
+cycle 1554 read from 00A8 data 0400
+cycle 1562 write to 8318 R12  data 0400               0000010000000000
+  1574    17  8  4 instruction at 00AA opcode 04C9 reads     73 cache hits     22 st 1101010000000010
+cycle 1578 read from 00AA data 04C9
+cycle 1584 write to 8312 R9  data 0000               0000000000000000
+  1596    11  4  4 instruction at 00AC opcode 04C2 reads     74 cache hits     22 st 1101010000000010
+cycle 1600 read from 00AC data 04C2
+cycle 1606 write to 8304 R2  data 0000               0000000000000000
+  1618    11  4  4 instruction at 00AE opcode D0A0 reads     75 cache hits     22 st 1101010000000010
+cycle 1622 read from 00AE data D0A0
+cycle 1640 read from 00B0 data 034C
+cycle 1650 read from 034C data 0800
+cycle 1666 write to 8304 R2  data 0800               0000100000000000
+  1678    30 16  4 instruction at 00B2 opcode 0A42 reads     80 cache hits     24 st 1101010000000010
+cycle 1682 read from 00B2 data 0A42
+cycle 1704 write to 8304 R2  data 8000               1000000000000000
+  1716    19  6  4 instruction at 00B4 opcode E242 reads     82 cache hits     25 st 1000110000000010
+cycle 1720 read from 00B4 data E242
+cycle 1738 write to 8312 R9  data 8000               1000000000000000
+  1750    17  8  4 instruction at 00B6 opcode 0B69 reads     85 cache hits     27 st 1000110000000010
+cycle 1754 read from 00B6 data 0B69
+cycle 1780 write to 8312 R9  data 0200               0000001000000000
+  1792    21  6  4 instruction at 00B8 opcode 0269 reads     87 cache hits     28 st 1100110000000010
+cycle 1796 read from 00B8 data 0269
+cycle 1806 read from 00BA data 3012
+cycle 1818 write to 8312 R9  data 3212               0011001000010010
+  1830    19 10  4 instruction at 00BC opcode 0202 reads     90 cache hits     29 st 1100110000000010
+cycle 1834 read from 00BC data 0202
+cycle 1844 read from 00BE data 034E
+cycle 1852 write to 8304 R2  data 034E               0000001101001110
+  1864    17  8  4 instruction at 00C0 opcode 0489 reads     92 cache hits     29 st 1100110000000010
+cycle 1868 read from 00C0 data 0489
+cycle 1902 read from 034E data 0C00
+  2204   170 16  0 instruction at 00C2 opcode 0203 reads     98 cache hits     33 st 1100110000000010
 cycle 2208 read from 00C2 data 0203
 cycle 2218 read from 00C4 data 8340
 cycle 2226 write to 8306 R3  data 8340               1000001101000000
-  2238    17  8  4 instruction at 00C6 opcode 04C0 reads 100 cache hits 33
+  2238    17  8  4 instruction at 00C6 opcode 04C0 reads    100 cache hits     33 st 1000110000000010
 cycle 2242 read from 00C6 data 04C0
 cycle 2248 write to 8300 R0  data 0000               0000000000000000
-  2260    11  4  4 instruction at 00C8 opcode 0205 reads 101 cache hits 33
+  2260    11  4  4 instruction at 00C8 opcode 0205 reads    101 cache hits     33 st 1000110000000010
 cycle 2264 read from 00C8 data 0205
 cycle 2274 read from 00CA data 0005
 cycle 2282 write to 830A R5  data 0005               0000000000000101
-  2294    17  8  4 instruction at 00CC opcode CCC0 reads 103 cache hits 33
+  2294    17  8  4 instruction at 00CC opcode CCC0 reads    103 cache hits     33 st 1100110000000010
 cycle 2298 read from 00CC data CCC0
 cycle 2320 write to 8306 R3  data 8342               1000001101000010
 cycle 2336 write to 8340     data 0000               0000000000000000
-  2348    27  8  8 instruction at 00CE opcode 0605 reads 106 cache hits 35
+  2348    27  8  8 instruction at 00CE opcode 0605 reads    106 cache hits     35 st 0010110000000010
 cycle 2352 read from 00CE data 0605
 cycle 2362 write to 830A R5  data 0004               0000000000000100
-  2374    13  6  4 instruction at 00D0 opcode 16FD reads 108 cache hits 36
+  2374    13  6  4 instruction at 00D0 opcode 16FD reads    108 cache hits     36 st 1101010000000010
 cycle 2378 read from 00D0 data 16FD
-  2386     6  4  0 instruction at 00CC opcode CCC0 reads 109 cache hits 37
+  2386     6  4  0 instruction at 00CC opcode CCC0 reads    109 cache hits     37 st 1101010000000010
 cycle 2408 write to 8306 R3  data 8344               1000001101000100
 cycle 2424 write to 8342     data 0000               0000000000000000
-cycle 2444 read from 0004 data 8380
-cycle 2456 read from 0006 data 0320
-cycle 2462 write to 839A     data 8300               1000001100000000
-cycle 2474 write to 839C     data 00CE               0000000011001110
-cycle 2486 write to 839E     data 3402               0011010000000010
-  2498    56 14 20 instruction at 0320 opcode 0200 reads 114 cache hits 39
-cycle 2502 read from 0320 data 0200
-cycle 2512 read from 0322 data 4455
-cycle 2520 write to 8380     data 4455               0100010001010101
-  2532    17  8  4 instruction at 0324 opcode 0201 reads 116 cache hits 39
-cycle 2536 read from 0324 data 0201
-cycle 2546 read from 0326 data 6677
-cycle 2554 write to 8382     data 6677               0110011001110111
-  2566    17  8  4 instruction at 0328 opcode 02CA reads 118 cache hits 39
-cycle 2570 read from 0328 data 02CA
-cycle 2576 write to 8394     data D400               1101010000000000
-  2588    11  4  4 instruction at 032A opcode 0380 reads 119 cache hits 39
-cycle 2592 read from 032A data 0380
-  2624    18 10  0 instruction at 00CE opcode 0605 reads 123 cache hits 43
-cycle 2634 write to 830A R5  data 0003               0000000000000011
-  2646    11  4  4 instruction at 00D0 opcode 16FD reads 125 cache hits 45
-  2654     4  2  0 instruction at 00CC opcode CCC0 reads 126 cache hits 46
-cycle 2676 write to 8306 R3  data 8346               1000001101000110
-cycle 2692 write to 8344     data 0000               0000000000000000
-  2704    25  6  8 instruction at 00CE opcode 0605 reads 129 cache hits 49
-cycle 2714 write to 830A R5  data 0002               0000000000000010
-  2726    11  4  4 instruction at 00D0 opcode 16FD reads 131 cache hits 51
-  2734     4  2  0 instruction at 00CC opcode CCC0 reads 132 cache hits 52
-cycle 2756 write to 8306 R3  data 8348               1000001101001000
-cycle 2772 write to 8346     data 0000               0000000000000000
-  2784    25  6  8 instruction at 00CE opcode 0605 reads 135 cache hits 55
-cycle 2794 write to 830A R5  data 0001               0000000000000001
-  2806    11  4  4 instruction at 00D0 opcode 16FD reads 137 cache hits 57
-  2814     4  2  0 instruction at 00CC opcode CCC0 reads 138 cache hits 58
-cycle 2836 write to 8306 R3  data 834A               1000001101001010
-cycle 2852 write to 8348     data 0000               0000000000000000
-  2864    25  6  8 instruction at 00CE opcode 0605 reads 141 cache hits 61
-cycle 2874 write to 830A R5  data 0000               0000000000000000
-  2886    11  4  4 instruction at 00D0 opcode 16FD reads 143 cache hits 63
-  2894     4  2  0 instruction at 00D2 opcode C003 reads 144 cache hits 63
-cycle 2898 read from 00D2 data C003
-cycle 2912 write to 8300 R0  data 834A               1000001101001010
-  2924    15  6  4 instruction at 00D4 opcode 0205 reads 146 cache hits 64
-cycle 2928 read from 00D4 data 0205
-cycle 2938 read from 00D6 data 0001
-cycle 2946 write to 830A R5  data 0001               0000000000000001
-  2958    17  8  4 instruction at 00D8 opcode A143 reads 148 cache hits 64
-cycle 2962 read from 00D8 data A143
-cycle 2980 write to 830A R5  data 834B               1000001101001011
-  2992    17  8  4 instruction at 00DA opcode 0340 reads 151 cache hits 66
-cycle 2996 read from 00DA data 0340
+cycle 2442 read from 0004 data 8380
+cycle 2452 read from 0006 data 0330
+cycle 2458 write to 839A     data 8300               1000001100000000
+cycle 2470 write to 839C     data 00CE               0000000011001110
+cycle 2482 write to 839E     data 3402               0011010000000010
+  2494    54 14 20 instruction at 0330 opcode 0200 reads    114 cache hits     39 st 0011010000000000
+cycle 2498 read from 0330 data 0200
+cycle 2508 read from 0332 data 4455
+cycle 2516 write to 8380     data 4455               0100010001010101
+  2528    17  8  4 instruction at 0334 opcode 0201 reads    116 cache hits     39 st 1101010000000000
+cycle 2532 read from 0334 data 0201
+cycle 2542 read from 0336 data 6677
+cycle 2550 write to 8382     data 6677               0110011001110111
+  2562    17  8  4 instruction at 0338 opcode 02CA reads    118 cache hits     39 st 1101010000000000
+cycle 2566 read from 0338 data 02CA
+cycle 2572 write to 8394     data D400               1101010000000000
+  2584    11  4  4 instruction at 033A opcode 0380 reads    119 cache hits     39 st 1101010000000000
+cycle 2588 read from 033A data 0380
+  2614    15 10  0 instruction at 00CE opcode 0605 reads    123 cache hits     43 st 0011010000000010
+cycle 2624 write to 830A R5  data 0003               0000000000000011
+  2636    11  4  4 instruction at 00D0 opcode 16FD reads    125 cache hits     45 st 1101010000000010
+  2644     4  2  0 instruction at 00CC opcode CCC0 reads    126 cache hits     46 st 1101010000000010
+cycle 2666 write to 8306 R3  data 8346               1000001101000110
+cycle 2682 write to 8344     data 0000               0000000000000000
+  2694    25  6  8 instruction at 00CE opcode 0605 reads    129 cache hits     49 st 0011010000000010
+cycle 2704 write to 830A R5  data 0002               0000000000000010
+  2716    11  4  4 instruction at 00D0 opcode 16FD reads    131 cache hits     51 st 1101010000000010
+  2724     4  2  0 instruction at 00CC opcode CCC0 reads    132 cache hits     52 st 1101010000000010
+cycle 2746 write to 8306 R3  data 8348               1000001101001000
+cycle 2762 write to 8346     data 0000               0000000000000000
+  2774    25  6  8 instruction at 00CE opcode 0605 reads    135 cache hits     55 st 0011010000000010
+cycle 2784 write to 830A R5  data 0001               0000000000000001
+  2796    11  4  4 instruction at 00D0 opcode 16FD reads    137 cache hits     57 st 1101010000000010
+  2804     4  2  0 instruction at 00CC opcode CCC0 reads    138 cache hits     58 st 1101010000000010
+cycle 2826 write to 8306 R3  data 834A               1000001101001010
+cycle 2842 write to 8348     data 0000               0000000000000000
+  2854    25  6  8 instruction at 00CE opcode 0605 reads    141 cache hits     61 st 0011010000000010
+cycle 2864 write to 830A R5  data 0000               0000000000000000
+  2876    11  4  4 instruction at 00D0 opcode 16FD reads    143 cache hits     63 st 0011010000000010
+  2884     4  2  0 instruction at 00D2 opcode C003 reads    144 cache hits     63 st 0011010000000010
+cycle 2888 read from 00D2 data C003
+cycle 2902 write to 8300 R0  data 834A               1000001101001010
+  2914    15  6  4 instruction at 00D4 opcode 0205 reads    146 cache hits     64 st 1001010000000010
+cycle 2918 read from 00D4 data 0205
+cycle 2928 read from 00D6 data 0001
+cycle 2936 write to 830A R5  data 0001               0000000000000001
+  2948    17  8  4 instruction at 00D8 opcode A143 reads    148 cache hits     64 st 1101010000000010
+cycle 2952 read from 00D8 data A143
+cycle 2970 write to 830A R5  data 834B               1000001101001011
+  2982    17  8  4 instruction at 00DA opcode 0202 reads    151 cache hits     66 st 1000010000000010
+cycle 2986 read from 00DA data 0202
+cycle 2996 read from 00DC data 0002
+cycle 3004 write to 8304 R2  data 0002               0000000000000010
+  3016    17  8  4 instruction at 00DE opcode 0203 reads    153 cache hits     66 st 1100010000000010
+cycle 3020 read from 00DE data 0203
+cycle 3030 read from 00E0 data 0003
+cycle 3038 write to 8306 R3  data 0003               0000000000000011
+  3050    17  8  4 instruction at 00E2 opcode 0200 reads    155 cache hits     66 st 1100010000000010
+cycle 3054 read from 00E2 data 0200
+cycle 3064 read from 00E4 data 0004
+cycle 3072 write to 8300 R0  data 0004               0000000000000100
+  3084    17  8  4 instruction at 00E6 opcode 0A22 reads    157 cache hits     66 st 1100010000000010
+cycle 3088 read from 00E6 data 0A22
+cycle 3106 write to 8304 R2  data 0008               0000000000001000
+  3118    17  6  4 instruction at 00E8 opcode 0A03 reads    159 cache hits     67 st 1100010000000010
+cycle 3122 read from 00E8 data 0A03
+cycle 3152 write to 8306 R3  data 0030               0000000000110000
+  3164    23  8  4 instruction at 00EA opcode 0340 reads    162 cache hits     69 st 1100010000000010
+cycle 3168 read from 00EA data 0340
