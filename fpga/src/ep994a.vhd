@@ -120,35 +120,13 @@ entity ep994a is
 end ep994a;
 
 architecture Behavioral of ep994a is
-
---	 component serloader port (
---		  clk 		: in  STD_LOGIC;
---		  rst 		: in  STD_LOGIC;
---		  tx				: out STD_LOGIC;
---		  rx				: in STD_LOGIC;
---		  -- SPI interface begin
---		  spi_cs_n		: in STD_LOGIC;
---		  spi_clk		: in STD_LOGIC;
---		  spi_mosi		: in STD_LOGIC;
---		  spi_miso     : out STD_LOGIC;
---		  spi_rq			: out STD_LOGIC;	-- spi request - currently used for debugging.
---		  -- SPI interface end
---		  mem_addr 	: out  STD_LOGIC_VECTOR (31 downto 0);
---		  mem_data_out : out  STD_LOGIC_VECTOR (7 downto 0);
---		  mem_data_in : in  STD_LOGIC_VECTOR (7 downto 0);
---		  mem_read_rq : out  STD_LOGIC;
---		  mem_read_ack : in  STD_LOGIC;
---		  mem_write_rq : out  STD_LOGIC;
---		  mem_write_ack : in  STD_LOGIC
---		);
---	 end component;
  
-	
 	signal funky_reset 		: std_logic_vector(15 downto 0) := (others => '0');
 	signal real_reset			: std_logic;
 	signal real_reset_n		: std_logic;
 	signal cold_reset_n		: std_logic;	-- active only during "cold" reset of the system.
 	signal cold_reset			: std_logic;
+	-- serloader control signals
 	signal mem_data_out 		: std_logic_vector(7 downto 0);
 	signal mem_data_in 		: std_logic_vector(7 downto 0);
 	signal mem_addr			: std_logic_vector(31 downto 0);
@@ -156,26 +134,20 @@ architecture Behavioral of ep994a is
 	signal mem_read_ack		: std_logic;
 	signal mem_write_rq		: std_logic;
 	signal mem_write_ack		: std_logic;
-	-- SRAM memory controller state machine
-	type mem_state_type is (
-		idle, 
-		wr0, wr1, wr2,
-		rd0, rd1, rd2,
-		grace,
-		cpu_wr0, cpu_wr1, cpu_wr2,
-		cpu_rd0, cpu_rd1, cpu_rd2
-		);
-	signal mem_state : mem_state_type := idle;	
-	signal mem_drive_bus : std_logic := '0';
+	-- memory controller (serloader) external memory access signals
+	signal mem_ram_in 		: std_logic_vector(7 downto 0);
+	signal mem_read_ram_ack : std_logic;
+	signal mem_write_ram_ack : std_logic;
+	-- memory controller (serloader) io register access signals
+	signal mem_io_in		  : std_logic_vector(7 downto 0);
+	signal mem_read_io_ack : std_logic;
+	signal mem_write_io_ack : std_logic;
 	
 	type ctrl_state_type is (
 		idle, control_write, control_read, ack_end
 		);
 	signal ctrl_state : ctrl_state_type := idle;
 	
-	signal debug_sram_ce0 : std_logic;
-	signal debug_sram_we  : std_logic;
-	signal debug_sram_oe  : std_logic;
 	signal sram_addr_bus  : std_logic_vector(18 downto 0); 
 	signal sram_16bit_read_bus : std_logic_vector(15 downto 0);	-- choose between (31..16) and (15..0) during reads.
 	
@@ -195,9 +167,9 @@ architecture Behavioral of ep994a is
 	signal wr_sampler			: std_logic_vector(3 downto 0);
 	signal rd_sampler			: std_logic_vector(3 downto 0);
 	signal cruclk_sampler   : std_logic_vector(3 downto 0);
-	signal cpu_access			: std_logic;		-- when '1' CPU owns the SRAM memory bus	
 	signal outreg				: std_logic_vector(15 downto 0);
-	signal mem_to_cpu   		: std_logic_vector(15 downto 0);
+	signal cpu_wr_rq        : std_logic;	-- CPU requests memory write
+	signal cpu_rd_rq			: std_logic;   -- CPU requests memory read
 	
 	-- VDP read and write signals
 	signal vdp_wr 				: std_logic;
@@ -266,16 +238,10 @@ architecture Behavioral of ep994a is
 --	signal bus_oe_n_internal : std_logic;
 	-- when to write to places
 	signal go_write   : std_logic;
-	signal cpu_mem_write_pending : std_logic;
 	-- counter of alatch pulses to produce a sign of life of the CPU
 	signal alatch_counter : std_logic_vector(19 downto 0);
 	
 	signal go_cruclk : std_logic;	-- CRUCLK write pulses from the soft TMS9900 core
-
--------------------------------------------------------------------------------	
--- SRAM debug signals with FPGA CPU
-	signal sram_debug : std_logic_vector(63 downto 0);
-	signal sram_capture : boolean := False;
 
 -------------------------------------------------------------------------------	
 -- Signals from FPGA CPU
@@ -316,7 +282,6 @@ architecture Behavioral of ep994a is
 	signal flashRamWE_n : std_logic;
 	signal flashLoading : std_logic;
 	signal flashLoadingOut : std_logic;
-	signal lastFlashRamWE_n : std_logic;	-- last state of flashRamWE_n
 	signal lastFlashLoading : std_logic;	-- last state of flashLoading
 	
 -------------------------------------------------------------------------------	
@@ -397,6 +362,52 @@ architecture Behavioral of ep994a is
 			  addr	: out STD_LOGIC_VECTOR(19 downto 0)		-- 1 megabyte GROM address out
 			  );
 	end component;
+-------------------------------------------------------------------------------	
+component xmemctrl is 
+    port (
+        clock : in STD_LOGIC;
+        reset : in std_logic;   -- active high
+
+		-- SRAM
+        SRAM_DAT : inout std_logic_vector(31 downto 0);
+        SRAM_ADR : out std_logic_vector(18 downto 0);
+        SRAM_CE0 : out std_logic;
+        SRAM_CE1 : out std_logic;
+        SRAM_WE	 : out std_logic;
+        SRAM_OE	 : out std_logic;
+        SRAM_BE	 : out std_logic_vector(3 downto 0);
+
+        -- address bus for external memory
+			xaddr_bus  : in std_logic_vector(18 downto 0); 
+
+        -- Flash memory loading (from serial flash)
+        flashDataOut    : in std_logic_vector(15 downto 0);
+        flashAddrOut    : in std_logic_vector(19 downto 0);
+        flashLoading    : in std_logic;
+        flashRamWE_n    : in std_logic;
+
+        -- CPU signals
+        cpu_holda       : in std_logic;
+        MEM_n           : in std_logic;
+        WE_n            : in std_logic;
+        data_from_cpu   : in std_logic_vector(15 downto 0);
+		  read_bus_o      : out std_logic_vector(15 downto 0);	
+		  cpu_rd          : in std_logic;
+		  cpu_wr_rq       : in std_logic;
+		  cpu_rd_rq			: in std_logic;
+
+        -- memory controller (serloader) signals
+        mem_data_out    : in std_logic_vector(7 downto 0);
+        mem_data_in     : out std_logic_vector(7 downto 0);
+        mem_addr        : in std_logic_vector(31 downto 0);
+        mem_read_rq     : in std_logic;
+        mem_write_rq    : in std_logic;
+        mem_read_ack_o  : out std_logic;
+        mem_write_ack_o : out std_logic
+
+    );
+	end component;	
+	
 -------------------------------------------------------------------------------
 -- Magnus Karlsson's FLASH loader component written in Verilog
 	component flash is 
@@ -463,6 +474,8 @@ architecture Behavioral of ep994a is
 	begin
 -------------------------------------------------------------------------------
  
+	DEBUG2 <= 'Z'; 	-- not used for now
+ 
  clkin1_buf : IBUFG
   port map
    (O => clk_ref_ibuf,
@@ -512,33 +525,52 @@ architecture Behavioral of ep994a is
 	clkf_buf    : BUFG   port map (O => clkfb, I => clk0);
 	clkout1_buf : BUFG   port map (O => clk,   I => clkfx);
 	-------------------------------------
-	-------------------------------------
+	-- External memory interface
+	cpu_wr_rq <= '1' when MEM_n = '0' and go_write = '1' 
+							and cpu_addr(15 downto 12) /= x"9"			-- 9XXX addresses don't go to RAM
+							and cpu_addr(15 downto 11) /= x"8" & '1'	-- 8800-8FFF don't go to RAM
+							and cartridge_cs='0' 							-- writes to cartridge region do not go to RAM
+					else '0';
+					
+	cpu_rd_rq <= '1' when MEM_n='0' and rd_sampler(1 downto 0) = "10" else '0';
+	
+	xmemctrl_inst : xmemctrl port map(
+		clock => clk,
+		reset => cold_reset,
+		
+		SRAM_DAT => SRAM_DAT,
+		SRAM_ADR => SRAM_ADR,
+		SRAM_CE0 => SRAM_CE0,
+		SRAM_CE1 => SRAM_CE1,
+		SRAM_WE  => SRAM_WE,
+		SRAM_OE  => SRAM_OE,
+		SRAM_BE  => SRAM_BE,
 
-	-- Use all 32 bits of RAM, we use CE0 and CE1 to control what chip is active.
-	-- The byte enables are driven the same way for both chips.
-	SRAM_BE 		<= "0000" when cpu_access = '1' or flashLoading = '1' else	-- TMS99105 is always 16-bit, use CE 
-						"1010" when mem_addr(0) = '1' else	-- lowest byte
-						"0101";										-- second lowest byte
-	SRAM_ADR 	<= '0' & sram_addr_bus(18 downto 1);	-- sram_addr_bus(0) selects between the two chips
-	SRAM_DAT		<= -- broadcast 16-bit wide lines when flash loading is active
-						flashDataOut & flashDataOut when cpu_access='0' and flashLoading='1' and mem_drive_bus='1' else
-						-- broadcast on all byte lanes when memory controller is writing
-						mem_data_out & mem_data_out & mem_data_out & mem_data_out when cpu_access='0' and mem_drive_bus='1' else
-						-- broadcast on 16-bit wide lanes when CPU is writing
-						data_from_cpu & data_from_cpu when cpu_access='1' and MEM_n='0' and WE_n = '0' else
-						(others => 'Z');
-						
-	sram_16bit_read_bus <= SRAM_DAT(15 downto 0) when sram_addr_bus(0)='0' else SRAM_DAT(31 downto 16);
-						
-	SRAM_CE0	<=		(debug_sram_ce0 or sram_addr_bus(0))       when cpu_access = '0' else (MEM_n or sram_addr_bus(0));
-	SRAM_CE1	<= 	(debug_sram_ce0 or (not sram_addr_bus(0))) when cpu_access = '0' else (MEM_n or (not sram_addr_bus(0)));
-	SRAM_WE	<=		debug_sram_we;  -- when cpu_access = '0' else WE_n; 
-	SRAM_OE	<=		debug_sram_oe; -- when cpu_access = '0' else RD_n; 	
-	
-	-------------------------------------size
-	
-	cpu_access <= not cpu_holda;	-- CPU owns the bus except when in hold
-	
+		xaddr_bus => sram_addr_bus,
+
+		flashDataOut => flashDataOut,
+		flashAddrOut => flashAddrOut,
+		flashLoading => flashLoading,
+		flashRamWE_n => flashRamWE_n,
+
+		cpu_holda => cpu_holda,
+		MEM_n 		=> MEM_n,
+		WE_n 			=> WE_n,
+		data_from_cpu => data_from_cpu,
+		read_bus_o => sram_16bit_read_bus,
+		cpu_rd		=> cpu_rd,
+		-- rd_sampler  => rd_sampler,
+		cpu_wr_rq   => cpu_wr_rq,
+		cpu_rd_rq	=> cpu_rd_rq,
+
+		mem_data_out => mem_data_out,
+		mem_data_in  => mem_ram_in,
+		mem_addr     => mem_addr,
+		mem_read_rq  => mem_read_rq,
+		mem_write_rq => mem_write_rq,
+		mem_read_ack_o => mem_read_ram_ack,
+		mem_write_ack_o => mem_write_ram_ack
+	);
 	-------------------------------------
 	-- vdp interrupt
 	-- INTERRUPT <=  not vdp_interrupt when cru9901(2)='1' else '1';	-- TMS9901 interrupt mask bit
@@ -568,6 +600,10 @@ architecture Behavioral of ep994a is
 	GPIO(2) <= '0' when cru9901(20 downto 18) = "101" else 'Z'; 	-- col#5
 	-------------------------------------
 	
+	mem_data_in   <= mem_ram_in        when mem_addr(20)='0' else mem_io_in;
+	mem_read_ack  <= mem_read_ram_ack  when mem_addr(20)='0' else mem_read_io_ack;
+	mem_write_ack <= mem_write_ram_ack when mem_addr(20)='0' else mem_write_io_ack;
+
 	process(clk, switch, swi)
 	variable ki : integer range 0 to 7;
 	begin
@@ -595,25 +631,14 @@ architecture Behavioral of ep994a is
 			-- reset processing
 			if cold_reset_n = '0' then
 				-- reset activity here
-				mem_state <= idle;
 				ctrl_state <= idle;
-				mem_drive_bus <= '0';
-				debug_sram_ce0 <= '1';
-				debug_sram_WE <= '1';
-				debug_sram_oe <= '1';
-				mem_read_ack <= '0';
-				mem_write_ack <= '0';
+				mem_read_io_ack <= '0';
+				mem_write_io_ack <= '0';
 				cru9901 <= x"00000000";
 				cru1100 <= '0';
 				sams_regs <= (others => '0');
-				
 				alatch_counter <= (others => '0');
-				
-				cpu_mem_write_pending <= '0';
-				sram_capture <= True;
-				
 				cpu_single_step <= x"00";
-				
 				waits <= (others => '0');
 			else
 				-- processing of normal clocks here. We run at 100MHz.
@@ -689,7 +714,7 @@ architecture Behavioral of ep994a is
 				---------------------------------------------------------
 				
 				-- Drive SRAM addresses outputs synchronously 
-				if cpu_access = '1' then
+				if cpu_holda = '0' then
 					if cpu_addr(15 downto 8) = x"98" and cpu_addr(1)='0' then
 						sram_addr_bus <= x"8" & grom_ram_addr(15 downto 1);	-- 0x80000 GROM
 					elsif cartridge_cs='1' and sams_regs(5)='0' then
@@ -712,145 +737,13 @@ architecture Behavioral of ep994a is
 					end if;
 				end if;
 				
-				if MEM_n = '0' and go_write = '1' 
-					and cpu_addr(15 downto 12) /= x"9"			-- 9XXX addresses don't go to RAM
-					and cpu_addr(15 downto 11) /= x"8" & '1'	-- 8800-8FFF don't go to RAM
-					and cartridge_cs='0' 							-- writes to cartridge region do not go to RAM
-					then
-						cpu_mem_write_pending <= '1';
-				end if;
-				
 				if cpu_single_step(1 downto 0)="11" and cpu_holda = '0' then
 					-- CPU single step is desired, and CPU is out of hold despite cpu_singe_step(0) being '1'.
 					-- This must mean that the CPU is started to execute an instruction, so zero out bit 1
 					-- which controls the stepping.
 					cpu_single_step(1) <= '0';	
 				end if;
-				
-				-- for flash loading, sample the status of flashRamWE_n
-				lastFlashRamWE_n <= flashRamWE_n;
-
-				-- memory controller state machine
-				case mem_state is
-					when idle =>
-						mem_drive_bus <= '0';
-						debug_sram_ce0 <= '1';
-						debug_sram_WE <= '1';
-						debug_sram_oe <= '1';
-						mem_read_ack <= '0';
-						mem_write_ack <= '0';
---						cpu_access <= '1';		
-						DEBUG2 <= '0';		
-						if flashLoading = '1' and cpu_holda = '1' and flashRamWE_n='0' and lastFlashRamWE_n='1' then
-							-- We are loading from flash memory chip to SRAM.
-							-- The total amount is 256K bytes. We perform the following mapping:
-							-- 1) First 128K loaded from flash are written from address 0 onwards (i.e. paged module RAM area)
-							-- 2) Next 64K are written to 80000 i.e. our 64K GROM area
-							-- 3) Last 64K are written to B0000 i.e. our DSR ROM and ROM area.
-							-- Note that addresses from flashAddrOut are byte address but LSB set to zero
-							if flashAddrOut(17)='0' then
-								sram_addr_bus <= "000" & flashAddrOut(16 downto 1);	-- 128K range from 00000
-							elsif flashAddrOut(16)='0' then
-								sram_addr_bus <= "1000" & flashAddrOut(15 downto 1);	-- 64K range from 80000
-							else
-								sram_addr_bus <= "1011" & flashAddrOut(15 downto 1);	-- 64K range from B0000
-							end if;
-							mem_state <= wr0;
-							mem_drive_bus <= '1';	-- only writes drive the bus
-						elsif mem_write_rq = '1' and mem_addr(20)='0' and cpu_holda='1' then
-							-- normal memory write
-							sram_addr_bus <= mem_addr(19 downto 1);	-- setup address
---							cpu_access <= '0';
-							mem_state <= wr0;
-							mem_drive_bus <= '1';	-- only writes drive the bus
-						elsif mem_read_rq = '1' and mem_addr(20)='0' and cpu_holda='1' then
-							sram_addr_bus <= mem_addr(19 downto 1);	-- setup address
---							cpu_access <= '0';
-							mem_state <= rd0;
-							mem_drive_bus <= '0';
-						elsif MEM_n = '0' and rd_sampler(1 downto 0) = "10" then
-							-- init CPU read cycle
---							cpu_access <= '1';	
-							mem_state <= cpu_rd0;
-							debug_sram_ce0 <= '0';	-- init read cycle
-							debug_sram_oe <= '0';
-							mem_drive_bus <= '0';
-						elsif cpu_mem_write_pending = '1' then
-							-- init CPU write cycle
---							cpu_access <= '1';
-							mem_state <= cpu_wr1;	-- EPEP jump directly to state 1!!!
-							debug_sram_ce0 <= '0';	-- initiate write cycle
-							debug_sram_WE <= '0';	
-							mem_drive_bus <= '1';	-- only writes drive the bus
-							DEBUG2 <= '1';
-							cpu_mem_write_pending <= '0';
-						end if;
-					when wr0 => 
-						debug_sram_ce0 <= '0';	-- issue write strobes
-						debug_sram_WE <= '0';	
-						mem_state <= wr1;	
-					when wr1 => mem_state <= wr2;	-- waste time
-					when wr2 =>							-- terminate memory write cycle
-						debug_sram_WE <= '1';
-						debug_sram_ce0 <= '1';
-						mem_drive_bus <= '0';
-						mem_state <= grace;
-						if flashLoading = '0' then
-							mem_write_ack <= '1';
-						end if;
-						
-					-- states to handle read cycles
-					when rd0 => 
-						debug_sram_ce0 <= '0';	-- init read cycle
-						debug_sram_oe <= '0';
-						mem_state <= rd1;
-					when rd1 => mem_state <= rd2;	-- waste some time
-					when rd2 => 
-						if mem_addr(0) = '1' then
-							mem_data_in <= sram_16bit_read_bus(7 downto 0);
-						else
-							mem_data_in <= sram_16bit_read_bus(15 downto 8);
-						end if;
-						debug_sram_ce0 <= '1';
-						debug_sram_oe <= '1';
-						mem_state <= grace;	
-						mem_read_ack <= '1';
-					when grace =>						-- one cycle grace period before going idle.
-						mem_state <= idle;			-- thus one cycle when mem_write_rq is not sampled after write.
-						mem_read_ack <= '0';
-						mem_write_ack <= '0';
-						debug_sram_ce0 <= '1';	-- since we can enter here from cache hits, make sure SRAM is deselected
-						debug_sram_oe <= '1';
-						
-						
-					-- CPU read cycle
-					when cpu_rd0 => 
-						mem_state <= cpu_rd1;
-						if	cpu_rd = '0' then mem_state <= grace; end if;	-- abort if CPU was served by cache
-					when cpu_rd1 => 
-						mem_state <= cpu_rd2;
-						mem_to_cpu <= sram_16bit_read_bus(15 downto 0);
-						if sram_capture then
-							sram_capture <= False;
-							sram_debug <= cpu_addr & "00000000000" & cpu_access & sram_addr_bus & '0' & sram_16bit_read_bus(15 downto 0);
-						end if;
-						if	cpu_rd = '0' then mem_state <= grace; end if;	-- abort if CPU was served by cache
-					when cpu_rd2 =>
-						debug_sram_ce0 <= '1';
-						debug_sram_oe <= '1';
-						mem_state <= grace;
-						
-					-- CPU write cycle
-					when cpu_wr0 => mem_state <= cpu_wr1;
-					when cpu_wr1 => mem_state <= cpu_wr2;
-					when cpu_wr2 =>
-						mem_state <= grace;
-						debug_sram_WE <= '1';
-						debug_sram_ce0 <= '1';
-						mem_drive_bus <= '0';
-						mem_state <= grace;
-				end case;
-				
+								
 				-- Handle control state transfer is a separate
 				-- state machine in order not to disturb the TMS99105.
 				case ctrl_state is 
@@ -859,39 +752,39 @@ architecture Behavioral of ep994a is
 							if mem_addr(4 downto 3) = "00" then
 								-- read keyboard matrix (just for debugging)
 								ki := to_integer(unsigned(mem_addr(2 downto 0)));
-								mem_data_in(0) <= keyboard(ki, 0);
-								mem_data_in(1) <= keyboard(ki, 1);
-								mem_data_in(2) <= keyboard(ki, 2);
-								mem_data_in(3) <= keyboard(ki, 3);
-								mem_data_in(4) <= keyboard(ki, 4);
-								mem_data_in(5) <= keyboard(ki, 5);
-								mem_data_in(6) <= keyboard(ki, 6);
-								mem_data_in(7) <= keyboard(ki, 7);
+								mem_io_in(0) <= keyboard(ki, 0);
+								mem_io_in(1) <= keyboard(ki, 1);
+								mem_io_in(2) <= keyboard(ki, 2);
+								mem_io_in(3) <= keyboard(ki, 3);
+								mem_io_in(4) <= keyboard(ki, 4);
+								mem_io_in(5) <= keyboard(ki, 5);
+								mem_io_in(6) <= keyboard(ki, 6);
+								mem_io_in(7) <= keyboard(ki, 7);
 							else
 								case mem_addr(4 downto 0) is
-									when "01000" => mem_data_in <= cpu_reset_ctrl;
-									when "01001" => mem_data_in <= cpu_single_step;
-									when "01010" => mem_data_in <= 
+									when "01000" => mem_io_in <= cpu_reset_ctrl;
+									when "01001" => mem_io_in <= cpu_single_step;
+									when "01010" => mem_io_in <= 
 										  funky_reset(funky_reset'length-1) & cpu_reset_ctrl(0) & SWI(1) & cpu_reset_after_cache
 										& flashLoading & cpu_reset & real_reset & cold_reset;
-									when "10000" => mem_data_in <= cpu_debug_out(7 downto 0);
-									when "10001" => mem_data_in <= cpu_debug_out(15 downto 8);
-									when "10010" => mem_data_in <= cpu_debug_out(23 downto 16);
-									when "10011" => mem_data_in <= cpu_debug_out(31 downto 24);
-									when "10100" => mem_data_in <= cpu_debug_out(39 downto 32);
-									when "10101" => mem_data_in <= cpu_debug_out(47 downto 40);									
-									when "10110" => mem_data_in <= cpu_debug_out(55 downto 48);
-									when "10111" => mem_data_in <= cpu_debug_out(63 downto 56);
-									when "11000" => mem_data_in <= cpu_debug_out(71 downto 64); -- sram_debug(7 downto 0);
-									when "11001" => mem_data_in <= cpu_debug_out(79 downto 72); -- sram_debug(15 downto 8);
-									when "11010" => mem_data_in <= cpu_debug_out(87 downto 80); -- sram_debug(23 downto 16);
-									when "11011" => mem_data_in <= cpu_debug_out(95 downto 88); -- sram_debug(31 downto 24);
-									when "11100" => mem_data_in <= alu_debug_arg1(7 downto 0); -- sram_debug(39 downto 32);
-									when "11101" => mem_data_in <= alu_debug_arg1(15 downto 8);-- sram_debug(47 downto 40);									
-									when "11110" => mem_data_in <= alu_debug_arg2(7 downto 0);-- sram_debug(55 downto 48);
-									when "11111" => mem_data_in <= alu_debug_arg2(15 downto 8);-- sram_debug(63 downto 56);									
+									when "10000" => mem_io_in <= cpu_debug_out(7 downto 0);
+									when "10001" => mem_io_in <= cpu_debug_out(15 downto 8);
+									when "10010" => mem_io_in <= cpu_debug_out(23 downto 16);
+									when "10011" => mem_io_in <= cpu_debug_out(31 downto 24);
+									when "10100" => mem_io_in <= cpu_debug_out(39 downto 32);
+									when "10101" => mem_io_in <= cpu_debug_out(47 downto 40);									
+									when "10110" => mem_io_in <= cpu_debug_out(55 downto 48);
+									when "10111" => mem_io_in <= cpu_debug_out(63 downto 56);
+									when "11000" => mem_io_in <= cpu_debug_out(71 downto 64);
+									when "11001" => mem_io_in <= cpu_debug_out(79 downto 72);
+									when "11010" => mem_io_in <= cpu_debug_out(87 downto 80);
+									when "11011" => mem_io_in <= cpu_debug_out(95 downto 88);
+									when "11100" => mem_io_in <= alu_debug_arg1(7 downto 0); 
+									when "11101" => mem_io_in <= alu_debug_arg1(15 downto 8);
+									when "11110" => mem_io_in <= alu_debug_arg2(7 downto 0);
+									when "11111" => mem_io_in <= alu_debug_arg2(15 downto 8);
 									when others =>
-										mem_data_in <= x"AA";
+										mem_io_in <= x"AA";
 								end case;
 							end if;
 							ctrl_state <= control_read;
@@ -899,11 +792,11 @@ architecture Behavioral of ep994a is
 							ctrl_state <= control_write;
 						end if;
 					when control_read =>
-						mem_read_ack <= '1';
+						mem_read_io_ack <= '1';
 						ctrl_state <= ack_end;
 					when ack_end =>
-						mem_read_ack <= '0';
-						mem_write_ack <= '0';
+						mem_read_io_ack <= '0';
+						mem_write_io_ack <= '0';
 						ctrl_state <= idle;
 					when control_write =>
 						if mem_addr(3) = '0' then 
@@ -924,7 +817,7 @@ architecture Behavioral of ep994a is
 								cpu_single_step <= mem_data_out;
 							end if;
 						end if;
-						mem_write_ack <= '1';
+						mem_write_io_ack <= '1';
 						ctrl_state <= ack_end;
 				end case;
 				
@@ -1265,8 +1158,8 @@ architecture Behavioral of ep994a is
 		clk => clk,
 		reset => cpu_reset,
 		reset_done => cache_reset_done, 
-	   cacheable => cacheable,
-	   update => cache_update,
+	  cacheable => cacheable,
+	  update => cache_update,
 		data_in =>  cache_data_in, -- data_out,
 		data_out => cache_data_out, 
 		addr_in => cache_addr_in,
