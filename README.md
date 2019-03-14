@@ -1,6 +1,6 @@
 # EP994A
 My TI-99/4A clone implemented with a TMS99105 CPU and FPGA (master branch).
-Another version of the clone (the latest development in soft-cpu branch) includes my own
+Another version of the clone (the latest development in soft-cpu-tms9902 branch) includes my own
 TMS9900 CPU core written in VHDL.
 
 See the file LICENSE for license terms. At least for now (without contributors from others)
@@ -9,6 +9,32 @@ You need to retain copyright notices in the source code.
 
 Latest changes
 --------------
+Commit 2019-01-31:
+Merged the soft-cpu-tms9902 branch to soft-cpu branch. I have not used enough git to be great at it, but this first major merge seems to have gone well. There are two generics in top level object:
+- **cfg_spi_memloader** enables SPI (microcontroller) boot instead of boot from PC.
+- **cfg_hw_keyboard** enables the use of an genuine TI-99/4A keyboard with the FPGA. The keyboard needs to be wired to the 20-pin GPIO connector.
+- I haven't tested these flags; they were features incorporated to the **soft-cpu** branch earlier, while my main development branch has been the **soft-cpu-tms9902** branch, which includes the TMS9902 compatible UART. Now the soft-cpu branch includes all features.
+- Before the merge I have been working on optimizing the CPU core, removing unneeded states which didn't do much and adding some shortcuts in the instruction decode states, avoiding some more unnecessary states.
+- The net effect of the optimizations so far is that my stupid Basic benchmark now runs at 39x faster than the original TI (when the cache is enabled). This is still slow, but probably the world's fastest TI-99/4A implementation still.
+
+
+Commit 2019-01-19:
+**cache**
+- Added a system level cache, outside of the CPU core (soft-cpu-tms9902 branch). 
+- The cache size is is 1K byte for code and data. Occupies a 512x36bit RAM block. The bottom 16 bits of each of the 512 entries is the 16-bit data word, followed by tag bits. The tag is 10 bits. 
+- The topmost bit, bit 35, indicates if a cache entry is valid. When set, the entry is valid. On reset the cache cycles through all 512 locations and zeroes them out, thus invalidating all entries of the cache.
+- The update policy is write-through. Thus all memory writes go to main memory. The cache will also allocate entries on writes, if the memory region being written to is cacheable.
+- During reads the read is simultaneously started for both main memory and the cache. Cache read takes one cycle. Another cycle is currently required for tag comparison. Thus read cycles which hit cache take two clocks. Any main memory cycles will be aborted if a cache hit is detected.
+- Using my simple stupid BASIC test program the cache improves performance by 22% in the current very simplistic setup. At 100MHz the system reaches over 30x the performance of the original TMS9900.
+
+```
+10 for i=0 to 1000
+20 print i;" ";
+30 next i
+```
+**video**
+- A small modification to the TMS9918 core to better center horizontally the video output.
+
 Commit 2018-09-22:
 - After a long while worked on the project. This was pretty much trying to remember where I was in the project.
 
