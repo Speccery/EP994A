@@ -69,6 +69,7 @@ REM  memloader %CART_GROM% ALPINERG.BIN
 
 REM Megademo
 REM memloader %PORT% %CART_ROM% dontmess.bin
+
 REM Megademo - version which I compiled myself
 memloader %PORT% %CART_ROM% demo8.bin
 
