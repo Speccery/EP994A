@@ -20,7 +20,7 @@ library ieee;
 	use ieee.std_logic_1164.all;
 	use ieee.numeric_std.all;
 
-entity dac is
+entity dac_vhdl is
 
 	generic (
 		msbi_g : integer := 7
@@ -34,7 +34,7 @@ entity dac is
 
 end dac;
 
-architecture rtl of dac is
+architecture rtl of dac_vhdl is
 	signal sig_in : unsigned(msbi_g+2 downto 0);
 
 begin

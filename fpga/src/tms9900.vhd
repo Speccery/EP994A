@@ -134,14 +134,35 @@ architecture Behavioral of tms9900 is
 	signal shift_count : std_logic_vector(4 downto 0);
 	signal delay_count : std_logic_vector(7 downto 0);
 	
-	type alu_operation_type is (
-		alu_load1, alu_load2, alu_add, alu_or, alu_and, alu_sub, alu_compare,
-		alu_and_not, alu_xor, 
-		alu_coc, alu_czc,
-		alu_swpb2, alu_abs,
-		alu_sla, alu_sra, alu_src, alu_srl
-	);
-	signal ope : alu_operation_type;
+	
+--	localparam load1=4'h0, load2=4'h1, add =4'h2, sub =4'h3, 
+--				  abs  =4'h4, aor  =4'h5, aand=4'h6, axor=4'h7,
+--				  andn =4'h8, coc  =4'h9, czc =4'ha, swpb=4'hb,
+--				  sla  =4'hc, sra  =4'hd, src =4'he, srl =4'hf;		
+	constant alu_load1 : std_logic_vector(3 downto 0) := x"0";
+	constant alu_load2 : std_logic_vector(3 downto 0) := x"1";
+	constant alu_add   : std_logic_vector(3 downto 0) := x"2";
+	constant alu_sub   : std_logic_vector(3 downto 0) := x"3";
+	constant alu_abs   : std_logic_vector(3 downto 0) := x"4";
+	constant alu_or    : std_logic_vector(3 downto 0) := x"5";
+	constant alu_and   : std_logic_vector(3 downto 0) := x"6";
+	constant alu_xor   : std_logic_vector(3 downto 0) := x"7";
+	constant alu_and_not : std_logic_vector(3 downto 0) := x"8";
+	constant alu_coc   : std_logic_vector(3 downto 0) := x"9";
+	constant alu_czc   : std_logic_vector(3 downto 0) := x"a";
+	constant alu_swpb2 : std_logic_vector(3 downto 0) := x"b";
+	constant alu_sla   : std_logic_vector(3 downto 0) := x"c";
+	constant alu_sra   : std_logic_vector(3 downto 0) := x"d";
+	constant alu_src   : std_logic_vector(3 downto 0) := x"e";
+	constant alu_srl   : std_logic_vector(3 downto 0) := x"f";
+--	type alu_operation_type is (
+--		alu_load1=0,   alu_load2=1, alu_add=2, alu_sub=3, 
+--		alu_abs=4,     alu_or=5,    alu_and=6, alu_xor=7,
+--		alu_and_not=8, alu_coc=9,   alu_czc=10, alu_swpb2=11,
+--		alu_sla=12,    alu_sra=13,  alu_src=14, alu_srl=15
+--	);
+	signal ope : std_logic_vector(3 downto 0);
+	signal alu_compare       : std_logic := '0';
 	signal alu_flag_zero     : std_logic;
 	signal alu_flag_overflow : std_logic;
 	signal alu_logical_gt 	 : std_logic;
@@ -187,6 +208,22 @@ architecture Behavioral of tms9900 is
 	signal dest_reg_addr : std_logic_vector(15 downto 0);
 	signal set_dual_op_flags : boolean;
 	
+	component alu9900 is port (
+		arg1 : IN STD_LOGIC_VECTOR(15 DOWNTO 0);
+		arg2 : IN STD_LOGIC_VECTOR(15 DOWNTO 0);
+		ope  : IN STD_LOGIC_VECTOR(3 DOWNTO 0);
+		compare : IN STD_LOGIC;
+		alu_result: OUT STD_LOGIC_VECTOR(15 DOWNTO 0);
+		alu_logical_gt 	: OUT STD_LOGIC;
+		alu_arithmetic_gt : OUT STD_LOGIC;
+		alu_flag_zero     : OUT STD_LOGIC;
+		alu_flag_carry    : OUT STD_LOGIC;
+		alu_flag_overflow : OUT STD_LOGIC;
+		alu_flag_parity	: OUT STD_LOGIC;
+		alu_flag_parity_source : OUT STD_LOGIC
+	);
+	end component;
+	
 begin
 
 	addr_out <= addr;
@@ -200,73 +237,20 @@ begin
 
 	cpu_debug_out <= debug_wr_data & debug_wr_addr & st & pc & pc_ir & ir;
 	
-	process(arg1, arg2, ope)
-	variable t : std_logic_vector(15 downto 0);
-	begin
-		-- arg1 is DA, arg2 is SA when ALU used for instruction execute
-		case ope is
-			when alu_load1 =>		alu_out <= '0' & arg1;
-			when alu_load2 =>		alu_out <= '0' & arg2;
-			when alu_add =>		alu_out <= std_logic_vector(unsigned('0' & arg1) + unsigned('0' & arg2));
-			when alu_or =>			alu_out <= '0' & arg1 or '0' & arg2;
-			when alu_and =>		alu_out <= '0' & arg1 and '0' & arg2;
-			when alu_sub =>		alu_out <= std_logic_vector(unsigned('0' & arg1) - unsigned('0' & arg2));
-			when alu_compare =>
-				-- this is just the same code as for subtract
-				alu_out <= std_logic_vector(unsigned('0' & arg1) - unsigned('0' & arg2));
-			when alu_and_not =>	alu_out <= '0' & arg1 and not ('0' & arg2);
-			when alu_xor =>		alu_out <= '0' & arg1 xor '0' & arg2;
-			when alu_coc => -- compare ones corresponding
-										alu_out <= ('0' & arg1 xor ('0' & arg2)) and ('0' & arg1);
-			when alu_czc => -- compare zeros corresponding
-										alu_out <= ('0' & arg1 xor not ('0' & arg2)) and ('0' & arg1);
-			when alu_swpb2 =>		alu_out <= '0' & arg2(7 downto 0) & arg2(15 downto 8); -- swap bytes of arg2
-			when alu_abs => -- compute abs value of arg2
-				if arg2(15) = '0' then
-					alu_out <= '0' & arg2;
-				else
-					-- same as alu sub (arg1 must be zero; this is set elsewhere)
-					alu_out <= std_logic_vector(unsigned(arg1(15) & arg1) - unsigned(arg2(15) & arg2));
-				end if;
-			when alu_sla =>		alu_out <= arg2 & '0';
-			when alu_sra =>		alu_out <= arg2(0) & arg2(15) & arg2(15 downto 1);
-			when alu_src =>		alu_out <= arg2(0) & arg2(0) & arg2(15 downto 1);
-			when alu_srl =>		alu_out <= arg2(0) & '0' & arg2(15 downto 1);
-		end case;			
-	end process;
-	alu_result <= alu_out(15 downto 0);
--- alu_debug_out <= alu_out(15 downto 0);
---	alu_debug_arg1 <= arg1;
---	alu_debug_arg2 <= arg2;
-	alu_debug_arg1 <= alu_debug_dst_arg;
-	alu_debug_arg2 <= alu_debug_src_arg;
-	
-	-- ST0 ST1 ST2 ST3 ST4 ST5
-	-- L>  A>  =   C   O   P
-	-- ST0 - when looking at data sheet arg1 is (DA) and arg2 is (SA), sub is (DA)-(SA). 
-	alu_logical_gt 	<= '1' when ope  = alu_compare and ((arg2(15)='1' and arg1(15)='0') or (arg1(15)=arg2(15) and alu_result(15)= '1')) else 
-								'1' when ope /= alu_compare and alu_result /= x"0000" else
-								'0';
-	-- ST1
-	alu_arithmetic_gt <= '1' when ope  = alu_compare and ((arg2(15)='0' and arg1(15)='1') or (arg1(15)=arg2(15) and alu_result(15)= '1')) else 
-								'1' when ope /= alu_compare and alu_result(15)='0' and alu_result /= x"0000" else
-								'0';
-	-- ST2
-	alu_flag_zero 		<= '1' when alu_result = x"0000" else '0';
-	-- ST3 carry
-	alu_flag_carry    <= alu_out(16) when ope /= alu_sub else not alu_out(16);	-- for sub carry out is inverted
-	-- ST4 overflow
-	alu_flag_overflow <= 
-		'1' when (ope = alu_compare or ope = alu_sub or ope = alu_abs)			                   and arg1(15) /= arg2(15) and alu_result(15) /= arg1(15) else 
-		'1' when (ope /= alu_sla and not (ope = alu_compare or ope = alu_sub or ope = alu_abs)) and arg1(15) =  arg2(15) and alu_result(15) /= arg1(15) else 
-		'1' when ope = alu_sla and alu_result(15) /= arg2(15) else -- sla condition: if MSB changes during shift
-		'0';
-	-- ST5 parity
-	alu_flag_parity <= alu_result(15) xor alu_result(14) xor alu_result(13) xor alu_result(12) xor 
-				       alu_result(11) xor alu_result(10) xor alu_result(9)  xor alu_result(8);
-		-- source parity used with CB and MOVB instructions
-	alu_flag_parity_source <= arg2(15) xor arg2(14) xor arg2(13) xor arg2(12) xor 
-				       arg2(11) xor arg2(10) xor arg2(9)  xor arg2(8);
+	tms9900_alu: alu9900 port map (	-- use verilog version of the ALU
+--	tms9900_alu: entity work.alu9900_vhdl port map (
+		arg1    => arg1,
+		arg2    => arg2,
+		ope     => ope, 
+		compare => alu_compare, 
+		alu_result        => alu_result,
+		alu_logical_gt    => alu_logical_gt,
+		alu_arithmetic_gt => alu_arithmetic_gt,
+		alu_flag_zero 	   => alu_flag_zero,
+		alu_flag_carry    => alu_flag_carry,
+		alu_flag_overflow => alu_flag_overflow,
+		alu_flag_parity	=> alu_flag_parity,
+		alu_flag_parity_source => alu_flag_parity_source);
 
 	-- Byte aligner
 	process(ea, rd_dat, operand_mode, operand_word)
@@ -504,6 +488,7 @@ begin
 							-- ea <= std_logic_vector(unsigned(w) + unsigned(x"00" & "000" & data_in(3 downto 0) & '0'));
 							-- destination register operand effective address
 							-- ead <= std_logic_vector(unsigned(w) + unsigned(x"00" & "000" & data_in(9 downto 6) & '0'));
+							alu_compare <= '0';
 							
 							-- Next analyze what instruction we got
 							-- check for dual operand instructions with full addressing modes
@@ -666,7 +651,7 @@ begin
 								when x"2" => ope <= alu_add;	 -- AI
 								when x"4" => ope <= alu_and;	 -- ANDI
 								when x"6" => ope <= alu_or;	 -- ORI
-								when x"8" => ope <= alu_compare; -- CI
+								when x"8" => ope <= alu_sub; alu_compare <= '1'; -- CI
 								when others => cpu_state <= do_stuck;
 							end case;						
 							cpu_state_next <= do_load_imm5;
@@ -683,7 +668,7 @@ begin
 							st(11) <= alu_flag_overflow;
 						end if;
 						
-						if ope /= alu_compare then
+						if alu_compare = '0' then
 							wr_dat <= alu_result;	
 							cpu_state <= do_write;
 							cpu_state_next <= do_fetch;
@@ -742,9 +727,10 @@ begin
 						arg2 <= reg_t2;
 						alu_debug_src_arg <= reg_t2; -- Store argument for debug information
 						cpu_state <= do_dual_op3;
+						alu_compare <= '0';
 						case ir(15 downto 13) is
 							when "101" => ope <= alu_add; -- A add
-							when "100" => ope <= alu_compare;	-- C compare
+							when "100" => ope <= alu_sub;	alu_compare <= '1'; -- C compare
 							when "011" => ope <= alu_sub; -- S substract
 							when "111" => ope <= alu_or;
 							when "010" => ope <= alu_and_not;
@@ -902,6 +888,9 @@ begin
 							if ope = alu_add or ope = alu_sub or ope = alu_abs then
 								st(12) <= alu_flag_carry;
 								st(11) <= alu_flag_overflow;
+							end if;
+							if ope = alu_abs then 
+								st(12) <= '0';			-- ABS instruction always clears carry on the TMS99105, and also on classic99.
 							end if;
 						end if;
 						-- write the result

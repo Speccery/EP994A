@@ -109,4 +109,7 @@ Exit /B
     memloader %PORT% %CART_ROM% ralph\dblreadC.rpk\dblreadC.bin
     memloader %PORT% %CART_GROM% ralph\dblreadC.rpk\dblreadG.bin
     goto end_case
-
+:MODULE_MINIMEM     REM Mini memory module
+    memloader %PORT% %CART_ROM% roms\MiniMemC.Bin
+    memloader %PORT% %CART_GROM% roms\MiniMemG.Bin
+    goto end_case

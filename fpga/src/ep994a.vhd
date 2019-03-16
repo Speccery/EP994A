@@ -283,6 +283,19 @@ architecture Behavioral of ep994a is
 	signal flashLoading : std_logic;
 	signal flashLoadingOut : std_logic;
 	signal lastFlashLoading : std_logic;	-- last state of flashLoading
+	-- autoloader signals, can be used to copy stuff at boot up
+	signal flash_ck_al : std_logic;
+	signal flash_cs_al : std_logic;
+	signal flash_si_al : std_logic;
+	-- flash "rom" signals, used when ROM is accessed while CPU is running
+	signal flash_ck_rom    : std_logic;
+	signal flash_cs_rom    : std_logic;
+	signal flash_si_rom    : std_logic;
+	signal flashRomAddr    : std_logic_vector(23 downto 0);
+	signal flashRomReadBus : std_logic_vector(15 downto 0);
+	signal flashRomActive  : std_logic;
+	signal flashRomReadRq  : std_logic;
+	signal flashRomWordReady : std_logic;
 	
 -------------------------------------------------------------------------------	
 -- Signals for LPC1343 SPI controller receiver
@@ -423,6 +436,22 @@ component xmemctrl is
 		memoryDataOut : out STD_LOGIC_VECTOR(15 downto 0);
 		memoryAddr 	: out STD_LOGIC_VECTOR(19 downto 0);
 		n_ramWE 		: out STD_LOGIC;
+		loading 		: out STD_LOGIC;
+		spi_sclk 	: out STD_LOGIC;
+		spi_ss 		: out STD_LOGIC;
+		spi_mosi 	: out STD_LOGIC;
+		spi_miso 	: in STD_LOGIC
+	);
+	end component;
+-------------------------------------------------------------------------------
+-- My module to access flash ROM
+	component flashword is port (
+		clk8 			: in STD_LOGIC;
+		n_reset 		: in STD_LOGIC;
+		memoryAddr  : in std_logic_vector(23 downto 0);
+		readRq		: in std_logic;
+		wordReady_o : out std_logic;
+		dataOut 	   : out STD_LOGIC_VECTOR(15 downto 0);
 		loading 		: out STD_LOGIC;
 		spi_sclk 	: out STD_LOGIC;
 		spi_ss 		: out STD_LOGIC;
@@ -848,8 +877,19 @@ component xmemctrl is
 							grom_we <= '1';			-- GROM writes
 						elsif cartridge_cs='1' and sams_regs(5)='0' then
 							basic_rom_bank <= cpu_addr(6 downto 1);	-- capture ROM bank select
-						elsif cpu_addr(15 downto 8) = x"84" then	
-							tms9919_we <= '1';		-- Audio chip write
+						elsif cpu_addr(15 downto 8) = x"84" then
+							if cpu_addr(7) = '0' then	
+								tms9919_we <= '1';		-- Audio chip write
+							else
+								-- Flash ROM registers, specify memory address and read request.
+								-- 8480 addr lo, 8482 addr hi, 8484 read request (LSB)
+								case cpu_addr(3 downto 0) is 
+									when x"0" => flashRomAddr(15 downto 0) <= data_from_cpu;
+									when x"2" => flashRomAddr(23 downto 16) <= data_from_cpu(7 downto 0);
+									when x"4" => flashRomReadRq <= data_from_cpu(0);
+									when others =>
+								end case;
+							end if;
 						elsif paging_registers = '1' then 
 							paging_wr_enable <= '1';
 						end if;
@@ -1008,6 +1048,13 @@ component xmemctrl is
 		x"FFF0"								when MEM_n='1' else -- other CRU
 		-- line below commented, paged memory repeated in the address range as opposed to returning zeros outside valid range
 		--	x"0000"							when translated_addr(15 downto 6) /= "0000000000" else -- paged memory limited to 256K for now
+
+		-- test serial flash rom interface
+		flashRomAddr(15 downto 0) 		   when cpu_addr(15 downto 1) & '0' = x"8480" else
+		x"00" & flashRomAddr(7 downto 0) when cpu_addr(15 downto 1) & '0' = x"8482" else
+		flashRomReadBus						when cpu_addr(15 downto 1) & '0' = x"8488" else
+		flashRomWordReady & flashRomActive & "00" & x"000"  when cpu_addr(15 downto 1) & '0' = x"848A" else
+		
 		sram_16bit_read_bus(15 downto 0);		-- data to CPU
 	
  	vdp: entity work.tms9918
@@ -1184,7 +1231,7 @@ component xmemctrl is
 		
    FLASH_WP <= '1';
 	FLASH_HOLD <= '1';
-	serial_flash_rom : flash PORT MAP (
+	serial_flash_autoloader : flash PORT MAP (
 				clk8 			=> clk8,
 				n_reset 		=> cold_reset_n,
 				bad_load 	=> '0',
@@ -1197,11 +1244,30 @@ component xmemctrl is
 				memoryAddr 	=> flashAddrOut,
 				n_ramWE 		=> flashRamWE_n,
 				loading 		=> flashLoadingOut,
-				spi_sclk 	=> FLASH_CK,
-				spi_ss 		=> FLASH_CS,
-				spi_mosi 	=> FLASH_SI,
+				spi_sclk 	=> flash_ck_al,
+				spi_ss 		=> flash_cs_al,
+				spi_mosi 	=> flash_si_al,
 				spi_miso 	=> FLASH_SO
 			);
+	
+			
+	flash_rom : flashword PORT MAP (
+				clk8 			=> clk8,
+				n_reset 		=> cold_reset_n,
+				readRq      => flashRomReadRq,
+				wordReady_o => flashRomWordReady,
+				dataOut 		=> flashRomReadBus,
+				memoryAddr 	=> flashRomAddr,
+				loading 		=> flashRomActive,
+				spi_sclk 	=> flash_ck_rom,
+				spi_ss 		=> flash_cs_rom,
+				spi_mosi 	=> flash_si_rom,
+				spi_miso 	=> FLASH_SO
+	);
+	
+	FLASH_CK <= flash_ck_rom when flashRomActive='1' else flash_ck_al;
+	FLASH_CS <= flash_cs_rom when flashRomActive='1' else flash_cs_al;
+	FLASH_SI <= flash_si_rom when flashRomActive='1' else flash_si_al;
 
 	flashLoading <= flashLoadingOut when SWI(1)='1' else '0';	-- SWI(1)=0 masks flashLoader.
 
