@@ -50,9 +50,11 @@ BOOT
   DEC R12
   LI  R3,>8155
   LDCR R3,8
+  STST R4
   STCR R3,8
   LI  R3,>0655
   LDCR R3,3
+  STST R4
   
 ; Test byte operations with flags
   CLR R0

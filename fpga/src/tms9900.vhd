@@ -117,7 +117,7 @@ architecture Behavioral of tms9900 is
 		do_ext_instructions, do_store_instructions, 
 		do_coc_czc_etc0, do_coc_czc_etc1, do_coc_czc_etc2, do_coc_czc_etc3,
 		do_xop,
-		do_ldcr0, do_ldcr1, do_ldcr2, do_ldcr3, do_ldcr4, do_ldcr5,
+		do_ldcr0, do_ldcr00, do_ldcr1, do_ldcr2, do_ldcr3, do_ldcr4, do_ldcr5,
 		do_stcr0, do_stcr6, do_stcr7,
 		do_stcr_delay0, do_stcr_delay1,
 		do_idle_wait, do_mul_store0, do_mul_store1, do_mul_store2,
@@ -1286,9 +1286,23 @@ begin
 					when do_ldcr0 =>	
 						-- LDCR, now rd_dat is source operand
 						reg_t <= read_byte_aligner;	-- LDCR
+						-- We need to setup flags - shove the (SA) which was just read into the ALU.
+						-- We perform a dummy add with zero to get the flags out.
+						arg1 <= read_byte_aligner;
+						ope <= alu_load1;
+						cpu_state <= do_ldcr00;
+					when do_ldcr00 =>
+						-- Update the CPU flags ST0-ST2 and ST5 if count is <= 8
+						st(15) <= alu_logical_gt;
+						st(14) <= alu_arithmetic_gt;
+						st(13) <= alu_flag_zero;
+						if not operand_word then
+							ST(10) <= alu_flag_parity;
+						end if;
 						operand_mode <= "001100";	-- Reg 12 in direct addressing mode
 						cpu_state <= do_read_operand0;
 						cpu_state_operand_return <= do_ldcr1;
+						
 					when do_stcr0 =>
 						-- STCR, here alu_result is the address of our operand.
 						-- reg_t will contain the operand for OR

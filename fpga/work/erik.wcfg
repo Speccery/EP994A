@@ -3,9 +3,10 @@
    <wave_state>
    </wave_state>
    <db_ref_list>
-      <db_ref path="E:/Dropbox/Omat/trunk/s/EP994A/fpga/work/tb_tms9900_isim_beh.wdb" id="1" type="auto">
+      <db_ref path="D:/Dropbox/Omat/trunk/EP994A/fpga/work/tb_tms9900_isim_beh.wdb" id="1" type="auto">
          <top_modules>
             <top_module name="bip_utils_pkg_v2_0" />
+            <top_module name="glbl" />
             <top_module name="mult_gen_pkg_v11_2" />
             <top_module name="numeric_std" />
             <top_module name="std_logic_1164" />
@@ -19,11 +20,12 @@
             <top_module name="vcomponents" />
             <top_module name="vital_primitives" />
             <top_module name="vital_timing" />
+            <top_module name="vl_types" />
             <top_module name="vpkg" />
          </top_modules>
       </db_ref>
    </db_ref_list>
-   <WVObjectSize size="39" />
+   <WVObjectSize size="43" />
    <wave_markers>
       <marker time="4700000000" label="" />
       <marker time="21864867000" label="" />
@@ -97,6 +99,42 @@
    <wvobject fp_name="/tb_tms9900/as" type="logic" db_ref_id="1">
       <obj_property name="ElementShortName">as</obj_property>
       <obj_property name="ObjectShortName">as</obj_property>
+   </wvobject>
+   <wvobject fp_name="group54" type="group">
+      <obj_property name="label">ALU</obj_property>
+      <obj_property name="DisplayName">label</obj_property>
+      <wvobject fp_name="/tb_tms9900/uut/tms9900_alu/ope" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">ope[3:0]</obj_property>
+         <obj_property name="ObjectShortName">ope[3:0]</obj_property>
+         <obj_property name="Radix">HEXRADIX</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb_tms9900/uut/tms9900_alu/arg1" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">arg1[15:0]</obj_property>
+         <obj_property name="ObjectShortName">arg1[15:0]</obj_property>
+         <obj_property name="Radix">HEXRADIX</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb_tms9900/uut/tms9900_alu/arg2" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">arg2[15:0]</obj_property>
+         <obj_property name="ObjectShortName">arg2[15:0]</obj_property>
+         <obj_property name="Radix">HEXRADIX</obj_property>
+      </wvobject>
+      <wvobject fp_name="/tb_tms9900/uut/tms9900_alu/alu_result" type="array" db_ref_id="1">
+         <obj_property name="ElementShortName">alu_result[15:0]</obj_property>
+         <obj_property name="ObjectShortName">alu_result[15:0]</obj_property>
+         <obj_property name="Radix">HEXRADIX</obj_property>
+      </wvobject>
+   </wvobject>
+   <wvobject fp_name="/tb_tms9900/uut/tms9900_alu/alu_flag_zero" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">alu_flag_zero</obj_property>
+      <obj_property name="ObjectShortName">alu_flag_zero</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_tms9900/uut/tms9900_alu/alu_flag_parity_source" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">alu_flag_parity_source</obj_property>
+      <obj_property name="ObjectShortName">alu_flag_parity_source</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_tms9900/uut/tms9900_alu/alu_flag_parity" type="logic" db_ref_id="1">
+      <obj_property name="ElementShortName">alu_flag_parity</obj_property>
+      <obj_property name="ObjectShortName">alu_flag_parity</obj_property>
    </wvobject>
    <wvobject fp_name="group578" type="group">
       <obj_property name="label">some signals</obj_property>

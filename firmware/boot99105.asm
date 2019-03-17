@@ -158,6 +158,7 @@ SKIP_CLEAR:
 	  .printString HELLO
 	  .printCrLf
 	  
+;--------------------------------------------------------
 ; EP 2018-09-23 - run through a sequence of instructions with data and  write
 ;	results to RAM. This is to enable comparing the FPGA CPU and TMS9900.
 	  LI	R5,>2000			; point to result table
@@ -183,6 +184,25 @@ RUN_TEST
 	  JNE	-!	  
 	  CI	R7,TEST_ROUT_END
 	  JNE	RUN_TEST
+; Run a few more extra tests, to test more addressing modes
+        C   @TEST_DATA_SEQ,@TEST_DATA_SEQ+2
+	  STST	R3
+	  ANDI	R3,>FC00		
+	  MOV   R3,*R5+	  	
+        CB  @TEST_DATA_SEQ+8,@TEST_DATA_SEQ+10
+	  STST	R3
+	  ANDI	R3,>FC00		
+	  MOV   R3,*R5+	  	
+        ; Test indexed addressing mode
+        LI    R6,TEST_DATA_SEQ
+        MOV   @TEST_DATA_SEQ+4,@0(R5)
+        MOV   @TEST_DATA_SEQ+6,@2(R5)
+        S     @0(R5),@2(R5)
+	  STST	R3
+	  ANDI	R3,>FC00		
+	  MOV   R3,*R5+
+        INCT      R5    ; skip the result of S above	  	
+
 ; write end marker to memory
 	  LI	R3,>1234
 	  MOV	R3,*R5+
@@ -827,21 +847,27 @@ TEST_DATA_SEQ			; Parameters to pass two various instructions
 TEST_DEND
 
 TEST_ROUTINES
-	DATA	DO_ADD, DO_SUB
+	DATA	DO_ADD, DO_SUB    ; 0
 	DATA	DO_SOC, DO_SZC
 	DATA	DO_DIV, DO_MPY
-	DATA	DO_COMP, DO_NEG
-	DATA	DO_SRL
-	; continuing
-	DATA	DO_ANDI
-	DATA 	DO_CB, DO_SB
+	DATA	DO_COMP, DO_NEG   ; 6
+	DATA	DO_SRL, DO_ANDI
+	DATA 	DO_CB, DO_SB      ; 10
 	DATA	DO_AB, DO_XOR
 	DATA 	DO_INC, DO_DEC
-	DATA	DO_SLA, DO_SRA
+	DATA	DO_SLA, DO_SRA    ; 16
 	DATA	DO_SRC, DO_SRC2
-	DATA    DO_MOV, DO_MOVB
+	DATA  DO_MOV, DO_MOVB   ; 20
 	DATA	DO_SOCB, DO_SZCB
-	DATA	DO_ABS, DO_X
+	DATA	DO_ABS, DO_X      ; 24
+      DATA  DO_COC, DO_CZC    ; 26
+      DATA  DO_SWPB, DO_CI_ORI      
+      DATA  DO_CLR_SETO, DO_INCT_DECT ; 30-31
+      DATA  DO_STCR, DO_LDCR  ; 32-33
+      DATA  DO_STCR2, DO_LDCR2 ; 34
+      DATA  DO_STCR3, DO_LDCR3 ; 36
+      DATA  DO_STCR4, DO_LDCR4 ; 38
+      DATA  DO_INV
 	
 TEST_ROUT_END
 
@@ -870,8 +896,6 @@ DO_CB	CB	R1,R2
 DO_SB	SB	R1,R2
 	RT
 DO_AB	AB	R1,R2
-	RT
-DO_XOR	XOR	R1,R2
 	RT
 DO_INC	INC R2
 	RT
@@ -904,7 +928,64 @@ DO_X
 	LI  R3,>05C2	; INCT R2
 !	X	R3
 	RT		
-	
-
+DO_COC      COC R1,R2   
+      RT
+DO_CZC      CZC R1,R2
+      RT
+DO_XOR      XOR R1,R2   
+      RT
+DO_INV      INV R2
+      RT
+DO_CLR_SETO       ; Handle SETO and CLR in one go
+      CLR R1
+      STST  R3
+      ANDI  R3,>FC00    ; flags of CLR
+      SETO R2
+      RT
+DO_INCT_DECT
+      INCT R1
+      STST  R3
+      ANDI  R3,>FC00    ; flags of INCT
+      DECT R2
+      RT
+DO_SWPB     SWPB R2
+      RT
+DO_CI_ORI CI R1,0
+      STST  R3
+      ANDI  R3,>FC00    ; flags of INCT
+      ORI R2,0
+      RT
+DO_STCR     
+      LI R12,6    ; read from 6 kbd scan
+      STCR R2,3
+      RT
+DO_LDCR
+      LI R12,>24  ; write to >24 kbd row
+      LDCR R2,3
+      RT
+DO_STCR2
+      LI R12,6    ; read from 6 kbd scan
+      STCR R2,8
+      RT
+DO_LDCR2
+      LI R12,>24  ; write to >24 kbd row
+      LDCR R2,8
+      RT
+DO_STCR3
+      LI R12,6    ; read from 6 kbd scan
+      STCR R2,0
+      RT
+DO_LDCR3
+      LI R12,>24  ; write to >24 kbd row
+      LDCR R2,0
+      RT
+DO_STCR4
+      LI R12,6    ; read from 6 kbd scan
+      STCR R2,1
+      RT
+DO_LDCR4
+      LI R12,>24  ; write to >24 kbd row
+      LDCR R2,1
+      RT      
 SLAST  END  BOOT
 
