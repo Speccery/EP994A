@@ -53,6 +53,7 @@ module alu9900(
 
 	// ST1
 	assign alu_arithmetic_gt = compare ? (!arg2[15] && arg1[15]) || (arg1[15]==arg2[15] && alu_result[15])
+											  : (ope == abs) ? arg2[15] == 1'b0 && arg2 != 16'd0
 											  : alu_result[15]==1'b0 && alu_result != 16'd0;
 	// ST2
 	assign alu_flag_zero = !(|alu_result);

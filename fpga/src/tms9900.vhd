@@ -226,7 +226,7 @@ architecture Behavioral of tms9900 is
 	
 begin
 
-	addr_out <= addr;
+	addr_out <= addr(15 downto 1) & '0';
 
 	my_mult : multiplier port map (
 		clk => clk,
@@ -1044,6 +1044,7 @@ begin
 								ope <= alu_srl;
 							when "10" =>
 								ope <= alu_sla;
+								st(11) <= '0';	-- no overflow (yet)
 							when "11" =>
 								ope <= alu_src;
 							when others =>
@@ -1055,8 +1056,11 @@ begin
 						st(14) <= alu_arithmetic_gt;
 						st(13) <= alu_flag_zero;
 						st(12) <= alu_flag_carry;
-						if ir(9 downto 8) = "10" then
-							st(11) <= alu_flag_overflow;
+						-- For SLA, set alu_flag_overflow. We have to handle it in a special way
+						-- since during multiple bit shift we cannot rely on the last value of alu_flag_overflow.
+						-- st(11) has been cleared in the beginning of the shift, so we only need to set it.
+						if ir(9 downto 8) = "10" and alu_flag_overflow='1' then
+							st(11) <= '1';
 						end if;
 						dec_shift_count := True;
 						if shift_count = "00001" then 

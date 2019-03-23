@@ -36,6 +36,7 @@ shift
 memloader %PORT% 100008 cpu_reset_on.bin
 REM memloader %PORT% %CONSOLE_ROM% boot99105_0000.bin
 memloader %PORT% %CONSOLE_ROM% 994aROM.Bin
+memloader %PORT% %CONSOLE_ROM% debug\modded-rom2.bin
 memloader %PORT% %CONSOLE_GROM% 994aGROM-EP.Bin
 REM memloader %PORT% 100000 keyinit.bin
 REM  DSR for disk support
@@ -101,7 +102,7 @@ Exit /B
     memloader %PORT% %CART_ROM% ALPINERC.BIN
     memloader %PORT% %CART_GROM% ALPINERG.BIN
     goto end_case
-:MODULE_MUNCHMAN     REM  TI Munchman
+:MODULE_MUNCHMAN    REM  TI Munchman
     memloader %PORT% %CART_ROM% MUNCHMNC.BIN
     memloader %PORT% %CART_GROM% MUNCHMNG.BIN
     goto end_case
@@ -109,7 +110,14 @@ Exit /B
     memloader %PORT% %CART_ROM% ralph\dblreadC.rpk\dblreadC.bin
     memloader %PORT% %CART_GROM% ralph\dblreadC.rpk\dblreadG.bin
     goto end_case
-:MODULE_MINIMEM     REM Mini memory module
+:MODULE_MINIMEM     REM  Mini memory module
     memloader %PORT% %CART_ROM% roms\MiniMemC.Bin
     memloader %PORT% %CART_GROM% roms\MiniMemG.Bin
     goto end_case
+:MODULE_LBLA        REM  Stuart's LBLA Cartridge
+    memloader %PORT% %CART_ROM% roms\lblacart.Bin
+    goto end_case
+:MODULE_CPUTESTC    REM  PeteE's CPU test cartridge
+    memloader %PORT% %CART_ROM% roms\cputestc.Bin
+    goto end_case
+

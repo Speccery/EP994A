@@ -1177,7 +1177,9 @@ component xmemctrl is
 	cpu_reset_after_cache <= (not cache_reset_done) or cpu_reset;
 	-- Setting SWI(4) (switch number 4) disables cache.
 	-- note: address 0 has to be cacheable for instruction X to work.
-	cacheable <= (not SWI(4)) when 
+	cacheable <= 
+		'1' when cpu_addr = x"0000" else		-- forcibly enable caching for address 0.
+		(not SWI(4)) when 
 		   cpu_addr(15 downto 14) = "00" 	-- 0000..3FFF system ROM and low 8K of extension RAM
 		or cpu_addr(15 downto 13) = "011"	-- 6000..7FFF 8k cartridge space (paged)
 		or cpu_addr(15 downto 13) = "101"	-- A000..BFFF 8k extension RAM
