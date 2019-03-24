@@ -58,6 +58,7 @@ use UNISIM.VComponents.all;
 ----------------------------------------------------------------------------------
 entity ep994a is
 	generic (
+		cfg_grom_in_flash : boolean := true;	-- put GROM's into external SPI flash
 		cfg_spi_memloader : boolean := false;
 		cfg_hw_keyboard   : boolean := false	-- TI-99/4A original keyboard connected to system
 	);
@@ -183,7 +184,6 @@ architecture Behavioral of ep994a is
 	
 	-- GROM signals
 	signal grom_data_out		: std_logic_vector(7 downto 0);
-	signal grom_rd_inc		: std_logic;
 	signal grom_we				: std_logic;
 	signal grom_ram_addr		: std_logic_vector(19 downto 0);
 	signal grom_selected		: std_logic;
@@ -249,7 +249,8 @@ architecture Behavioral of ep994a is
 	signal RD_n   : std_logic;
 	signal cpu_rd : std_logic;
 	signal cpu_wr : std_logic;	
-	-- signal cpu_ready : std_logic;
+	signal cpu_ready : std_logic;
+	signal cpu_use_ready : std_logic;
 	signal cpu_iaq : std_logic;
 	signal cpu_as : std_logic;
 	
@@ -274,8 +275,9 @@ architecture Behavioral of ep994a is
 -------------------------------------------------------------------------------	
 -- Signals for SPI Flash controller
 -------------------------------------------------------------------------------	
-	signal clk8 : std_logic := '0';	-- about 8 MHz clock, i.e. 100MHz divided by 12 which is 8.3MHz
+	signal clk8 : std_logic := '0';	-- currently the Flash clock is 100MHz divided by 10
 	signal clk8_divider : integer range 0 to 15 := 0;
+	signal clk8_enable : std_logic;
 	signal romLoaded : std_logic;
 	signal flashDataOut : STD_LOGIC_VECTOR (15 downto 0);
 	signal flashAddrOut : STD_LOGIC_VECTOR (19 downto 0);
@@ -296,6 +298,12 @@ architecture Behavioral of ep994a is
 	signal flashRomActive  : std_logic;
 	signal flashRomReadRq  : std_logic;
 	signal flashRomWordReady : std_logic;
+	signal flashRomIdle    : std_logic;
+	
+	type flashReadState_type is (
+		idle, wait_busy, wait_read_done, wait_bus_idle
+		);	
+	signal flashReadPending : flashReadState_type := idle;
 	
 -------------------------------------------------------------------------------	
 -- Signals for LPC1343 SPI controller receiver
@@ -323,12 +331,14 @@ architecture Behavioral of ep994a is
          rd : OUT  std_logic;
          wr : OUT  std_logic;
 			-- cache support signals start
-			cache_hit 	: in std_logic;		
+			cache_hit 	: in  std_logic;		
 			rd_now		: out std_logic;
 			wr_force		: out std_logic;
 			-- cache support singals end
-         iaq 			: out  std_logic;
-         as 			: out  std_logic;
+			ready			: out std_logic;
+			use_ready   : in  STD_LOGIC;
+         iaq 			: out std_logic;
+         as 			: out std_logic;
 --			test_out : OUT  std_logic_vector(15 downto 0);
 --			alu_debug_out : OUT  std_logic_vector(15 downto 0);
 --			alu_debug_oper : out STD_LOGIC_VECTOR(3 downto 0);
@@ -446,11 +456,13 @@ component xmemctrl is
 -------------------------------------------------------------------------------
 -- My module to access flash ROM
 	component flashword is port (
-		clk8 			: in STD_LOGIC;
+		clk         : in STD_LOGIC;
+		clk8_enable : in STD_LOGIC;
 		n_reset 		: in STD_LOGIC;
 		memoryAddr  : in std_logic_vector(23 downto 0);
 		readRq		: in std_logic;
 		wordReady_o : out std_logic;
+		idle_o      : out std_logic;	-- need to wait for idle_o to go zero (non-idle) after issuing request to read
 		dataOut 	   : out STD_LOGIC_VECTOR(15 downto 0);
 		loading 		: out STD_LOGIC;
 		spi_sclk 	: out STD_LOGIC;
@@ -499,6 +511,8 @@ component xmemctrl is
 	signal rd_now			 : std_logic;
 	signal wr_force		: std_logic;
 	signal cache_wr		: std_logic;
+	
+--	signal cfg_grom_in_flash : boolean := false;	-- will be moved to be a generic
 	
 	begin
 -------------------------------------------------------------------------------
@@ -669,6 +683,9 @@ component xmemctrl is
 				alatch_counter <= (others => '0');
 				cpu_single_step <= x"00";
 				waits <= (others => '0');
+				flashRomReadRq <= '0';
+				flashReadPending <= idle;
+				cpu_use_ready <= '0';
 			else
 				-- processing of normal clocks here. We run at 100MHz.
 				
@@ -682,7 +699,7 @@ component xmemctrl is
 					if cpu_as='1' then
 						-- setup number of wait states depending on address accessed
 						case cpu_addr(15 downto 12) is
-							when x"0" => waits <= x"60"; -- ROM an scratchpad 640 ns
+							when x"0" => waits <= x"60"; -- ROM and scratchpad 640 ns
 							when x"1" => waits <= x"60";
 							when x"8" => waits <= x"60"; -- scratchpad and I/O
 							when others =>
@@ -695,6 +712,46 @@ component xmemctrl is
 					waits <= x"08";
 				else
 					waits <= (others => '0');
+				end if;
+				
+				-----------------------------------------------
+				-- SPI FLASH ROM SUPPORT for direct CPU reading
+				-----------------------------------------------
+				if cfg_grom_in_flash then
+					if cpu_as='1' and cpu_addr(15 downto 8)=x"98" then 
+						cpu_use_ready <= '1';	-- this memory cycle is terminated with cpu_ready signal
+					end if;
+					-- If SPI flash is used for GROM, terminate the memory bus cycle when we are ready.
+					-- The bus cycle is also terminated with "waits" counter.
+					-- For now SPI flash is the only device using cpu_ready.
+					cpu_ready <= '0';
+					case flashReadPending is 
+						when idle =>
+							if grom_rd='1' and flashRomIdle='1' then
+								-- Start flash read cycle as we have GROM read request and Flash is ready to go.
+								flashRomReadRq <= '1';	
+								flashReadPending <= wait_busy;
+								flashRomAddr <= x"18" & grom_ram_addr(15 downto 1) & '0';
+							end if;
+						when wait_busy =>
+							-- wait for SPI controller to stop being idle.
+							if flashRomIdle='0' then
+								-- Flash ROM controller has registered the read request. Remove the request.
+								flashRomReadRq <= '0';
+								flashReadPending <= wait_read_done;
+							end if;
+						when wait_read_done =>
+							if flashRomWordReady='1' then
+								cpu_ready <= '1'; -- Release CPU
+								cpu_use_ready <= '0';
+								flashReadPending <= wait_bus_idle;
+							end if;
+						when wait_bus_idle =>
+							if cpu_rd='0' then 
+								-- CPU has finished (any) read cycle. Reset our state variable.
+								flashReadPending <= idle;	
+							end if;
+					end case;
 				end if;
 				
 				-- If SWI(0) is set then automatically bring CPU out of reset once FPGA has moved
@@ -711,7 +768,6 @@ component xmemctrl is
 						cpu_reset_ctrl <= x"FF";
 					end if;
 				end if;
-				
 				
 				---------------------------------------------------------
 				-- SRAM map (1 mega byte, 0..FFFFF, 20 bit address space)
@@ -745,7 +801,9 @@ component xmemctrl is
 				-- Drive SRAM addresses outputs synchronously 
 				if cpu_holda = '0' then
 					if cpu_addr(15 downto 8) = x"98" and cpu_addr(1)='0' then
-						sram_addr_bus <= x"8" & grom_ram_addr(15 downto 1);	-- 0x80000 GROM
+						if not cfg_grom_in_flash then	
+							sram_addr_bus <= x"8" & grom_ram_addr(15 downto 1);	-- 0x80000 GROM
+						end if;
 					elsif cartridge_cs='1' and sams_regs(5)='0' then
 						-- Handle paging of module port at 0x6000 unless sams_regs(5) is set (1E0A)
 						sram_addr_bus <= '0' & basic_rom_bank & cpu_addr(12 downto 1);	-- mapped to 0x00000..0x7FFFF
@@ -1040,8 +1098,10 @@ component xmemctrl is
 		vdp_data_out         			when sams_regs(6)='0' and cpu_addr(15 downto 10) = "100010" else	-- 10001000..10001011 (8800..8BFF)
 		grom_data_out & x"00" 			when sams_regs(6)='0' and cpu_addr(15 downto 8) = x"98" and cpu_addr(1)='1' else	-- GROM address read
 		pager_data_out(7 downto 0) & pager_data_out(7 downto 0) when paging_registers = '1' else	-- replicate pager values on both hi and lo bytes
-		sram_16bit_read_bus(15 downto 8) & x"00" when sams_regs(6)='0' and cpu_addr(15 downto 8) = x"98" and cpu_addr(1)='0' and grom_ram_addr(0)='0' and grom_selected='1' else
-		sram_16bit_read_bus(7 downto 0)  & x"00" when sams_regs(6)='0' and cpu_addr(15 downto 8) = x"98" and cpu_addr(1)='0' and grom_ram_addr(0)='1' and grom_selected='1' else
+		sram_16bit_read_bus(15 downto 8) & x"00" when not cfg_grom_in_flash and sams_regs(6)='0' and cpu_addr(15 downto 8) = x"98" and cpu_addr(1)='0' and grom_ram_addr(0)='0' and grom_selected='1' else
+		sram_16bit_read_bus(7 downto 0)  & x"00" when not cfg_grom_in_flash and sams_regs(6)='0' and cpu_addr(15 downto 8) = x"98" and cpu_addr(1)='0' and grom_ram_addr(0)='1' and grom_selected='1' else
+		flashRomReadBus(15 downto 8)     & x"00" when     cfg_grom_in_flash and sams_regs(6)='0' and cpu_addr(15 downto 8) = x"98" and cpu_addr(1)='0' and grom_ram_addr(0)='0' and grom_selected='1' else
+		flashRomReadBus( 7 downto 0)     & x"00" when     cfg_grom_in_flash and sams_regs(6)='0' and cpu_addr(15 downto 8) = x"98" and cpu_addr(1)='0' and grom_ram_addr(0)='1' and grom_selected='1' else
 	   x"FF00"                       when sams_regs(6)='0' and cpu_addr(15 downto 8) = x"98" and cpu_addr(1)='0' and grom_selected='0' else
 		-- CRU space signal reads
 		cru_read_bit & "000" & x"000"	when MEM_n='1' else
@@ -1080,7 +1140,7 @@ component xmemctrl is
 	VGA_VSYNC <= vga_vsync_int;
 	VGA_HSYNC <= vga_hsync_int;
 	
-	-- GROM implementation - GROM's are mapped to external RAM
+	-- GROM implementation - GROM's are mapped to external RAM or serial flash memory
 	extbasgrom : entity work.gromext port map (
 			clk 		=> clk,
 			din 		=> data_from_cpu(15 downto 8),
@@ -1115,6 +1175,11 @@ component xmemctrl is
 	-- memory paging unit implementation
 	paging_regs_visible 	<= sams_regs(0);			-- 1E00 in CRU space
 	paging_enable 			<= sams_regs(1);			-- 1E02 in CRU space
+	
+	-- When debugging, this is how to set sams_regs(7):
+	-- 	LI R12,>1E00
+	-- 	SBO 7
+	-- cfg_grom_in_flash 	<= sams_regs(7) = '1';			-- 1E0E in CRU space, used for debugging the flash GROM functionality
 	
 	-- the pager registers can be accessed at >4000 to >5FFF when paging_regs_visible is set
 	paging_registers <= '1' when paging_regs_visible = '1' and (cpu_rd='1' or cpu_wr='1') and cpu_addr(15 downto 13) = "010" else '0';
@@ -1152,7 +1217,8 @@ component xmemctrl is
 			 rd_now => rd_now,
 			 wr_force => wr_force,
 			 cache_hit => cache_hit,
-          -- ready => cpu_ready,
+          ready => cpu_ready,
+			 use_ready => cpu_use_ready,
           iaq => cpu_iaq,
           as => cpu_as,
 --			 test_out => test_out,
@@ -1225,8 +1291,14 @@ component xmemctrl is
 		if rising_edge(clk) then
 			clk8_divider <= clk8_divider + 1;
 			if clk8_divider = 5 then
-				clk8 <= not clk8;
+				clk8 <= '1';
+			end if;
+			
+			clk8_enable <= '0';
+			if clk8_divider = 10 then
 				clk8_divider <= 0;
+				clk8 <= '0';
+				clk8_enable <= '1';	-- high once every 10 clocks
 			end if;
 		end if;
 	end process;
@@ -1234,7 +1306,7 @@ component xmemctrl is
    FLASH_WP <= '1';
 	FLASH_HOLD <= '1';
 	serial_flash_autoloader : flash PORT MAP (
-				clk8 			=> clk8,
+				clk8        => clk8,
 				n_reset 		=> cold_reset_n,
 				bad_load 	=> '0',
 				load_disk 	=> '0',
@@ -1254,10 +1326,12 @@ component xmemctrl is
 	
 			
 	flash_rom : flashword PORT MAP (
-				clk8 			=> clk8,
+				clk 			=> clk,
+				clk8_enable => clk8_enable,
 				n_reset 		=> cold_reset_n,
 				readRq      => flashRomReadRq,
 				wordReady_o => flashRomWordReady,
+				idle_o      => flashRomIdle,	
 				dataOut 		=> flashRomReadBus,
 				memoryAddr 	=> flashRomAddr,
 				loading 		=> flashRomActive,

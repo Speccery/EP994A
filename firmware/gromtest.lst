@@ -1,0 +1,85 @@
+XAS99 CROSS-ASSEMBLER   VERSION 1.7.0
+**** **** ****     > gromtest.asm
+0001               * --- quick test program to checkout GROM
+0002               * --- EP 2019-03-24
+0003               
+0004               * --- first execution returned R3..R6: 00,26,0D,00
+0005                   AORG >F000  ; default address of LBLA cartridge execution
+0006 F000 020C  20     LI R12,>1E00
+     F002 1E00 
+0007 F004 1000  14     NOP
+0008 F006 0300  24     LIMI 0
+     F008 0000 
+0009 F00A 1D07  20     SBO >7   ; enable new GROM thing
+0010 F00C 0201  20     LI R1,>9C02
+     F00E 9C02 
+0011 F010 04C0  14     CLR R0
+0012 F012 06A0  32     BL  @GA
+     F014 F076 
+0013 F016 0202  20     LI R2,>9800
+     F018 9800 
+0014               ;;    MOVB *R2,R3
+0015               ;;    B @DONE
+0016 F01A 06A0  32     BL  @RDG
+     F01C F080 
+0017 F01E C103  18     MOV R3,R4   ; first results to R4
+0018 F020 06A0  32     BL  @RDG
+     F022 F080 
+0019 F024 C143  18     MOV R3,R5
+0020 F026 06A0  32     BL  @RDG
+     F028 F080 
+0021 F02A C183  18     MOV R3,R6
+0022 F02C 06A0  32     BL  @RDG
+     F02E F080 
+0023 F030 C1C3  18     MOV R3,R7
+0024 F032 06A0  32     BL  @RDG
+     F034 F080 
+0025 F036 C203  18     MOV R3,R8
+0026               DONE:
+0027               ;;    SBZ >7       ; Default GROM access mode
+0028 F038 0300  24     LIMI 2
+     F03A 0002 
+0029               
+0030 F03C C304  18     MOV R4,R12
+0031 F03E 0420  54     BLWP @>629A
+     F040 629A 
+0032 F042 C305  18     MOV R5,R12
+0033 F044 0420  54     BLWP @>629A
+     F046 629A 
+0034 F048 C306  18     MOV R6,R12
+0035 F04A 0420  54     BLWP @>629A
+     F04C 629A 
+0036 F04E C307  18     MOV R7,R12
+0037 F050 0420  54     BLWP @>629A
+     F052 629A 
+0038 F054 C308  18     MOV R8,R12
+0039 F056 0420  54     BLWP @>629A
+     F058 629A 
+0040 F05A 020C  20     LI R12,>2000
+     F05C 2000 
+0041 F05E 0420  54     BLWP @>629E     ; Print space, high byte of R12
+     F060 629E 
+0042 F062 C320  34     MOV @>8480,R12  ; Read last serial flash address
+     F064 8480 
+0043 F066 0420  54     BLWP @>629A
+     F068 629A 
+0044 F06A 020C  20     LI R12,>2000
+     F06C 2000 
+0045 F06E 0420  54     BLWP @>629E     ; Print space, high byte of R12
+     F070 629E 
+0046 F072 0460  28     B @>6E9E    ; Return to TI BUG
+     F074 6E9E 
+0047               
+0048 F076 D440  30 GA: MOVB R0,*R1
+0049 F078 06C0  14     SWPB R0
+0050 F07A D440  30     MOVB R0,*R1
+0051 F07C 06C0  14     SWPB R0
+0052 F07E 045B  20     RT
+0053               
+0054 F080 D0D2  26 RDG: MOVB *R2,R3    ; Read from GROM 16 bits
+0055 F082 06C3  14     SWPB R3
+0056 F084 D0D2  26     MOVB *R2,R3
+0057 F086 06C3  14     SWPB R3
+0058 F088 045B  20     RT
+0059               
+0060               

@@ -43,8 +43,9 @@ entity tms9900 is Port (
 	wr 		: out STD_LOGIC;		-- working write with Pepino 60ns
 	wr_force : out STD_LOGIC;		-- force a write to the cache only (X instruction)
 	rd_now	: out STD_LOGIC;		-- high on the cycle CPU will latch data
-	cache_hit : in STD_LOGIC;		-- when high, terminate read cycle early
-	-- ready 	: in  STD_LOGIC;		-- NOT USED: memory read input, a high terminates a memory cycle 
+	cache_hit: in  STD_LOGIC;		-- when high, terminate read cycle early
+	use_ready: in  STD_LOGIC;		-- when high, memory cycle is terminated with ready signal, not waits timer.
+	ready 	: in  STD_LOGIC;		-- memory read input, a high terminates a memory cycle 
 	iaq 		: out  STD_LOGIC;
 	as 		: out  STD_LOGIC;		-- address strobe, when high new address is valid, starts a memory cycle
 --	test_out : out STD_LOGIC_VECTOR (15 downto 0);
@@ -372,7 +373,7 @@ begin
 						as <= '0';
 					when do_read1 => 
 						if cache_hit = '1' then
-							delay_count <= "00000000";
+							delay_count <= (others => '0');
 							cpu_state <= cpu_state_next;
 							rd <= '0';
 							rd_dat <= data_in;
@@ -381,7 +382,8 @@ begin
 								read_to_arg2 <= False;
 							end if;
 						else
-							if delay_count = "00000000" then 
+							if (use_ready='0' and delay_count = "00000000") or ready='1' then 
+								delay_count <= (others => '0');
 								cpu_state <= do_read2;
 							end if;
 						end if;
@@ -415,7 +417,6 @@ begin
 						cpu_state <= do_write1; 
 						as <= '0';
 						if waits(7 downto 1) = "0000000" then
-							-- delay_count <= "00000010"; -- minimum value
 							delay_count <= "00000000"; -- minimum value
 						else
 							delay_count <= waits;
@@ -423,7 +424,8 @@ begin
 						debug_wr_data <= wr_dat;
 						debug_wr_addr <= addr;
 					when do_write1 => 
-						if delay_count = "00000000" then
+						if (use_ready='0' and delay_count = "00000000") or ready='1' then
+							delay_count <= (others => '0');
 							cpu_state <= do_write2;
 						end if;
 					when do_write2 => cpu_state <= do_write3;
@@ -1382,6 +1384,13 @@ begin
 							end if;
 						end if;
 					when do_stcr6 =>
+						-- STCR set flags, as in the Mister port of my code by greyrogue.
+						st(15 downto 12) <= "0010";
+						if reg_stcr /= x"0000" then
+							st(15) <= '1';
+							st(13) <= '0';
+							st(14) <= not reg_stcr(15);
+						end if;						
 						-- Writeback the result in reg_stcr. 
 						-- For byte operation support, we need to read the destination before writing
 						-- to it. reg_t2 has the destination address.

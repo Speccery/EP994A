@@ -37,7 +37,10 @@ memloader %PORT% 100008 cpu_reset_on.bin
 REM memloader %PORT% %CONSOLE_ROM% boot99105_0000.bin
 memloader %PORT% %CONSOLE_ROM% 994aROM.Bin
 memloader %PORT% %CONSOLE_ROM% debug\modded-rom2.bin
-memloader %PORT% %CONSOLE_GROM% 994aGROM-EP.Bin
+rem GROMs are now accessed directly from the Flash chip.
+REM BUGBUG below commented out since we now read GROMS from SPI Flash
+rem memloader %PORT% %CONSOLE_GROM% 994aGROM-EP.Bin
+
 REM memloader %PORT% 100000 keyinit.bin
 REM  DSR for disk support
 memloader %PORT% %DSR_ROM% diskdsr_4000.bin
@@ -55,7 +58,8 @@ Exit /B
 :MODULE_XB          REM  Extended Basic
     memloader %PORT% %CART_ROM% TIExtC.Bin
     memloader %PORT% %CART_ROM2% TIExtD.Bin
-    memloader %PORT% %CART_GROM% TIExtG.Bin
+    REM BUGBUG below commented out since we now read GROMS from SPI Flash
+    REM memloader %PORT% %CART_GROM% TIExtG.Bin
     goto end_case
 :end_case
     VER > NUL   # Reset error case

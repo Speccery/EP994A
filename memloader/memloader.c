@@ -28,6 +28,7 @@
 // For now COM port is stupidly hardcoded, but then again changes are one "make" command away!
 char serial_port[10] = "COM4";
 char opt_verbose = 0;
+char opt_cursor_joystick_only = 0;
 
 HANDLE hCom = INVALID_HANDLE_VALUE;
 int bit_rate = 230400;
@@ -628,22 +629,45 @@ int cmd_keys()
   OpenSerialPort();
   ClearSerialPortBuffers();
   while (1) {
+    // Keyboard column 0:  7  6  5  4  3  2  1  0
+    //                        |     |     |     =
+    //                        |     |     |  SPACE
+    //                        |     |     ENTER
+    //                        |     |  N.C.
+    //                        |     FCTN
+    //                        |  SHIFT
+    //                        CTRL
+    //                     N.C.
+    
     // VK_LEFT, VK_SHIFT
     memset(keybuf, 0xff, sizeof(keybuf));
     if (GetAsyncKeyState(VK_LSHIFT) & 0x8000) {
-      keybuf[0] &= ~0x20;
+      keybuf[0] &= ~0x20; // SHIFT
     }
     if (GetAsyncKeyState(VK_RSHIFT) & 0x8000) {
-      keybuf[0] &= ~0x20;
+      keybuf[0] &= ~0x20; // SHIFT
     }
 
-    if (GetAsyncKeyState(VK_LCONTROL) & 0x8000) {
-      keybuf[0] &= ~0x40;
+    if (opt_cursor_joystick_only) {
+      if ((GetAsyncKeyState(VK_LCONTROL) & 0x8000) || (GetAsyncKeyState(VK_RCONTROL) & 0x8000)) {
+        keybuf[6] &= ~1;       // Joystick 1 fire
+        printf("FIRE");
+      }
     }
-    if ((GetAsyncKeyState(VK_RCONTROL) & 0x8000) || (GetAsyncKeyState(VK_RMENU) & 0x8000)) {
+    else {
+      // Joystick mode not enabled
+      if (GetAsyncKeyState(VK_LCONTROL) & 0x8000) {
+        keybuf[0] &= ~0x40;   // CTRL
+      }
+      if (GetAsyncKeyState(VK_RCONTROL) & 0x8000) {
+        keybuf[0] &= ~0x10;   // FCTN
+      }
+    }
+    if ((GetAsyncKeyState(VK_RMENU) & 0x8000)) {
       // printf("FCTN "); // VK_RMENU is actually right alt (alt gr on scandinavian keyboard)
       keybuf[0] &= ~0x10;   // FCTN
     }
+
     if (GetAsyncKeyState(VK_RETURN) & 0x8000) {
       keybuf[0] &= ~0x04;
     }
@@ -706,15 +730,24 @@ int cmd_keys()
     if (GetAsyncKeyState('Y') & 0x8000) { keybuf[4] &= ~0x04; }
     if (GetAsyncKeyState('Z') & 0x8000) { keybuf[5] &= ~0x80; }
 
-    if ((GetAsyncKeyState(VK_LEFT) & 0x8000) || (GetAsyncKeyState(VK_BACK) & 0x8000)) {
+    if (GetAsyncKeyState(VK_BACK) & 0x8000) {
       // VK_BACK = backspace
       keybuf[0] &= ~0x10;   // FCTN
       keybuf[1] &= ~0x20; // S
+    }
+
+    if (GetAsyncKeyState(VK_LEFT) & 0x8000) {
+      if (!opt_cursor_joystick_only) {
+        keybuf[0] &= ~0x10;   // FCTN
+        keybuf[1] &= ~0x20; // S
+      }
       keybuf[6] &= ~2;      // Joystick 1 left
     }
     if (GetAsyncKeyState(VK_RIGHT) & 0x8000) {
-      keybuf[0] &= ~0x10;   // FCTN
-      keybuf[2] &= ~0x20;   // D
+      if (!opt_cursor_joystick_only) {
+        keybuf[0] &= ~0x10;   // FCTN
+        keybuf[2] &= ~0x20;   // D
+      }
       keybuf[6] &= ~4;       // Joystick 1 right
     }
     if (GetAsyncKeyState(VK_UP) & 0x8000) {
@@ -903,7 +936,7 @@ int cmd_write(int k, int argc, char *argv[]) {
   */
   f = fopen(argv[k+1], "rb"); 
   if (f == NULL) {
-    printf("Unable to open source file: %s\n", argv[2]);
+    printf("Unable to open source file: %s\n", argv[k + 1]);
     return 10;
   }
   OpenSerialPort();
@@ -1126,6 +1159,7 @@ int main(int argc, char *argv[])
     printf("Options (opts) are:\n");
     printf("\t-v verbose mode\n");
     printf("\t-1 Set com port 1 (number can be between 1 and 9)\n");
+    printf("\t-j Use arrow keys only as joystick keys. Left and right controls are fire.\n");
     return 0;
   }
 
@@ -1139,6 +1173,8 @@ int main(int argc, char *argv[])
       case 'v':
         opt_verbose = 1;
         break;
+      case 'j':
+        opt_cursor_joystick_only = 1;
       case 'r':
         cmd = c_read;
         break;

@@ -36,11 +36,13 @@
 ***************************************************************************************************/
 
 module flashword (
-  input clk8,
+  input clk,
+  input clk8_enable,
   input n_reset,
   input [23:0] memoryAddr,
   input readRq,
   output wordReady_o,
+  output reg idle_o,		// idle_o is high when the system is idle
   output [15:0] dataOut,
   output reg loading,
   output reg spi_sclk,
@@ -62,7 +64,7 @@ module flashword (
   reg wordready, next_wordready;
   
 
-  always @(posedge clk8 or negedge n_reset) begin
+  always @(posedge clk or negedge n_reset) begin
     if (!n_reset) begin
       spi_state <= 3'd0;
       loading <= 1'b0;
@@ -75,17 +77,20 @@ module flashword (
       addr <= 23'd0;
       wordready <= 1'b0;
     end else begin
-      spi_state <= next_spi_state;
-      loading <= next_loading;
-      spi_sclk <= next_spi_sclk;
-      spi_ss <= next_spi_ss;
-      dout <= next_dout;
-      bitcnt <= next_bitcnt;
-      din <= next_din;
-      word <= next_word;
-      addr <= next_addr;
-      wordready <= next_wordready;
-    end
+		if (clk8_enable == 1'b1) begin 
+			spi_state <= next_spi_state;
+			loading <= next_loading;
+			spi_sclk <= next_spi_sclk;
+			spi_ss <= next_spi_ss;
+			dout <= next_dout;
+			bitcnt <= next_bitcnt;
+			din <= next_din;
+			word <= next_word;
+			addr <= next_addr;
+			wordready <= next_wordready;
+			idle_o = (spi_state == 3'd0) ? 1'b1 : 1'b0;
+		end // if (clk8_enable
+    end // if (!n_reset)
   end
 
   always @ (*) begin
@@ -172,5 +177,5 @@ module flashword (
   assign spi_mosi = dout[31];
   assign wordReady_o = wordready;
   assign dataOut = word;
-
+  
 endmodule
