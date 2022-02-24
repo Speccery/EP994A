@@ -82,6 +82,7 @@ architecture Behavioral of tms9918 is
 	signal Vsync		: std_logic;
 	signal VGARow		: std_logic_vector(9 downto 0);
 	signal VGACol		: std_logic_vector(9 downto 0);
+	signal VGACol2		: std_logic_vector(9 downto 0);
 	signal vga_shift  : std_logic_vector(7 downto 0);
 	signal video_on	: std_logic;	
 	signal clk12_5MHz	: std_logic;		-- 12.5 MHz 50/50 clock
@@ -96,6 +97,8 @@ architecture Behavioral of tms9918 is
 	signal line_buf_porta_out : std_logic_vector(7 downto 0); -- line buffer render side read port. needed for sprite collisions.
 	signal line_buf_bit8_out: std_logic_vector(0 to 0);
 	signal line_buf_bit8_in : std_logic_vector(0 to 0);
+	signal sig_coinc_pending : std_logic;
+	signal sig_5th_pending  : std_logic;
 	signal vga_bank			: std_logic;
 	signal vga_line_buf_addr : std_logic_vector(8 downto 0);
 	signal vga_line_buf_wr	: std_logic;	-- write strobe
@@ -241,6 +244,8 @@ begin
 			bump_rq <= '0';
 			refresh_state <= wait_frame;
 			stat_reg <= x"00";
+			sig_coinc_pending <= '0';
+			sig_5th_pending <= '0';
 		elsif rising_edge(clk) then
 		
 			-- Divide 100MHz clk by 4 to issue pulses in clk25Mhz. 
@@ -317,6 +322,10 @@ begin
 			-- VGA processing
 			vga_hsync 	<= Hsync;
 			vga_vsync 	<= Vsync;
+			
+			-- Apply a shift to VGACol
+			-- VGACol <= std_logic_vector(to_unsigned(to_integer(unsigned(VGACol2)) - 32, VGACol'length));
+			VGACol <= VGACol2;
 	
 			-- read from linebuffer
 			if clk25MHz = '1' then
@@ -520,7 +529,7 @@ begin
 							active_sprites <= std_logic_vector(to_unsigned(to_integer(unsigned(active_sprites)) + 1, active_sprites'length));
 							if active_sprites = "00" & x"4" then
 								-- this would be the fifth sprite
-								stat_reg(6) <= '1';
+								sig_5th_pending <= '1';
 								stat_reg(4 downto 0) <= sprite_counter;
 							end if;
 						else
@@ -579,7 +588,7 @@ begin
 						-- of transparent sprites we just write the same data back that was already in the line buffer.
 						-- Detect sprite overlap: if this pixel already has a sprite pixel write, we have overlap.
 						if line_buf_bit8_out(0)='1' then
-							stat_reg(5) <= '1';	-- set COINCinde flag (also set for transparent sprites)
+							sig_coinc_pending <= '1'; 	-- collision detected, flag this at the end of scanline
 						end if;
 						if pixel_write_pending = '1' then
 							vga_line_buf_in <= palette_lookup(sprite_color(3 downto 0));	-- sprite data
@@ -632,6 +641,17 @@ begin
 								refresh_state <= wait_frame;
 								stat_reg(7) <= '1';			-- make VDP interrupt pending
 							end if;
+							
+							if sig_coinc_pending = '1' then
+								stat_reg(5) <= '1';	-- set COINCinde flag (also set for transparent sprites)
+								sig_coinc_pending <= '0';
+							end if;
+							
+							if sig_5th_pending = '1' then
+								stat_reg(6) <= '1';
+								sig_5th_pending <= '0';
+							end if;
+							
 						end if;
 				end case;
 			end if;
@@ -697,7 +717,7 @@ begin
 		horiz_sync_out => Hsync,
 		vert_sync_out  => Vsync,
 		pixel_row      => VGARow,
-		pixel_column   => VGACol
+		pixel_column   => VGACol2
 		);		
 
 end Behavioral;
