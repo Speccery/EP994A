@@ -324,8 +324,7 @@ begin
 			vga_vsync 	<= Vsync;
 			
 			-- Apply a shift to VGACol
-			-- VGACol <= std_logic_vector(to_unsigned(to_integer(unsigned(VGACol2)) - 32, VGACol'length));
-			VGACol <= VGACol2;
+			VGACol <= std_logic_vector(to_unsigned(to_integer(unsigned(VGACol2)) - 32, VGACol'length));
 	
 			-- read from linebuffer
 			if clk25MHz = '1' then

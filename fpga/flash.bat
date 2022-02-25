@@ -1,0 +1,1 @@
+..\..\..\..\Electronics\Pipistrello\fpgaprog\fpgaprog.exe -v -f work\ep994a.bit -b bscan_spi_lx9_ftg256.bit -sa -r
