@@ -58,7 +58,7 @@ use UNISIM.VComponents.all;
 ----------------------------------------------------------------------------------
 entity ep994a is
 	generic (
-		cfg_grom_in_flash : boolean := true;	-- put GROM's into external SPI flash
+		cfg_grom_in_flash : boolean := false;	-- put GROM's into external SPI flash
 		cfg_spi_memloader : boolean := false;
 		cfg_hw_keyboard   : boolean := false	-- TI-99/4A original keyboard connected to system
 	);

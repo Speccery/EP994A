@@ -1,3 +1,12 @@
 t/
 test-versions/
 traces/
+package0
+fpga/src/dac.vhd.bak
+fpga/src/ep994a.vhd.bak
+fpga/src/tms9900.vhd.bak
+firmware/debug
+
+docs
+.DS_Store
+firmware/macrorom copy.bin

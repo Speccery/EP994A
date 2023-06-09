@@ -39,7 +39,8 @@ memloader %PORT% %CONSOLE_ROM% 994aROM.Bin
 memloader %PORT% %CONSOLE_ROM% debug\modded-rom2.bin
 rem GROMs are now accessed directly from the Flash chip.
 REM BUGBUG below commented out since we now read GROMS from SPI Flash
-rem memloader %PORT% %CONSOLE_GROM% 994aGROM-EP.Bin
+echo Loading GROM
+memloader %PORT% %CONSOLE_GROM% 994aGROM-EP.Bin
 
 REM memloader %PORT% 100000 keyinit.bin
 REM  DSR for disk support
@@ -123,5 +124,8 @@ Exit /B
     goto end_case
 :MODULE_CPUTESTC    REM  PeteE's CPU test cartridge
     memloader %PORT% %CART_ROM% roms\cputestc.Bin
+    goto end_case
+:MODULE_STRANGECART REM  Erik's strangecart test ROM
+    memloader %PORT% %CART_ROM% strangecar.bin
     goto end_case
 
